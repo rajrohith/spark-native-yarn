@@ -4,7 +4,9 @@ import scala.reflect.ClassTag
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.OneToOneDependency
-
+/**
+ * 
+ */
 trait Tez extends SparkContext {
   
   /**
@@ -22,8 +24,10 @@ trait Tez extends SparkContext {
   }
 
   /**
-   * 
+   * Will flatten Spark RDD dependencies.
    */
+  // TODO Figure out the scenarios where there is more 
+  // then one dependency in rdd.dependencies
   def flatten(rdd: RDD[_], l:List[_] = Nil): List[_] = {
     if (rdd.dependencies.size > 0) {
       flatten(rdd.dependencies(0).rdd, rdd :: l)
