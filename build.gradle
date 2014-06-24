@@ -1,0 +1,53 @@
+description = 'Tez port for Spark'
+
+group = 'com.hortonworks'
+
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'java'
+apply plugin:'scala'
+
+sourceCompatibility=1.6
+targetCompatibility=1.6
+
+junitVersion = '4.8.2'
+log4jVersion = '1.2.12'
+slf4jVersion = '1.7.2'
+hadoopVersion = '2.4.0'
+scalaVersion = '2.10.4'
+sparkVersion = '1.1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+	mavenLocal();
+	maven { url 'http://repository.apache.org/snapshots/' }
+	 
+}
+
+dependencies {
+	
+	compile "org.scala-lang:scala-library:$scalaVersion"
+
+	compile "org.scala-lang:scala-compiler:$scalaVersion"
+	compile "org.scala-lang:scala-library:$scalaVersion"
+	compile "org.apache.spark:spark-core_2.10:$sparkVersion"
+	
+	testCompile "junit:junit-dep:$junitVersion"
+}
+
+compileScala {
+	compileScala.scalaCompileOptions.additionalParameters= ['-feature']
+	compileScala.scalaCompileOptions.additionalParameters= ['-language:existentials']
+}
+
+compileTestScala {
+	compileTestScala.scalaCompileOptions.additionalParameters= ['-feature']
+	compileTestScala.scalaCompileOptions.additionalParameters= ['-language:reflectiveCalls']
+}
+
+
+
+task wrapper(type: Wrapper) {
+    description = 'Generates gradlew[.bat] scripts'
+}
+
