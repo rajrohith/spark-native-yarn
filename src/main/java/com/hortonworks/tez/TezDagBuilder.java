@@ -1,9 +1,16 @@
 package com.hortonworks.tez;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -35,6 +42,7 @@ import org.apache.tez.mapreduce.input.MRInput;
 import org.apache.tez.mapreduce.output.MROutput;
 import org.apache.tez.runtime.library.input.ShuffledMergedInput;
 import org.apache.tez.runtime.library.output.OnFileSortedOutput;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
@@ -43,18 +51,21 @@ import com.hortonworks.tez.template.InputProcessor;
 import com.hortonworks.tez.utils.YarnUtils;
 
 public class TezDagBuilder {
+	
+	private final Log logger = LogFactory.getLog(TezDagBuilder.class);
 
 	private final String inputPath;
 	
 	private final String outputPath;
-	
-//	private final YarnConfiguration configuration;
 	
 	private final TezContext tezContext;
 	
 	private Map<String, LocalResource> localResources;
 	
 	private DAG dag;
+
+	
+	private String[] classpathExclusions;
 	
 	public TezDagBuilder(TezContext tezContext, String inputPath, String outputPath) {
 //		Assert.hasText(tezContext.get, "'applicationName' must not be null or empty");
@@ -72,14 +83,88 @@ public class TezDagBuilder {
 		this.tezContext.getTezConfiguration().set(FileInputFormat.INPUT_DIR, this.inputPath);
 		this.tezContext.getTezConfiguration().set(FileOutputFormat.OUTDIR, this.outputPath);
 		
+		this.initClasspathExclusions();
 	}
 	
+	/**
+	 * 
+	 */
+	private void initClasspathExclusions(){
+		try {
+			ClassPathResource exclusionResource = new ClassPathResource("classpath_exclusions");
+			if (exclusionResource.exists()){
+				List<String> exclusionPatterns = new ArrayList<String>();
+				File file = exclusionResource.getFile();
+				BufferedReader reader = new BufferedReader(new FileReader(file));
+				String line;
+				while ((line = reader.readLine()) != null){
+					exclusionPatterns.add(line.trim());
+				}
+				this.classpathExclusions = exclusionPatterns.toArray(new String[]{});
+				reader.close();
+			}
+			
+		} catch (Exception e) {
+			logger.warn("Failed to build the list of classpath exclusion. ", e);
+		}
+	}
+	
+	/**
+	 * 
+	 */
+	private void provisionAndLocalizeUserFunctions(){
+		File rootDir = new File(System.getProperty("user.dir"));
+		String[] files = rootDir.list();
+		for (String fileName : files) {
+			if (fileName.endsWith(".ser")){
+				File serFunction = new File(rootDir, fileName);
+				this.provisionAndAddToLocalResources(serFunction);
+				serFunction.delete();
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 */
+	private void provisionAndLocalizeScalaLib(){
+		URL url = ClassLoader.getSystemClassLoader().getResource("scala/Function.class");
+		String path = url.getFile();
+		path = path.substring(0, path.indexOf("!"));
+		
+		try {
+			File scalaLibLocation = new File(new URL(path).toURI());
+			this.provisionAndAddToLocalResources(scalaLibLocation);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to provision Scala Library", e);
+		}
+	}
+	
+	/**
+	 * 
+	 * @param file
+	 */
+	private void provisionAndAddToLocalResources(File file){
+		Path provisionedPath = YarnUtils.provisionResource(file, this.tezContext.getFileSystem(), 
+				this.tezContext.getApplicationName(), this.tezContext.getApplicationId());
+		LocalResource localResource = YarnUtils.createLocalResource(this.tezContext.getFileSystem(), provisionedPath);
+		this.localResources.put(provisionedPath.getName(), localResource);
+	}
+	
+	/**
+	 * 
+	 */
 	public void build(){
 		try {		
 			Path[] provisionedResourcesPaths = YarnUtils.
-					provisionClassPath(this.tezContext.getFileSystem(), this.tezContext.getApplicationName(), this.tezContext.getApplicationId());
+					provisionClassPath(this.tezContext.getFileSystem(), 
+							this.tezContext.getApplicationName(), this.tezContext.getApplicationId(), this.classpathExclusions);
 			this.localResources = 
 					YarnUtils.createLocalResources(tezContext.getFileSystem(), provisionedResourcesPaths);
+			
+			this.provisionAndLocalizeScalaLib();
+			this.provisionAndLocalizeUserFunctions();
+			
 						
 			InputDescriptor id = new InputDescriptor(MRInput.class.getName())
 					.setUserPayload(MRInput.createUserPayload(this.tezContext.getTezConfiguration(),

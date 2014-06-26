@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -31,61 +33,15 @@ import scala.actors.threadpool.Arrays;
  */
 public class YarnUtils {
 	
-	@SuppressWarnings("unchecked")
-	private final static Set<String> classPathExcusions = new HashSet<String>(Arrays.asList(new String[]{
-			"spring-aop",
-			"junit",
-			"jline",
-			"zookeeper",
-			"curator",
-			"jetty",
-			"servlet",
-			"netty",
-			"akka",
-			"paranamer",
-			"concurrent",
-			"metrics",
-			"ant",
-			"findbugs",
-			"py4j",
-			"tachyon",
-			"pyrolite",
-			"javax.transaction",
-			"reflectasm",
-			"minlog",
-			"objenesis",
-			"kryo",
-			"chill",
-			"mesos",
-			"stream",
-			"xz",
-			"jsch",
-			"hamcrest",
-			"cglib",
-			"jasper",
-			"jsp",
-			"jersey",
-//			"javax.inject",
-//			"jettison",
-			"xmlenc",
-			"asm",
-			"colt",
-			"glassfish",
-			"javax.activation",
-			"jul",
-			"jcl",
-			"config-",
-			"json4s",
-			"scala-reflect",
-			"scala-compiler",
-			"jsr305",
-			"jaxb",
-			"stax-api",
-			"jets3t",
-			"java-xmlbuilder",
-			"scalap"
-//			"guava"
-			}));
+	private static final Log logger = LogFactory.getLog(YarnUtils.class);
+	
+	
+	public static Path provisionResource(File localResource, FileSystem fs, String applicationName, ApplicationId applicationId) {
+		String destinationFilePath = applicationName + "/" + applicationId.getId() + "/" + localResource.getName();
+		Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
+		provisioinResourceToFs(fs, new Path(localResource.getAbsolutePath()), provisionedPath);
+		return provisionedPath;
+	}
 	
 	/**
 	 * Will provision current classpath to YARN and return an array of 
@@ -93,7 +49,7 @@ public class YarnUtils {
 	 * 
 	 * @return
 	 */
-	public static Path[] provisionClassPath(FileSystem fs, String applicationName, ApplicationId applicationId){
+	public static Path[] provisionClassPath(FileSystem fs, String applicationName, ApplicationId applicationId, String[] classPathExclusions){
 		List<Path> provisionedPaths = new ArrayList<Path>();
 		List<File> generatedJars = new ArrayList<File>();
 		URL[] classpath = ((URLClassLoader) ClassLoader.getSystemClassLoader()).getURLs();
@@ -108,38 +64,38 @@ public class YarnUtils {
 			} 
 			String destinationFilePath = applicationName + "/" + applicationId.getId() + "/" + f.getName();
 			Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
-			if (shouldProvision(provisionedPath.getName())){
+			if (shouldProvision(provisionedPath.getName(), classPathExclusions)){
 				provisioinResourceToFs(fs, new Path(f.getAbsolutePath()), provisionedPath);
 				provisionedPaths.add(provisionedPath);
 			}
 		}
 		
-		// perhaps need to be moved to a separate function since its Tez on Spark specific
-		File rootDir = new File(System.getProperty("user.dir"));
-		String[] files = rootDir.list();
-		for (String fileName : files) {
-			if (fileName.endsWith(".ser")){
-				File serFunction = new File(rootDir, fileName);
-				String destinationFilePath = applicationName + "/" + applicationId.getId() + "/" + serFunction.getName();
-				Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
-				provisioinResourceToFs(fs, new Path(serFunction.getAbsolutePath()), provisionedPath);
-				provisionedPaths.add(provisionedPath);
-				serFunction.delete();
-			}
-		}
-		URL url = ClassLoader.getSystemClassLoader().getResource("scala/Function.class");
-		String path = url.getFile();
-		path = path.substring(0, path.indexOf("!"));
-		
-		try {
-			File scalaLibLocation = new File(new URL(path).toURI());
-			String destinationFilePath = applicationName + "/" + applicationId.getId() + "/" + scalaLibLocation.getName();
-			Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
-			provisioinResourceToFs(fs, new Path(scalaLibLocation.getAbsolutePath()), provisionedPath);
-			provisionedPaths.add(provisionedPath);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed", e);
-		}
+//		// perhaps need to be moved to a separate function since its Tez on Spark specific
+//		File rootDir = new File(System.getProperty("user.dir"));
+//		String[] files = rootDir.list();
+//		for (String fileName : files) {
+//			if (fileName.endsWith(".ser")){
+//				File serFunction = new File(rootDir, fileName);
+//				String destinationFilePath = applicationName + "/" + applicationId.getId() + "/" + serFunction.getName();
+//				Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
+//				provisioinResourceToFs(fs, new Path(serFunction.getAbsolutePath()), provisionedPath);
+//				provisionedPaths.add(provisionedPath);
+//				serFunction.delete();
+//			}
+//		}
+//		URL url = ClassLoader.getSystemClassLoader().getResource("scala/Function.class");
+//		String path = url.getFile();
+//		path = path.substring(0, path.indexOf("!"));
+//		
+//		try {
+//			File scalaLibLocation = new File(new URL(path).toURI());
+//			String destinationFilePath = applicationName + "/" + applicationId.getId() + "/" + scalaLibLocation.getName();
+//			Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
+//			provisioinResourceToFs(fs, new Path(scalaLibLocation.getAbsolutePath()), provisionedPath);
+//			provisionedPaths.add(provisionedPath);
+//		} catch (Exception e) {
+//			throw new RuntimeException("Failed", e);
+//		}
 		//
 		
 		
@@ -153,10 +109,12 @@ public class YarnUtils {
 		return provisionedPaths.toArray(new Path[]{});
 	}
 	
-	private static boolean shouldProvision(String path){
-		for (String exclusion : classPathExcusions) {
-			if (path.contains(exclusion)){
-//				System.out.println("Excluding " + path);
+	private static boolean shouldProvision(String path, String[] classPathExclusions){
+		for (String exclusion : classPathExclusions) {
+			if (path.contains(exclusion) || !path.endsWith(".jar")){
+				if (logger.isDebugEnabled()){
+					logger.debug("Excluding resource: " + path);
+				}
 				return false;
 			}
 		}
@@ -174,19 +132,9 @@ public class YarnUtils {
 	 */
 	public static Map<String, LocalResource> createLocalResources(FileSystem fs, Path[] provisionedResourcesPaths) {
 		Map<String, LocalResource> localResources = new LinkedHashMap<String, LocalResource>();
-		for (Path path : provisionedResourcesPaths) {
-			try {
-				FileStatus scFileStatus = fs.getFileStatus(path);
-				LocalResource localResource = LocalResource.newInstance(
-						ConverterUtils.getYarnUrlFromURI(path.toUri()),
-						LocalResourceType.FILE,
-						LocalResourceVisibility.APPLICATION, scFileStatus.getLen(),
-						scFileStatus.getModificationTime());
-				localResources.put(path.getName(), localResource);
-			} 
-			catch (IOException e) {
-				throw new IllegalStateException("Failed to communicate with FileSystem: " + fs, e);
-			}
+		for (Path provisionedResourcesPath : provisionedResourcesPaths) {
+			LocalResource localResource = createLocalResource(fs, provisionedResourcesPath);
+			localResources.put(provisionedResourcesPath.getName(), localResource);
 		}
 		return localResources;
 	}
@@ -194,16 +142,36 @@ public class YarnUtils {
 	/**
 	 * 
 	 * @param fs
+	 * @param provisionedResourcePath
+	 * @return
+	 */
+	public static LocalResource createLocalResource(FileSystem fs, Path provisionedResourcePath){
+		try {
+			FileStatus scFileStatus = fs.getFileStatus(provisionedResourcePath);
+			LocalResource localResource = LocalResource.newInstance(
+					ConverterUtils.getYarnUrlFromURI(provisionedResourcePath.toUri()),
+					LocalResourceType.FILE,
+					LocalResourceVisibility.APPLICATION, scFileStatus.getLen(),
+					scFileStatus.getModificationTime());
+			return localResource;
+		} 
+		catch (Exception e) {
+			throw new IllegalStateException("Failed to communicate with FileSystem while creating LocalResource: " + fs, e);
+		}
+	}
+	/**
+	 * 
+	 * @param fs
 	 * @param sourcePath
 	 * @param destPath
 	 */
-	public static void provisioinResourceToFs(FileSystem fs, Path sourcePath, Path destPath) {
+	private static void provisioinResourceToFs(FileSystem fs, Path sourcePath, Path destPath) {
 		try {
 			System.out.println("Provisioning '" + sourcePath + "' to " + destPath);
 			fs.copyFromLocalFile(sourcePath, destPath);
 		} 
 		catch (IOException e) {
-			throw new IllegalStateException("Failed to copy local resource " + sourcePath + " to " + destPath, e);
+			logger.warn("Failed to copy local resource " + sourcePath + " to " + destPath, e);
 		}
 	}
 }

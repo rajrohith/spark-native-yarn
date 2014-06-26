@@ -122,70 +122,72 @@ public class TezWordCount {
 	 * @throws Exception
 	 */
 	public boolean run(String inputPath, String outputPath) throws Exception {
-		System.out.println("Running WordCount");
-	
-		TezContext tezContext = new TezContext("WordCount");
-		System.out.println("Application ID: " + tezContext.getApplicationId());
-//		TezClient tezClient = tezContext.getTezClient();
-
-		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(tezContext.getFileSystem(), tezContext.getApplicationName(), tezContext.getApplicationId());
-		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(tezContext.getFileSystem(), provisionedResourcesPaths);
-		
-		AMConfiguration amConfig = new AMConfiguration(null, localResources, tezContext.getTezConfiguration(), tezContext.getCredentials());
-
-		TezSessionConfiguration sessionConfig = new TezSessionConfiguration(amConfig, tezContext.getTezConfiguration());
-		TezSession tezSession = new TezSession("WordCountSession", tezContext.getApplicationId(), sessionConfig);
-		tezSession.start();
-		
-		// GENERATE SAMPLE FILE
-		Path testFile = new Path("tez_test.txt");
-		FSDataOutputStream out = tezContext.getFileSystem().create(testFile, true);
-		//10000000
-		for (int i = 0; i < 10000; i++) {
-			out.write("hello world ".getBytes());
-		}
-		out.close();
-		//
-
-		DAGClient dagClient = null;
-		
-		try {
-			if (tezContext.getFileSystem().exists(new Path(outputPath))) {
-				throw new FileAlreadyExistsException("Output directory " + outputPath + " already exists");
-			}
-
-			//localResources = new HashMap<String, LocalResource>();
-			DAG dag = createDAG(tezContext.getTezConfiguration(), localResources, tezContext.getStagingDir(), inputPath, outputPath);
-			
-			System.out.println("Tez Session: " + tezSession.getSessionStatus());
-			tezSession.waitTillReady();
-			dagClient = tezSession.submitDAG(dag);
-//			dagClient = tezClient.submitDAGApplication(dag, amConfig);
-
-			// monitoring
-			DAGStatus dagStatus = dagClient.waitForCompletionWithAllStatusUpdates(null);
-			if (dagStatus.getState() != DAGStatus.State.SUCCEEDED) {
-				System.out.println("DAG diagnostics: " + dagStatus.getDiagnostics());
-				return false;
-			} 
-			else {
-				RemoteIterator<LocatedFileStatus> is = tezContext.getFileSystem().listFiles(new Path("tez_out2"), true);
-				while (is.hasNext()) {
-					System.out.println(is.next());
-				}
-			}
-			BufferedReader bis = new BufferedReader(new InputStreamReader(tezContext.getFileSystem().open(new Path("tez_out2/part-v001-o000-r-00000"))));
-			String line;
-			while ((line = bis.readLine()) != null){
-				System.out.println("LINE: " + line);
-			}
-			bis.close();
-			return true;
-		} 
-		finally {
-			tezContext.close();
-			tezSession.stop();
-		}
+//		System.out.println("Running WordCount");
+//	
+//		TezContext tezContext = new TezContext("WordCount");
+//		System.out.println("Application ID: " + tezContext.getApplicationId());
+////		TezClient tezClient = tezContext.getTezClient();
+//
+//		Path[] provisionedResourcesPaths = YarnUtils.
+//				provisionClassPath(tezContext.getFileSystem(), tezContext.getApplicationName(), tezContext.getApplicationId());
+//		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(tezContext.getFileSystem(), provisionedResourcesPaths);
+//		
+//		AMConfiguration amConfig = new AMConfiguration(null, localResources, tezContext.getTezConfiguration(), tezContext.getCredentials());
+//
+//		TezSessionConfiguration sessionConfig = new TezSessionConfiguration(amConfig, tezContext.getTezConfiguration());
+//		TezSession tezSession = new TezSession("WordCountSession", tezContext.getApplicationId(), sessionConfig);
+//		tezSession.start();
+//		
+//		// GENERATE SAMPLE FILE
+//		Path testFile = new Path("tez_test.txt");
+//		FSDataOutputStream out = tezContext.getFileSystem().create(testFile, true);
+//		//10000000
+//		for (int i = 0; i < 10000; i++) {
+//			out.write("hello world ".getBytes());
+//		}
+//		out.close();
+//		//
+//
+//		DAGClient dagClient = null;
+//		
+//		try {
+//			if (tezContext.getFileSystem().exists(new Path(outputPath))) {
+//				throw new FileAlreadyExistsException("Output directory " + outputPath + " already exists");
+//			}
+//
+//			//localResources = new HashMap<String, LocalResource>();
+//			DAG dag = createDAG(tezContext.getTezConfiguration(), localResources, tezContext.getStagingDir(), inputPath, outputPath);
+//			
+//			System.out.println("Tez Session: " + tezSession.getSessionStatus());
+//			tezSession.waitTillReady();
+//			dagClient = tezSession.submitDAG(dag);
+////			dagClient = tezClient.submitDAGApplication(dag, amConfig);
+//
+//			// monitoring
+//			DAGStatus dagStatus = dagClient.waitForCompletionWithAllStatusUpdates(null);
+//			if (dagStatus.getState() != DAGStatus.State.SUCCEEDED) {
+//				System.out.println("DAG diagnostics: " + dagStatus.getDiagnostics());
+//				return false;
+//			} 
+//			else {
+//				RemoteIterator<LocatedFileStatus> is = tezContext.getFileSystem().listFiles(new Path("tez_out2"), true);
+//				while (is.hasNext()) {
+//					System.out.println(is.next());
+//				}
+//			}
+//			BufferedReader bis = new BufferedReader(new InputStreamReader(tezContext.getFileSystem().open(new Path("tez_out2/part-v001-o000-r-00000"))));
+//			String line;
+//			while ((line = bis.readLine()) != null){
+//				System.out.println("LINE: " + line);
+//			}
+//			bis.close();
+//			return true;
+//		} 
+//		finally {
+//			tezContext.close();
+//			tezSession.stop();
+//		}
+		return false;
 	}
 
 	/**
