@@ -8,11 +8,9 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -25,8 +23,6 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 
-import scala.actors.threadpool.Arrays;
-
 /**
  * @author ozhurakousky
  *
@@ -35,7 +31,14 @@ public class YarnUtils {
 	
 	private static final Log logger = LogFactory.getLog(YarnUtils.class);
 	
-	
+	/**
+	 * 
+	 * @param localResource
+	 * @param fs
+	 * @param applicationName
+	 * @param applicationId
+	 * @return
+	 */
 	public static Path provisionResource(File localResource, FileSystem fs, String applicationName, ApplicationId applicationId) {
 		String destinationFilePath = applicationName + "/" + applicationId.getId() + "/" + localResource.getName();
 		Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
@@ -70,35 +73,6 @@ public class YarnUtils {
 			}
 		}
 		
-//		// perhaps need to be moved to a separate function since its Tez on Spark specific
-//		File rootDir = new File(System.getProperty("user.dir"));
-//		String[] files = rootDir.list();
-//		for (String fileName : files) {
-//			if (fileName.endsWith(".ser")){
-//				File serFunction = new File(rootDir, fileName);
-//				String destinationFilePath = applicationName + "/" + applicationId.getId() + "/" + serFunction.getName();
-//				Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
-//				provisioinResourceToFs(fs, new Path(serFunction.getAbsolutePath()), provisionedPath);
-//				provisionedPaths.add(provisionedPath);
-//				serFunction.delete();
-//			}
-//		}
-//		URL url = ClassLoader.getSystemClassLoader().getResource("scala/Function.class");
-//		String path = url.getFile();
-//		path = path.substring(0, path.indexOf("!"));
-//		
-//		try {
-//			File scalaLibLocation = new File(new URL(path).toURI());
-//			String destinationFilePath = applicationName + "/" + applicationId.getId() + "/" + scalaLibLocation.getName();
-//			Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
-//			provisioinResourceToFs(fs, new Path(scalaLibLocation.getAbsolutePath()), provisionedPath);
-//			provisionedPaths.add(provisionedPath);
-//		} catch (Exception e) {
-//			throw new RuntimeException("Failed", e);
-//		}
-		//
-		
-		
 		for (File generatedJar : generatedJars) {
 			try {
 				generatedJar.delete(); 
@@ -109,6 +83,12 @@ public class YarnUtils {
 		return provisionedPaths.toArray(new Path[]{});
 	}
 	
+	/**
+	 * 
+	 * @param path
+	 * @param classPathExclusions
+	 * @return
+	 */
 	private static boolean shouldProvision(String path, String[] classPathExclusions){
 		for (String exclusion : classPathExclusions) {
 			if (path.contains(exclusion) || !path.endsWith(".jar")){
