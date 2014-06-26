@@ -3,6 +3,7 @@ package com.hortonworks.tez;
 import java.io.Closeable;
 import java.io.IOException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.Credentials;
@@ -27,13 +28,28 @@ public class TezContext implements Closeable {
 	private final String user;
 	
 	private final Path stagingDir;
+	
+	private final String applicationName;
 
-	public TezContext(){
-		this(new TezConfiguration());
+	public TezContext(String applicationName){
+		this(new TezConfiguration(), applicationName);
 	}
 	
-	public TezContext(TezConfiguration tezConfiguration){
-		this.tezConfiguration = tezConfiguration;
+	public TezContext(Configuration configuration, String applicationName){
+		if (configuration instanceof TezConfiguration){
+			this.tezConfiguration = (TezConfiguration) configuration;
+		}
+		else {
+			this.tezConfiguration = new TezConfiguration(configuration);
+		}
+		
+		this.applicationName = applicationName;
+		
+		this.tezConfiguration.set("mapred.max.split.size", "1024");
+		this.tezConfiguration.set("tez.am.grouping.min-size", "32768");
+		this.tezConfiguration.set("tez.am.grouping.max-size", "32768");
+		
+		
 		this.tezClient = new TezClient(this.tezConfiguration);
 		this.tezConfiguration.set(TezConfiguration.TEZ_AM_JAVA_OPTS, MRHelpers.getMRAMJavaOpts(this.tezConfiguration));
 		this.credentials = new Credentials();
@@ -58,6 +74,10 @@ public class TezContext implements Closeable {
 				+ Path.SEPARATOR + ".staging" + Path.SEPARATOR + Path.SEPARATOR + applicationId.toString();
 		this.tezConfiguration.set(TezConfiguration.TEZ_AM_STAGING_DIR, stagingDirStr);
 		stagingDir = this.fileSystem.makeQualified(new Path(stagingDirStr));
+	}
+	
+	public String getApplicationName() {
+		return applicationName;
 	}
 	
 	public Credentials getCredentials() {

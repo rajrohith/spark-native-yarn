@@ -83,7 +83,7 @@ public class TezWordCount {
 						TextOutputFormat.class.getName(), true));
 
 		byte[] intermediateDataPayload = MRHelpers.createMRIntermediateDataPayload(tezConf, Text.class.getName(), IntWritable.class.getName(), true, null, null);
-
+		
 		Vertex tokenizerVertex = new Vertex("tokenizer",
 				new ProcessorDescriptor(TokenProcessor.class.getName()), -1,
 				MRHelpers.getMapResource(tezConf));
@@ -95,7 +95,7 @@ public class TezWordCount {
 		summerVertex.setJavaOpts(MRHelpers.getReduceJavaOpts(tezConf));
 		summerVertex.addOutput("MROutput", od, MROutputCommitter.class);
 		summerVertex.setTaskLocalResources(localResources);
-
+		
 		DAG dag = new DAG("WordCount");
 		dag.addVertex(tokenizerVertex)
 				.addVertex(summerVertex)
@@ -123,12 +123,12 @@ public class TezWordCount {
 	 */
 	public boolean run(String inputPath, String outputPath) throws Exception {
 		System.out.println("Running WordCount");
-		
-		String applicationName = "WordCount";
-		TezContext tezContext = new TezContext();
+	
+		TezContext tezContext = new TezContext("WordCount");
+		System.out.println("Application ID: " + tezContext.getApplicationId());
 //		TezClient tezClient = tezContext.getTezClient();
 
-		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(tezContext.getFileSystem(), applicationName, tezContext.getApplicationId());
+		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(tezContext.getFileSystem(), tezContext.getApplicationName(), tezContext.getApplicationId());
 		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(tezContext.getFileSystem(), provisionedResourcesPaths);
 		
 		AMConfiguration amConfig = new AMConfiguration(null, localResources, tezContext.getTezConfiguration(), tezContext.getCredentials());

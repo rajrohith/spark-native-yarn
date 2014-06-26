@@ -12,6 +12,7 @@ import com.google.common.base.Preconditions;
 public class SumProcessor extends SimpleMRProcessor {
 	@Override
 	public void run() throws Exception {
+		System.out.println("SUM UNIQUE ID: " + this.getContext().getUniqueIdentifier());
 		System.out.println("&&&&&&&&&&&&& IN SUM PROCESSOR");
 		Preconditions.checkArgument(getInputs().size() == 1);
 		MROutput out = (MROutput) getOutputs().values().iterator().next();

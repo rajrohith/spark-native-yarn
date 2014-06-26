@@ -22,14 +22,10 @@ repositories {
     mavenCentral()
 	mavenLocal();
 	maven { url 'http://repository.apache.org/snapshots/' }
-	 
 }
 
 dependencies {
-	
-	compile "org.scala-lang:scala-library:$scalaVersion"
-
-	compile "org.scala-lang:scala-compiler:$scalaVersion"
+	//compile "org.scala-lang:scala-compiler:$scalaVersion"
 	compile "org.scala-lang:scala-library:$scalaVersion"
 	
 	compile ("org.apache.spark:spark-core_2.10:$sparkVersion") {
@@ -56,8 +52,6 @@ compileTestScala {
 	compileTestScala.scalaCompileOptions.additionalParameters= ['-feature']
 	compileTestScala.scalaCompileOptions.additionalParameters= ['-language:reflectiveCalls']
 }
-
-
 
 task wrapper(type: Wrapper) {
     description = 'Generates gradlew[.bat] scripts'
