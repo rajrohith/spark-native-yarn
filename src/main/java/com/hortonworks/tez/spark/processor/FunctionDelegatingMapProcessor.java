@@ -3,12 +3,16 @@ package com.hortonworks.tez.spark.processor;
 import java.util.Date;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.tez.mapreduce.input.MRInput;
 import org.apache.tez.mapreduce.processor.SimpleMRProcessor;
 import org.apache.tez.runtime.api.TezProcessorContext;
 import org.apache.tez.runtime.library.api.KeyValueReader;
 import org.apache.tez.runtime.library.api.KeyValueWriter;
 import org.apache.tez.runtime.library.output.OnFileSortedOutput;
+
+import scala.Tuple2;
 
 import com.google.common.base.Preconditions;
 import com.hortonworks.spark.tez.FunctionHelper;
@@ -57,15 +61,8 @@ public class FunctionDelegatingMapProcessor extends SimpleMRProcessor {
 			Iterable<?> results = this.functionHelper.applyFunction1(part, kvWriter);
 			
 			for (Object result : results) {
-//				Tuple2 t = null;
-				System.out.println(result);
-			}
-			
-			
-			try {
-				
-			} catch (Exception e) {
-				e.printStackTrace();
+				Tuple2<?,?> tupleResult = (Tuple2<?, ?>) result;
+				kvWriter.write(new Text((String)tupleResult._1), new IntWritable((Integer) tupleResult._2));
 			}
 		}
 		System.out.println("**************** EXITING TokenProcessor: " + new Date());
