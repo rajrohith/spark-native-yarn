@@ -2,11 +2,11 @@ package com.hortonworks.tez.spark
 
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import org.apache.spark.Tez
 import org.apache.hadoop.fs.FSDataOutputStream
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import com.hortonworks.spark.tez.Tez
 
 object WordCount extends App {
 
@@ -44,13 +44,3 @@ object WordCount extends App {
     }
   }
 }
-
-
-//  val rdd = source.flatMap(line => line.split(" "))
-//    .map(word => (word, 1))
-//    .reduceByKey(_ + _)
-//    .collect
-    
-//  for (r <- rdd) {
-//    println(r)
-//  }

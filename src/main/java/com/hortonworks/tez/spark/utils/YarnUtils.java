@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.hortonworks.tez.utils;
+package com.hortonworks.tez.spark.utils;
 
 import java.io.File;
 import java.io.IOException;

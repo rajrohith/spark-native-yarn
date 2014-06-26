@@ -1,4 +1,4 @@
-package com.hortonworks.tez;
+package com.hortonworks.tez.spark;
 
 import java.io.Closeable;
 import java.io.IOException;

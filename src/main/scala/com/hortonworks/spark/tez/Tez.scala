@@ -1,15 +1,20 @@
-package org.apache.spark
+package com.hortonworks.spark.tez
 
+import java.io.File
 import java.io.FileOutputStream
 import java.io.ObjectOutputStream
+
 import scala.reflect.ClassTag
-import org.apache.spark.rdd.RDD
-import org.apache.spark.util.ClosureCleaner
-import org.springframework.util.ReflectionUtils
-import com.hortonworks.tez.TezDagBuilder
-import java.io.File
-import com.hortonworks.tez.TezContext
+
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
+import org.springframework.util.ReflectionUtils
+
+import com.hortonworks.tez.spark.TezContext;
+import com.hortonworks.tez.spark.TezDagBuilder;
+
+
 /**
  * 
  */
@@ -40,7 +45,11 @@ trait Tez extends SparkContext {
     val tezDagBuilder = new TezDagBuilder(tezContext, inputPath, null)
     
     val function = this.extractUserFunction(dependencies(1))
-    ClosureCleaner.clean(function)
+    
+    val closureCleaner = Class.forName("org.apache.spark.util.ClosureCleaner")
+    val cleanMethod =  closureCleaner.getDeclaredMethod("clean", classOf[AnyRef])
+    cleanMethod.invoke(function)
+    //ClosureCleaner.clean(function)
     val operationByteArrayStream = new FileOutputStream("UserFunction_0.ser")
 	val oos = new ObjectOutputStream(operationByteArrayStream);
 	oos.writeObject(function);
