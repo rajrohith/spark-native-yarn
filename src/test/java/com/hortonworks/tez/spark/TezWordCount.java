@@ -76,6 +76,7 @@ public class TezWordCount {
 		tokenizerVertex.setJavaOpts(MRHelpers.getMapJavaOpts(tezConf));
 		tokenizerVertex.addInput("MRInput", id, MRInputAMSplitGenerator.class);
 		tokenizerVertex.setTaskLocalResources(localResources);
+		
 
 		Vertex summerVertex = new Vertex("summer", new ProcessorDescriptor(SumProcessor.class.getName()), 1, MRHelpers.getReduceResource(tezConf));
 		summerVertex.setJavaOpts(MRHelpers.getReduceJavaOpts(tezConf));

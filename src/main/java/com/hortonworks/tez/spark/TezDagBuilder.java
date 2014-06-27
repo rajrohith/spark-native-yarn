@@ -11,7 +11,6 @@ import java.util.Map;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -24,7 +23,6 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.tez.client.AMConfiguration;
 import org.apache.tez.client.TezSession;
 import org.apache.tez.client.TezSessionConfiguration;
-import org.apache.tez.common.TezUtils;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.Edge;
 import org.apache.tez.dag.api.EdgeProperty;
@@ -42,14 +40,12 @@ import org.apache.tez.mapreduce.common.MRInputAMSplitGenerator;
 import org.apache.tez.mapreduce.hadoop.MRHelpers;
 import org.apache.tez.mapreduce.input.MRInput;
 import org.apache.tez.mapreduce.output.MROutput;
-import org.apache.tez.mapreduce.protos.MRRuntimeProtos.MRInputUserPayloadProto;
 import org.apache.tez.runtime.library.input.ShuffledMergedInput;
 import org.apache.tez.runtime.library.output.OnFileSortedOutput;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
-import com.hortonworks.tez.spark.SumProcessor;
 import com.hortonworks.tez.spark.processor.FunctionDelegatingMapProcessor;
 import com.hortonworks.tez.spark.utils.YarnUtils;
 
@@ -105,9 +101,6 @@ public class TezDagBuilder {
 			this.provisionAndLocalizeCurrentClasspath();
 			
 			this.provisionAndLocalizeScalaLib();
-			
-			this.provisionAndLocalizeUserFunctions();
-			
 						
 			InputDescriptor id = new InputDescriptor(MRInput.class.getName())
 					.setUserPayload(MRInput.createUserPayload(this.tezContext.getTezConfiguration(),
@@ -260,21 +253,6 @@ public class TezDagBuilder {
 				this.tezContext.getApplicationId(), this.classpathExclusions);
 		this.localResources = YarnUtils.createLocalResources(this.tezContext.getFileSystem(), 
 				provisionedResourcesPaths);
-	}
-	
-	/**
-	 * 
-	 */
-	private void provisionAndLocalizeUserFunctions(){
-		File rootDir = new File(System.getProperty("user.dir"));
-		String[] files = rootDir.list();
-		for (String fileName : files) {
-			if (fileName.endsWith(".ser")){
-				File serFunction = new File(rootDir, fileName);
-				this.provisionAndAddToLocalResources(serFunction);
-				serFunction.delete();
-			}
-		}
 	}
 	
 	/**

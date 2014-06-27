@@ -45,8 +45,8 @@ trait Tez extends SparkContext {
     val function = this.extractUserFunction(dependencies(1))
     
     this.cleanFunction(function);
-//    ClosureCleaner.clean(function)
-    val operationByteArrayStream = new FileOutputStream("UserFunction_0.ser")
+
+    val operationByteArrayStream = new FileOutputStream("bin/UserFunction_0.ser", true)
 	val oos = new ObjectOutputStream(operationByteArrayStream);
 	oos.writeObject(function);
 	oos.close()
