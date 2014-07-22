@@ -193,6 +193,7 @@ public class DAGBuilder {
 	
 	@SuppressWarnings("unchecked")
 	private void doBuild() throws Exception {
+		
 		this.provisionAndLocalizeCurrentClasspath();
 		this.provisionAndLocalizeScalaLib();
 		this.tezClient.addAppMasterLocalResources(this.localResources);

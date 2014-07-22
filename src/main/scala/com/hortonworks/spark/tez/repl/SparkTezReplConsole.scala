@@ -19,6 +19,7 @@ object SparkTezReplConsole extends App {
     for (url <- urlLoader.getURLs) {
       if (url.getProtocol == "file") {
         if (JarUtils.useClassPathEntry(url.getFile(), classPathExclusions)) {
+          
           settings.classpath.append(url.getFile)
         }
       }
@@ -34,6 +35,7 @@ object SparkTezReplConsole extends App {
 class SampleILoop extends ILoop {
   override def prompt = "spark-on-tez> "
   var printPrompt = true
+  
   override def resetCommand() {
     this.command("sc.stop")
     super.resetCommand
@@ -77,8 +79,8 @@ class SampleILoop extends ILoop {
       " \\___ \\| '_ \\ / _` | '__| |/ /  / _ \\| '_ \\     | |/ _ \\_  /\n" +
       " ____) | |_) | (_| | |  |   <  | (_) | | | |    | |  __// / \n" +
       "|_____/| .__/ \\__,_|_|  |_|\\_\\  \\___/|_| |_|    |_|\\___/___|\n" +
-      "      | |                                                  \n" +
-      "      |_|                                                   \n" +
+      "       | |                                                  \n" +
+      "       |_|                                                   \n" +
       "The following imports are added for your convinince:\n" + 
       "import org.apache.hadoop.fs.FileSystem\n" + 
       "import org.apache.hadoop.fs.Path\n" +

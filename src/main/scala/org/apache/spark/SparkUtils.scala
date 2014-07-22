@@ -33,7 +33,7 @@ object SparkUtils {
 
   def deserializeSparkTask(buffer: ByteBuffer): Any = {
     val ser = new JavaSerializer(new SparkConf)
-    ser.newInstance.deserialize[Task[_]](buffer)
+    ser.newInstance.deserialize[Task[_]](buffer, Thread.currentThread().getContextClassLoader())
   }
 
   def runTask(task: Any) = {

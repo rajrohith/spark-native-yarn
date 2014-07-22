@@ -28,7 +28,7 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 		
 		int vertextId = this.context.getTaskVertexIndex();
 		String serializedTaskName = "SparkTask_" + vertextId + ".ser";
-		ClassPathResource serializedTask = new ClassPathResource(serializedTaskName);
+		ClassPathResource serializedTask = new ClassPathResource(serializedTaskName, Thread.currentThread().getContextClassLoader());
 		Assert.isTrue(serializedTask.exists(), "Can't locate serialized task '" + serializedTaskName + "' on the classpath");
 		SparkUtils.createSparkEnv();
 		Object vertexTask = SparkUtils.deserializeSparkTask(ByteBuffer.wrap(IOUtils.toByteArray(serializedTask.getInputStream())));
