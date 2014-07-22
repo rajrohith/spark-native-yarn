@@ -18,6 +18,12 @@ scalaVersion = '2.10.4'
 sparkVersion = '1.1.0-SNAPSHOT'
 tezVersion = '0.5.0-incubating-SNAPSHOT'
 mockitoVersion = '1.8.4'
+springVersion = "4.0.5.RELEASE"
+
+sourceSets.main.scala.srcDir "src/main/java"
+sourceSets.main.java.srcDirs = []
+sourceSets.test.scala.srcDir "src/test/java"
+sourceSets.test.java.srcDirs = []
 
 repositories {
     mavenCentral()
@@ -32,9 +38,12 @@ dependencies {
 	compile ("org.apache.spark:spark-core_2.10:$sparkVersion") {
 		exclude group: 'org.apache.hadoop'
 	}
-	compile ("org.springframework:spring-aop:4.0.3.RELEASE") {
-		exclude group: "org.springframework", module: "spring-beans"
+	compile ("org.apache.spark:spark-repl_2.10:$sparkVersion") {
+		exclude group: 'org.apache.hadoop'
 	}
+	compile "org.springframework:spring-core:$springVersion"
+	compile "org.springframework:spring-beans:$springVersion"
+	compile "org.springframework:spring-aop:$springVersion"
 	compile "org.apache.tez:tez-common:$tezVersion"
 	compile "org.apache.tez:tez-dag:$tezVersion"
 	compile "org.apache.tez:tez-mapreduce:$tezVersion"

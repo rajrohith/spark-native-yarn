@@ -13,13 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hortonworks.tez.spark.utils;
+package com.hortonworks.spark.tez.utils;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -28,6 +32,7 @@ import java.util.jar.Manifest;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StringUtils;
 
 /**
@@ -141,5 +146,38 @@ public class JarUtils {
 			if (in != null)
 				in.close();
 		}
+	}
+	
+	public static String[] initClasspathExclusions(String exclusionFile){
+		String[] classpathExclusions = null;
+		try {
+			ClassPathResource exclusionResource = new ClassPathResource(exclusionFile);
+			if (exclusionResource.exists()){
+				List<String> exclusionPatterns = new ArrayList<String>();
+				File file = exclusionResource.getFile();
+				BufferedReader reader = new BufferedReader(new FileReader(file));
+				String line;
+				while ((line = reader.readLine()) != null){
+					exclusionPatterns.add(line.trim());
+				}
+				classpathExclusions = exclusionPatterns.toArray(new String[]{});
+				reader.close();	
+			}			
+		} catch (Exception e) {
+			logger.warn("Failed to build the list of classpath exclusion. ", e);
+		}
+		return classpathExclusions;
+	}
+	
+	public static boolean useClassPathEntry(String path, String[] classPathExclusions){
+		for (String exclusion : classPathExclusions) {
+			if (path.contains(exclusion) || !path.endsWith(".jar")){
+				if (logger.isDebugEnabled()){
+					logger.debug("Excluding resource: " + path);
+				}
+				return false;
+			}
+		}
+		return true;
 	}
 }

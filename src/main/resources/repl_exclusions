@@ -5,7 +5,6 @@ curator
 jetty 
 servlet 
 netty
-akka
 paranamer
 concurrent
 metrics
@@ -37,10 +36,11 @@ javax.activation
 jul
 jcl
 json4s
-scala-compiler
 jsr305
 jaxb
 stax-api
 jets3t
 java-xmlbuilder
-scalap"
+tez
+spring
+hadoop

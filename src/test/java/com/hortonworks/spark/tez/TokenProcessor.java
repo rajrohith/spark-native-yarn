@@ -1,4 +1,4 @@
-package com.hortonworks.tez.spark;
+package com.hortonworks.spark.tez;
 
 import java.util.Date;
 import java.util.StringTokenizer;

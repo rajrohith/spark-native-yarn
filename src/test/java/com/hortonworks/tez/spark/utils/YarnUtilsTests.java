@@ -13,6 +13,8 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import com.hortonworks.spark.tez.utils.YarnUtils;
+
 public class YarnUtilsTests {
 
 	@Test
