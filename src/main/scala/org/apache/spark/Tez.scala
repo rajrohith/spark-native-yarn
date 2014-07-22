@@ -162,7 +162,9 @@ trait Tez extends SparkContext {
     }
 
     ClosureCleaner.clean(vertextTask)
-    val file = new File("bin/SparkTask_" + taskCounter + ".ser")
+    val tmpDir = new File(System.getProperty("java.io.tmpdir") + "/" + this.appName)
+    tmpDir.mkdirs()
+    val file = new File(tmpDir, "SparkTask_" + taskCounter + ".ser")
     taskCounter += 1
     val serializedBuffer = ser.serialize(vertextTask)
    

@@ -19,7 +19,7 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 			this.doRun();
 		} catch (Exception e) {
 			e.printStackTrace();
-			throw new IllegalStateException("Failed to execute processor for Vertext " + this.context.getTaskVertexIndex(), e);
+			throw new IllegalStateException("Failed to execute processor for Vertex " + this.context.getTaskVertexIndex(), e);
 		}
 	}
 	

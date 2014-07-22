@@ -43,7 +43,10 @@ import org.apache.tez.runtime.library.conf.OrderedPartitionedKVEdgeConfigurer;
 import org.apache.tez.runtime.library.partitioner.HashPartitioner;
 import org.springframework.core.io.ClassPathResource;
 
+import scala.actors.threadpool.Arrays;
+
 import com.hortonworks.spark.tez.processor.TezSparkProcessor;
+import com.hortonworks.spark.tez.utils.JarUtils;
 import com.hortonworks.spark.tez.utils.YarnUtils;
 
 public class DAGBuilder {
@@ -277,6 +280,13 @@ public class DAGBuilder {
 				this.applicationId, this.classpathExclusions);
 		this.localResources = YarnUtils.createLocalResources(this.fileSystem, 
 				provisionedResourcesPaths);
+		File serTaskDir = new File(System.getProperty("java.io.tmpdir") + "/" + this.applicationName);
+		System.out.println("############ TASKS: " + Arrays.asList(serTaskDir.list()));
+		File jarFile = JarUtils.toJar(serTaskDir, "SparkTasks.jar");
+		Path provisionedPath = YarnUtils.provisionResource(jarFile, this.fileSystem, this.applicationName, this.applicationId);
+		LocalResource resource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
+		this.localResources.put("SparkTasks.jar", resource);
+		
 	}
 	
 	/**

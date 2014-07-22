@@ -10,7 +10,7 @@ import scala.tools.nsc.Settings
 
 object SparkTezReplConsole extends App {
   val settings = new Settings
-  val classPathExclusions = JarUtils.initClasspathExclusions("repl_exclusions")
+  val classPathExclusions = JarUtils.initClasspathExclusions("classpath_exclusions")
 
   val cl = getClass.getClassLoader
   var paths = new ArrayBuffer[String]
@@ -46,17 +46,13 @@ class SampleILoop extends ILoop {
   
   def setupImports() {
     intp.beQuietDuring {
-//      println()
-    
       intp.addImports("org.apache.hadoop.fs.FileSystem")
       intp.addImports("org.apache.hadoop.fs.Path")
       intp.addImports("org.apache.hadoop.yarn.conf.YarnConfiguration")
       intp.addImports("org.apache.spark.SparkContext")
       intp.addImports("org.apache.spark.SparkContext._")
       intp.addImports("org.apache.spark.Tez")
-//      val result = intp.interpret("val sc = new SparkContext(\"local\", \"MyApp\")")
-//      println(result)
-//      doWelcome
+
       this.command("val sc = new SparkContext(\"local\", \"MyApp\") with Tez")
       echo(doWelcome)
       if (printPrompt){
@@ -68,9 +64,8 @@ class SampleILoop extends ILoop {
 
   override def printWelcome() {
     echo("Starting Spark on Tez interactive console")
-//    intp.asInstanceOf[scala.tools.nsc.interpreter.ILoop$ILoopInterpreter]
-    
   }
+  
   def doWelcome() = {
     "\n" +
       "                           \\,,,/\n" +
