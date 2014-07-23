@@ -165,6 +165,7 @@ trait Tez extends SparkContext {
     val tmpDir = new File(System.getProperty("java.io.tmpdir") + "/" + this.appName)
     tmpDir.mkdirs()
     val file = new File(tmpDir, "SparkTask_" + taskCounter + ".ser")
+    println("==> Serializing Task: " + stage.id + " to " + file.getAbsolutePath())
     taskCounter += 1
     val serializedBuffer = ser.serialize(vertextTask)
    
@@ -202,13 +203,15 @@ trait HadoopRDDMixin[K, V] extends RDD[(K,V)] {
 
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
     println("Computing in HadoopRDD")
-    val iter = new Iterator[(K, V)] {
-      val kvReader = TezThreadLocalContext.getReader.asInstanceOf[KeyValueReader]
-
-      override def hasNext: Boolean = kvReader.next
-    
-      override def next(): (K, V) = (kvReader.getCurrentKey.asInstanceOf[K], kvReader.getCurrentValue.asInstanceOf[V])
-    }
-    new InterruptibleIterator(context, iter)
+    val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, null).read.asInstanceOf[Iterator[(K, V)]]
+    new InterruptibleIterator(new TaskContext(0, 1, 1, true), iterator)
+//    val iter = new Iterator[(K, V)] {
+//      val kvReader = TezThreadLocalContext.getReader.asInstanceOf[KeyValueReader]
+//
+//      override def hasNext: Boolean = kvReader.
+//    
+//      override def next(): (K, V) = (kvReader.getCurrentKey.asInstanceOf[K], kvReader.getCurrentValue.asInstanceOf[V])
+//    }
+//    new InterruptibleIterator(context, iter)
   }
 }

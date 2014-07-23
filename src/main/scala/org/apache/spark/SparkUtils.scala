@@ -14,19 +14,14 @@ object SparkUtils {
   unsafeConstructor.setAccessible(true);
   val unsafe = unsafeConstructor.newInstance();
 
-  def createSparkEnv() {
-    this.createSparkEnv(new SparkConf)
-  }
   
   def createUnsafeInstance[T](clazz:Class[T]):T = {
     unsafe.allocateInstance(clazz).asInstanceOf[T]
   }
 
-  def createSparkEnv(sparkConf: SparkConf) {
+  def createSparkEnv(sparkConf: SparkConf, shuffleManager:TezShuffleManager) {
     val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];
     val ser = new JavaSerializer(sparkConf)
-    val shuffleManager = new TezShuffleManager
-
     val se = new SparkEnv("0", null, ser, ser, null, null, shuffleManager, null, blockManager, null, null, null, null, null, sparkConf)
     SparkEnv.set(se)
   }
@@ -41,7 +36,6 @@ object SparkUtils {
     if (v.isInstanceOf[Array[Tuple2[_,_]]]){
       val kvWriter = SparkEnv.get.shuffleManager.getWriter[Any,Any](null, 0, null)
       for (x <- v.asInstanceOf[Array[Tuple2[_,_]]]){
-//        println(x)
         kvWriter.write(x.asInstanceOf[Product2[_,_]]);
       }
     }

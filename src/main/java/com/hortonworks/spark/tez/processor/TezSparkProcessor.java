@@ -1,16 +1,18 @@
 package com.hortonworks.spark.tez.processor;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.spark.SparkConf;
 import org.apache.spark.SparkUtils;
+import org.apache.spark.TezShuffleManager;
 import org.apache.tez.mapreduce.processor.SimpleMRProcessor;
+import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.LogicalOutput;
-import org.apache.tez.runtime.api.Writer;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
-
-import com.hortonworks.spark.tez.TezThreadLocalContext;
 
 public class TezSparkProcessor extends SimpleMRProcessor {
 	@Override
@@ -23,6 +25,7 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 		}
 	}
 	
+	@SuppressWarnings("unchecked")
 	private void doRun() throws Exception {
 		System.out.println("######## RUNNING PROCESSOR ########");
 		
@@ -30,18 +33,25 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 		String serializedTaskName = "SparkTask_" + vertextId + ".ser";
 		ClassPathResource serializedTask = new ClassPathResource(serializedTaskName, Thread.currentThread().getContextClassLoader());
 		Assert.isTrue(serializedTask.exists(), "Can't locate serialized task '" + serializedTaskName + "' on the classpath");
-		SparkUtils.createSparkEnv();
+		
+		Map<Integer, LogicalInput> inputs = (Map<Integer, LogicalInput>)this.toIntKey(this.getInputs());
+		Map<Integer, LogicalOutput> outputs = (Map<Integer, LogicalOutput>)this.toIntKey(this.getOutputs());
+		TezShuffleManager shufleManager = new TezShuffleManager(inputs, outputs);
+		SparkUtils.createSparkEnv(new SparkConf(), shufleManager);
+		
 		Object vertexTask = SparkUtils.deserializeSparkTask(ByteBuffer.wrap(IOUtils.toByteArray(serializedTask.getInputStream())));
-		
-		LogicalOutput output = this.getOutputs().values().iterator().next();	
-		Writer writer = output.getWriter();	
-		
-		TezThreadLocalContext.setWriter(writer);	
-		TezThreadLocalContext.setInputs(this.getInputs());
-		
 		SparkUtils.runTask(vertexTask);
-		
-		TezThreadLocalContext.removeInputs();
-		TezThreadLocalContext.removeWriter();
 	}
+	
+	public Map<Integer, ?> toIntKey(Map<String, ?> map) {
+		TreeMap<Integer, Object> resultMap = new TreeMap<Integer, Object>();
+		for (String indexName : map.keySet()) {
+			try {
+				resultMap.put(Integer.parseInt(indexName), map.get(indexName));
+			} catch (NumberFormatException e) {
+				throw new IllegalArgumentException("Vertex name must be parsable to Integer. Was: '" + indexName + "'", e);
+			}
+		}
+		return resultMap;
+    }
 }

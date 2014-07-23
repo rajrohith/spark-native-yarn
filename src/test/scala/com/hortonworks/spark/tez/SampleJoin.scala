@@ -25,23 +25,11 @@ object SampleJoin extends App {
 
   val result = s1.map{line => val x = line.split("\\s+"); (x(2), x(0) + "," +  x(1) )}
   	.join(s2.map{line => val x = line.split("\\s+"); (x(0), x(1))})
-  	.reduceByKey{(x, y) => println("reducing");(x.toString, y.toString)}
+  	.reduceByKey{(x, y) => 
+  	  println("reducing");
+  	  (x.toString, y.toString)}
   	.sortByKey(true)
   	.collect
   	
-  println(result.toList)
-
-//  def sortByKey(ascending: Boolean = true, numPartitions: Int = 1): RDD[_] = {
-//    val part = new RangePartitioner(numPartitions, self, ascending)
-//    val shuffled = new ShuffledRDD[K, V, P](self, part)
-//    shuffled.mapPartitions(iter => {
-//      val buf = iter.toArray
-//      if (ascending) {
-//        buf.sortWith((x, y) => ordering.lt(x._1, y._1)).iterator
-//      } else {
-//        buf.sortWith((x, y) => ordering.gt(x._1, y._1)).iterator
-//      }
-//    }, preservesPartitioning = true)
-//  }
- 
+  println(result.toList) 
 }

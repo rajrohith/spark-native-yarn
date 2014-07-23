@@ -198,7 +198,7 @@ public class DAGBuilder {
 		this.provisionAndLocalizeScalaLib();
 		this.tezClient.addAppMasterLocalResources(this.localResources);
 		
-		ProcessorDescriptor pd = new ProcessorDescriptor(TezSparkProcessor.class.getName());
+		
 		OrderedPartitionedKVEdgeConfigurer edgeConf = OrderedPartitionedKVEdgeConfigurer
 		        .newBuilder(BytesWritable.class.getName(), BytesWritable.class.getName(),
 		            HashPartitioner.class.getName(), null).build();
@@ -208,11 +208,11 @@ public class DAGBuilder {
 			VertexDescriptor vertexDescriptor = vertexDescriptorEntry.getValue();
 			
 			if (vertexDescriptor.input instanceof String) {
+				ProcessorDescriptor pd = new ProcessorDescriptor(TezSparkProcessor.class.getName());
 				Configuration vertexConfig = new Configuration(this.tezConfiguration);
 				vertexConfig.set(FileInputFormat.INPUT_DIR, (String) vertexDescriptor.input);
-				InputDescriptor id = new InputDescriptor(MRInput.class.getName())
-		        .setUserPayload(MRInput.createUserPayload(vertexConfig,
-		        		vertexDescriptor.inputFormatClass.getName(), true, true));
+				byte[] payload = MRInput.createUserPayload(vertexConfig,vertexDescriptor.inputFormatClass.getName(), true, true);
+				InputDescriptor id = new InputDescriptor(MRInput.class.getName()).setUserPayload(payload);
 				Vertex vertex = new Vertex(String.valueOf(sequenceCounter++), pd, -1, MRHelpers.getMapResource(this.tezConfiguration));
 				vertex.addInput(String.valueOf(sequenceCounter++), id, MRInputAMSplitGenerator.class);
 				vertex.setTaskLocalFiles(this.localResources);
@@ -221,6 +221,7 @@ public class DAGBuilder {
 			}
 			else {
 				if (vertexDescriptorEntry.getKey() == 0) {
+					ProcessorDescriptor pd = new ProcessorDescriptor(TezSparkProcessor.class.getName());
 					Configuration outputConf = new Configuration(this.tezConfiguration);
 					outputConf.set(FileOutputFormat.OUTDIR, this.outputPath);
 					OutputDescriptor od = new OutputDescriptor(MROutput.class.getName()).setUserPayload(MROutput
@@ -242,7 +243,26 @@ public class DAGBuilder {
 				}
 				else {
 					// This is temporary until ready to test  DAG with multi-stages
-					throw new IllegalStateException("Unrecognized VertexDescriptor. Dev BUG, Fix!!!!");
+//					throw new IllegalStateException("Unrecognized VertexDescriptor. Dev BUG, Fix!!!!");
+					Configuration vertexConfig = new Configuration(this.tezConfiguration);
+					byte[] payload = MRInput.createUserPayload(vertexConfig, SequenceFileAsBinaryOutputFormat.class.getName(), true, true);
+					ProcessorDescriptor pd = new ProcessorDescriptor(TezSparkProcessor.class.getName());
+					pd.setUserPayload(payload);
+					
+					Vertex vertex = new Vertex(String.valueOf(sequenceCounter++), pd, vertexDescriptor.numPartitions, MRHelpers.getReduceResource(this.tezConfiguration));
+					
+					vertex.setTaskLocalFiles(localResources);
+				    vertex.setTaskLaunchCmdOpts(MRHelpers.getMapJavaOpts(this.tezConfiguration));
+				    this.dag.addVertex(vertex);
+				    if (!(vertexDescriptor.input instanceof String)) {
+				    	for (int stageId : (Iterable<Integer>)vertexDescriptor.input) {
+				    		VertexDescriptor vd = vertexes.get(stageId);
+					    	String vertexName =  vd.vertexId * 2 + "";
+					    	Vertex v = dag.getVertex(vertexName);
+					    	Edge edge = new Edge(v, vertex, edgeConf.createDefaultEdgeProperty());
+					    	this.dag.addEdge(edge);
+						}
+				    } 
 				}
 			}
 		}
@@ -287,6 +307,14 @@ public class DAGBuilder {
 		Path provisionedPath = YarnUtils.provisionResource(jarFile, this.fileSystem, this.applicationName, this.applicationId);
 		LocalResource resource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
 		this.localResources.put("SparkTasks.jar", resource);
+		String[] serializedTasks = serTaskDir.list();
+		for (String serializedTask : serializedTasks) {
+			File taskFile = new File(jarFile, serializedTask);
+			boolean deleted = taskFile.delete();
+			if (!deleted){
+				logger.warn("Failed to delete task after provisioning: " + taskFile.getAbsolutePath());
+			}
+		}
 		
 	}
 	

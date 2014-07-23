@@ -11,10 +11,15 @@ import org.apache.spark.shuffle.ShuffleWriter
 import org.apache.tez.runtime.api.Reader
 import org.apache.tez.runtime.library.api.KeyValueWriter
 import org.apache.tez.runtime.library.api.KeyValuesReader
-import com.hortonworks.spark.tez.TezThreadLocalContext
 import com.hortonworks.spark.tez.KeyValueReaderWrapper
+import org.apache.tez.runtime.api.Writer
+import java.util.Map
+import sun.rmi.log.LogInputStream
+import org.apache.tez.runtime.api.LogicalInput
+import org.apache.tez.runtime.api.LogicalOutput
+import org.apache.tez.runtime.library.api.KeyValueReader
 
-class TezShuffleManager extends ShuffleManager {
+class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Integer, LogicalOutput]) extends ShuffleManager {
   val key = new BytesWritable
 
   def registerShuffle[K, V, C](
@@ -29,7 +34,11 @@ class TezShuffleManager extends ShuffleManager {
   def getWriter[K, V](handle: ShuffleHandle, mapId: Int, context: TaskContext): ShuffleWriter[K, V] = {
     println("getWriter")
     val serializer = SparkEnv.get.serializer.newInstance
-    val kvWriter = TezThreadLocalContext.getWriter.asInstanceOf[KeyValueWriter]
+    if (output.size() > 1){
+      throw new UnsupportedOperationException("Multiple outputs are not supported yet.")
+    }
+//    val kvWriter = TezThreadLocalContext.getWriter.asInstanceOf[KeyValueWriter]
+    val kvWriter = output.values.iterator.next.getWriter.asInstanceOf[KeyValueWriter]
     val shuffleWriter = new ShuffleWriter[K, V] {
       /** Write a record to this task's output */
       def write(record: Product2[K, V]): Unit = {
@@ -55,13 +64,14 @@ class TezShuffleManager extends ShuffleManager {
     endPartition: Int,
     context: TaskContext): ShuffleReader[K, C] = {
     println("getReader")
-    val reader = TezThreadLocalContext.getReader.asInstanceOf[Reader]
+//    val reader = TezThreadLocalContext.getReader.asInstanceOf[Reader]
+    val reader = this.getReader
     val serializer = SparkEnv.get.serializer.newInstance
 
     val shuffleReader = new ShuffleReader[K, C] {
       /** Read the combined key-values for this reduce task */
       def read(): Iterator[Product2[K, C]] = {
-        val kvsReader = new KeyValueReaderWrapper(reader.asInstanceOf[KeyValuesReader])
+        val kvsReader = new KeyValueReaderWrapper(reader)
         new Iterator[Product2[K, C]] {
 
           override def hasNext(): Boolean = {
@@ -70,10 +80,18 @@ class TezShuffleManager extends ShuffleManager {
           }
 
           override def next(): Product2[K, C] = {
-            val bw = kvsReader.next().asInstanceOf[BytesWritable].copyBytes()
-            val value = serializer.deserialize[Tuple2[_, _]](ByteBuffer.wrap(bw))
-//            println(value)
-            value.asInstanceOf[Product2[K, C]]
+            val next =
+              if (kvsReader.isSingleValue()) {
+                val key = kvsReader.nextKey
+                val value = kvsReader.nextValue();
+                (key, value).asInstanceOf[Product2[K, C]]
+              } else {
+            	  val key = kvsReader.nextKey
+            	  val bwValue = kvsReader.nextValue.asInstanceOf[BytesWritable].copyBytes()
+            	  val value = serializer.deserialize[Tuple2[_, _]](ByteBuffer.wrap(bwValue))
+            	  value.asInstanceOf[Product2[K, C]]
+              }
+            next
           }
         }
       }
@@ -89,4 +107,10 @@ class TezShuffleManager extends ShuffleManager {
 
   /** Shut down this ShuffleManager. */
   def stop(): Unit = ()
+
+  private def getReader(): Reader = {
+    val inputIndex = input.keySet().iterator().next()
+    val reader = input.remove(inputIndex).getReader()
+    reader
+  }
 }
