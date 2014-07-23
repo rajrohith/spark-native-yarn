@@ -21,7 +21,6 @@ import org.apache.tez.dag.api.TezConfiguration
 import org.apache.tez.runtime.library.api.KeyValueReader
 import com.hortonworks.spark.tez.DAGBuilder
 import com.hortonworks.spark.tez.DAGBuilder.VertexDescriptor
-import com.hortonworks.spark.tez.TezThreadLocalContext
 import org.apache.hadoop.io.SequenceFile
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.BytesWritable
@@ -205,13 +204,5 @@ trait HadoopRDDMixin[K, V] extends RDD[(K,V)] {
     println("Computing in HadoopRDD")
     val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, null).read.asInstanceOf[Iterator[(K, V)]]
     new InterruptibleIterator(new TaskContext(0, 1, 1, true), iterator)
-//    val iter = new Iterator[(K, V)] {
-//      val kvReader = TezThreadLocalContext.getReader.asInstanceOf[KeyValueReader]
-//
-//      override def hasNext: Boolean = kvReader.
-//    
-//      override def next(): (K, V) = (kvReader.getCurrentKey.asInstanceOf[K], kvReader.getCurrentValue.asInstanceOf[V])
-//    }
-//    new InterruptibleIterator(context, iter)
   }
 }

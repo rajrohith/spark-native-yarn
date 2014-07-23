@@ -242,8 +242,6 @@ public class DAGBuilder {
 				    }    
 				}
 				else {
-					// This is temporary until ready to test  DAG with multi-stages
-//					throw new IllegalStateException("Unrecognized VertexDescriptor. Dev BUG, Fix!!!!");
 					Configuration vertexConfig = new Configuration(this.tezConfiguration);
 					byte[] payload = MRInput.createUserPayload(vertexConfig, SequenceFileAsBinaryOutputFormat.class.getName(), true, true);
 					ProcessorDescriptor pd = new ProcessorDescriptor(TezSparkProcessor.class.getName());
