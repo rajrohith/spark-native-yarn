@@ -5,7 +5,6 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.spark.SparkConf;
 import org.apache.spark.SparkUtils;
 import org.apache.spark.TezShuffleManager;
 import org.apache.tez.mapreduce.processor.SimpleMRProcessor;
@@ -37,9 +36,9 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 		Map<Integer, LogicalInput> inputs = (Map<Integer, LogicalInput>)this.toIntKey(this.getInputs());
 		Map<Integer, LogicalOutput> outputs = (Map<Integer, LogicalOutput>)this.toIntKey(this.getOutputs());
 		TezShuffleManager shufleManager = new TezShuffleManager(inputs, outputs);
-		SparkUtils.createSparkEnv(new SparkConf(), shufleManager);
+		SparkUtils.createSparkEnv(shufleManager);
 		
-		Object vertexTask = SparkUtils.deserializeSparkTask(ByteBuffer.wrap(IOUtils.toByteArray(serializedTask.getInputStream())));
+		Object vertexTask = SparkUtils.deserializeSparkTask(serializedTask.getInputStream());
 		SparkUtils.runTask(vertexTask);
 	}
 	

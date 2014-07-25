@@ -8,8 +8,11 @@ import org.apache.spark.storage.BlockManager
 import org.apache.spark.scheduler.ResultTask
 import sun.misc.Unsafe
 import org.apache.spark.rdd.CoGroupPartition
+import com.hortonworks.spark.tez.utils.TypeAwareSerializer.TypeAwareObjectInputStream
+import java.io.InputStream
 
 object SparkUtils {
+  val sparkConf = new SparkConf
   val unsafeConstructor = classOf[Unsafe].getDeclaredConstructor();
   unsafeConstructor.setAccessible(true);
   val unsafe = unsafeConstructor.newInstance();
@@ -19,16 +22,20 @@ object SparkUtils {
     unsafe.allocateInstance(clazz).asInstanceOf[T]
   }
 
-  def createSparkEnv(sparkConf: SparkConf, shuffleManager:TezShuffleManager) {
-    val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];
+  def createSparkEnv(shuffleManager:TezShuffleManager) {
+    val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];   
     val ser = new JavaSerializer(sparkConf)
     val se = new SparkEnv("0", null, ser, ser, null, null, shuffleManager, null, blockManager, null, null, null, null, null, sparkConf)
     SparkEnv.set(se)
   }
 
-  def deserializeSparkTask(buffer: ByteBuffer): Any = {
-    val ser = new JavaSerializer(new SparkConf)
-    ser.newInstance.deserialize[Task[_]](buffer, Thread.currentThread().getContextClassLoader())
+  def deserializeSparkTask(inputStream: InputStream): Any = {
+    val serializer = SparkEnv.get.serializer.newInstance
+    val is = new TypeAwareObjectInputStream(inputStream)
+    serializer.deserializeStream(is)
+    is.readObject
+//    val ser = new JavaSerializer(new SparkConf)
+//    ser.newInstance.deserialize[Task[_]](buffer, Thread.currentThread().getContextClassLoader())
   }
 
   def runTask(task: Any) = {
