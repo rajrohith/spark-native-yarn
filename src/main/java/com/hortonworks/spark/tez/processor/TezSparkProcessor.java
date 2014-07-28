@@ -1,12 +1,13 @@
 package com.hortonworks.spark.tez.processor;
 
-import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.apache.commons.io.IOUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.spark.SparkUtils;
 import org.apache.spark.TezShuffleManager;
+import org.apache.spark.scheduler.Task;
 import org.apache.tez.mapreduce.processor.SimpleMRProcessor;
 import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.LogicalOutput;
@@ -14,6 +15,9 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.Assert;
 
 public class TezSparkProcessor extends SimpleMRProcessor {
+	
+	private final Log logger = LogFactory.getLog(TezSparkProcessor.class);
+	
 	@Override
 	public void run() throws Exception {
 		try {
@@ -26,7 +30,9 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 	
 	@SuppressWarnings("unchecked")
 	private void doRun() throws Exception {
-		System.out.println("######## RUNNING PROCESSOR ########");
+		if (logger.isInfoEnabled()){
+			logger.info("Executing processor for task: " + this.context.getTaskIndex() + " for DAG " + this.context.getDAGName());
+		}
 		
 		int vertextId = this.context.getTaskVertexIndex();
 		String serializedTaskName = "SparkTask_" + vertextId + ".ser";
@@ -38,11 +44,11 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 		TezShuffleManager shufleManager = new TezShuffleManager(inputs, outputs);
 		SparkUtils.createSparkEnv(shufleManager);
 		
-		Object vertexTask = SparkUtils.deserializeSparkTask(serializedTask.getInputStream());
+		Task<?> vertexTask = SparkUtils.deserializeSparkTask(serializedTask.getInputStream(), this.context.getTaskIndex());
 		SparkUtils.runTask(vertexTask);
 	}
 	
-	public Map<Integer, ?> toIntKey(Map<String, ?> map) {
+	private Map<Integer, ?> toIntKey(Map<String, ?> map) {
 		TreeMap<Integer, Object> resultMap = new TreeMap<Integer, Object>();
 		for (String indexName : map.keySet()) {
 			try {

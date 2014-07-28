@@ -4,13 +4,11 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.ObjectOutputStream
 import java.nio.ByteBuffer
-
 import scala.collection.JavaConverters._
 import scala.collection.mutable.HashMap
 import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 import scala.tools.nsc.interpreter.AbstractFileClassLoader
-
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
@@ -29,10 +27,10 @@ import org.apache.spark.scheduler.ResultTask
 import org.apache.spark.scheduler.ShuffleMapTask
 import org.apache.spark.scheduler.Stage
 import org.apache.tez.dag.api.TezConfiguration
-
 import com.hortonworks.spark.tez.DAGBuilder
 import com.hortonworks.spark.tez.DAGBuilder.VertexDescriptor
-import com.hortonworks.spark.tez.utils.TypeAwareSerializer.TypeAwareObjectOutputStream
+import com.hortonworks.spark.tez.utils.TypeAwareStreams.TypeAwareObjectOutputStream
+import org.apache.spark.rdd.ParallelCollectionRDD
 
 trait Tez extends SparkContext {
 
@@ -53,13 +51,13 @@ trait Tez extends SparkContext {
     allowLocal: Boolean,
     resultHandler: (Int, U) => Unit) {
 
-    println("Intercepting")
-
+    println("Intercepting Spark Job submission and delegating it to Tez")
+    
     val stage = this.createStage(rdd, this.dagScheduler)
 
     this.prepStages(stage, null, func)
 
-    println(dagBuilder)
+    println("Current DAG: " + dagBuilder)
 
     dagBuilder.build.execute();
 
@@ -68,7 +66,8 @@ trait Tez extends SparkContext {
     val key = new LongWritable
     val value = new Text
     val fStatus = fs.listFiles(new Path(outputPath), false)
-    var l = new ListBuffer[Tuple2[_, _]]
+    val l = new ListBuffer[Tuple2[_, _]]
+    var counter = 0
     while (fStatus.hasNext()) {
       val status = fStatus.next()
       val file = status.getPath()
@@ -84,10 +83,11 @@ trait Tez extends SparkContext {
           val tuple = ser.deserialize[Tuple2[_, _]](ByteBuffer.wrap(kv))
           l += tuple
         }
+        resultHandler.apply(counter, l.toArray[Tuple2[_, _]].asInstanceOf[U])
+        counter += 1
+        l.clear
       }
     }
-
-    resultHandler.apply(0, l.toArray[Tuple2[_, _]].asInstanceOf[U])
   }
 
   override def newAPIHadoopFile[K, V, F <: NewInputFormat[K, V]](
@@ -96,7 +96,7 @@ trait Tez extends SparkContext {
     keyClass: Class[K],
     valueClass: Class[V],
     conf: Configuration = hadoopConfiguration): RDD[(K, V)] = {
-    println("Intercepting hadoopFile")
+
     this.inputMap += ((path, (inputFormatClass, keyClass, valueClass)))
 
     val hadoopRDD = new NewHadoopRDD(
@@ -164,26 +164,21 @@ trait Tez extends SparkContext {
     taskCounter += 1
 
     val vertextTask =
-      if (classOf[AbstractFileClassLoader].isAssignableFrom(Thread.currentThread().getContextClassLoader().getClass)) {
+//      if (classOf[AbstractFileClassLoader].isAssignableFrom(Thread.currentThread().getContextClassLoader().getClass)) {
         if (stage.isShuffleMap) {
           new TezShuffleTask(stage.id, stage.rdd, stage.shuffleDep.get, 0, null)
         } else {
           new TezResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], func, 0, Nil, 0)
         }
-      } else {
-        if (stage.isShuffleMap) {
-          new ShuffleMapTask(stage.id, stage.rdd, stage.shuffleDep.get, 0, null)
-        } else {
-          new ResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], func, 0, Nil, 0)
-        }
-      }
+//      } else {
+//        if (stage.isShuffleMap) {
+//          new ShuffleMapTask(stage.id, stage.rdd, stage.shuffleDep.get, 0, null)
+//        } else {
+//          new ResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], func, 0, Nil, 0)
+//        }
+//      }
 
     val os = new TypeAwareObjectOutputStream(new FileOutputStream(file))
-//      if (classOf[AbstractFileClassLoader].isAssignableFrom(Thread.currentThread().getContextClassLoader().getClass)) {
-//        new TypeAwareObjectOutputStream(new FileOutputStream(file))
-//      } else {
-//        new ObjectOutputStream(new FileOutputStream(file))
-//      }
 
     ser.serializeStream(os)
     os.writeObject(vertextTask);
@@ -217,7 +212,7 @@ trait HadoopRDDMixin[K, V] extends RDD[(K, V)] {
   }
 
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
-    println("Computing in HadoopRDD")
+//    println("Computing in HadoopRDD")
     val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, null).read.asInstanceOf[Iterator[(K, V)]]
     new InterruptibleIterator(new TaskContext(0, 1, 1, true), iterator)
   }

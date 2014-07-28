@@ -32,7 +32,7 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
 
   /** Get a writer for a given partition. Called on executors by map tasks. */
   def getWriter[K, V](handle: ShuffleHandle, mapId: Int, context: TaskContext): ShuffleWriter[K, V] = {
-    println("getWriter")
+//    println("getWriter")
     val serializer = SparkEnv.get.serializer.newInstance
     if (output.size() > 1){
       throw new UnsupportedOperationException("Multiple outputs are not supported yet.")
@@ -63,7 +63,7 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
     startPartition: Int,
     endPartition: Int,
     context: TaskContext): ShuffleReader[K, C] = {
-    println("getReader")
+//    println("getReader")
 //    val reader = TezThreadLocalContext.getReader.asInstanceOf[Reader]
     val reader = this.getReader
     val serializer = SparkEnv.get.serializer.newInstance

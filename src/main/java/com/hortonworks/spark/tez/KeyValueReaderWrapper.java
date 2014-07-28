@@ -51,7 +51,7 @@ public class KeyValueReaderWrapper {
 	public boolean hasNext(){
 		boolean hasNext = false;
 		try {
-			if (this.valuesIterator.hasNext()){
+			if (this.valuesIterator != null && this.valuesIterator.hasNext()){
 				hasNext = true;
 			}
 			else {

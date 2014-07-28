@@ -8,8 +8,8 @@ import org.apache.spark.storage.BlockManager
 import org.apache.spark.scheduler.ResultTask
 import sun.misc.Unsafe
 import org.apache.spark.rdd.CoGroupPartition
-import com.hortonworks.spark.tez.utils.TypeAwareSerializer.TypeAwareObjectInputStream
 import java.io.InputStream
+import com.hortonworks.spark.tez.utils.TypeAwareStreams.TypeAwareObjectInputStream
 
 object SparkUtils {
   val sparkConf = new SparkConf
@@ -29,13 +29,15 @@ object SparkUtils {
     SparkEnv.set(se)
   }
 
-  def deserializeSparkTask(inputStream: InputStream): Any = {
+  def deserializeSparkTask(inputStream: InputStream, partitionId:Int): Task[_] = {
     val serializer = SparkEnv.get.serializer.newInstance
     val is = new TypeAwareObjectInputStream(inputStream)
     serializer.deserializeStream(is)
-    is.readObject
-//    val ser = new JavaSerializer(new SparkConf)
-//    ser.newInstance.deserialize[Task[_]](buffer, Thread.currentThread().getContextClassLoader())
+    val task = is.readObject.asInstanceOf[Task[_]]
+    if (task.isInstanceOf[TezShuffleTask]){
+      task.asInstanceOf[TezShuffleTask].resetPartition(partitionId)
+    }
+    task
   }
 
   def runTask(task: Any) = {

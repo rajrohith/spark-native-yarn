@@ -53,7 +53,6 @@ public class JarUtils {
 		if (!source.isAbsolute()) {
 			throw new IllegalArgumentException("Source must be expressed through absolute path");
 		}
-		//StringAssertUtils.assertNotEmptyAndNoSpacesAndEndsWith(jarName, ".jar");
 		Manifest manifest = new Manifest();
 		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
 		File jarFile = new File(jarName);

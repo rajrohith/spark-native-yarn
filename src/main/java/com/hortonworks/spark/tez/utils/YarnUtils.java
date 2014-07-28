@@ -22,9 +22,10 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.tez.dag.api.TezConfiguration;
 
 /**
- * @author ozhurakousky
+ * 
  *
  */
 public class YarnUtils {
@@ -60,7 +61,9 @@ public class YarnUtils {
 			File f = new File(classpathUrl.getFile());
 			if (f.isDirectory()) {
 				String jarFileName = JarUtils.generateJarFileName(applicationName);
-				System.out.println("Generating application JAR: " + jarFileName);
+				if (logger.isDebugEnabled()){
+					logger.debug("Generating application JAR: " + jarFileName);
+				}
 				File jarFile = JarUtils.toJar(f, jarFileName);
 				generatedJars.add(jarFile);
 				f = jarFile;
@@ -119,6 +122,14 @@ public class YarnUtils {
 		return localResources;
 	}
 	
+	public static FileSystem createFileSystem(TezConfiguration tezConfiguration){
+		try {
+			return FileSystem.get(tezConfiguration);
+		} catch (Exception e) {
+			throw new IllegalStateException("Failed to access FileSystem", e);
+		}
+	}
+	
 	/**
 	 * 
 	 * @param fs
@@ -147,7 +158,9 @@ public class YarnUtils {
 	 */
 	private static void provisioinResourceToFs(FileSystem fs, Path sourcePath, Path destPath) {
 		try {
-			System.out.println("Provisioning '" + sourcePath + "' to " + destPath);
+			if (logger.isDebugEnabled()){
+				logger.debug("Provisioning '" + sourcePath + "' to " + destPath);
+			}
 			fs.copyFromLocalFile(sourcePath, destPath);
 		} 
 		catch (IOException e) {

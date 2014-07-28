@@ -53,6 +53,8 @@ public class DAGBuilder {
 	
 	private final Log logger = LogFactory.getLog(DAGBuilder.class);
 	
+	private static final String SPARK_TASK_JAR_NAME = "SparkTasks.jar";
+	
 	private final TezConfiguration tezConfiguration;
 	
 	private final String applicationName;
@@ -73,6 +75,8 @@ public class DAGBuilder {
 	
 	private final String outputPath;
 	
+	private final YarnClient yarnClient;
+	
 	private String[] classpathExclusions;
 	
 	private DAG dag;
@@ -81,10 +85,12 @@ public class DAGBuilder {
 		this.tezConfiguration = tezConfiguration;
 		this.applicationName = applicationName;
 		this.dag = new DAG(this.applicationName);
+		this.yarnClient = createAndInitYarnClient(this.tezConfiguration);
 		
-		this.tezClient = new TezClient("WordCountSession", this.tezConfiguration);
-		this.applicationId = createApplicationId(this.tezConfiguration);
-		this.fileSystem = createFileSystem(this.tezConfiguration);
+		this.tezClient = new TezClient(this.applicationName, this.tezConfiguration);
+		
+		this.applicationId = this.generateApplicationId();
+		this.fileSystem = YarnUtils.createFileSystem(this.tezConfiguration);
 		this.initClasspathExclusions();
 		
 		try {
@@ -97,6 +103,7 @@ public class DAGBuilder {
 		this.tezConfiguration.set(TezConfiguration.TEZ_AM_STAGING_DIR, stagingDirStr);
 		this.stagingDir = this.fileSystem.makeQualified(new Path(stagingDirStr));
 		this.outputPath = outputPath;
+		
 	}
 	
 	public DAGExecutor build(){
@@ -124,7 +131,7 @@ public class DAGBuilder {
 	        // monitoring
 	        DAGStatus dagStatus = dagClient.waitForCompletionWithAllStatusUpdates(null);
 	        if (dagStatus.getState() != DAGStatus.State.SUCCEEDED) {
-	          System.out.println("DAG diagnostics: " + dagStatus.getDiagnostics());
+	          logger.error("DAG diagnostics: " + dagStatus.getDiagnostics());
 	        }
 	    } catch (Exception e) {
 	    	throw new IllegalStateException("Failed to execute DAG", e);
@@ -155,11 +162,12 @@ public class DAGBuilder {
 	/**
 	 * 
 	 */
+	@SuppressWarnings("unused")
 	public static class VertexDescriptor {
 		private final int stageId;
 		private final int vertexId;
 		private final Object input;
-		private Class<?> inputFormatClass;
+		private Class<?> inputFormatClass;	
 		private Class<?> key;
 		private Class<?> value;
 		private int numPartitions;
@@ -293,27 +301,28 @@ public class DAGBuilder {
 	 * 
 	 */
 	private void provisionAndLocalizeCurrentClasspath() {
-		System.out.println(this.tezClient.getAppMasterApplicationId());
 		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(
 				this.fileSystem, this.applicationName, 
 				this.applicationId, this.classpathExclusions);
-		this.localResources = YarnUtils.createLocalResources(this.fileSystem, 
-				provisionedResourcesPaths);
+		this.localResources = YarnUtils.createLocalResources(this.fileSystem, provisionedResourcesPaths);
+			
 		File serTaskDir = new File(System.getProperty("java.io.tmpdir") + "/" + this.applicationName);
-		System.out.println("############ TASKS: " + Arrays.asList(serTaskDir.list()));
-		File jarFile = JarUtils.toJar(serTaskDir, "SparkTasks.jar");
+		if (logger.isDebugEnabled()){
+			logger.debug("Serializing Spark tasks: " + Arrays.asList(serTaskDir.list()) + " and packaging them into " + SPARK_TASK_JAR_NAME);
+		}
+	
+		File jarFile = JarUtils.toJar(serTaskDir, SPARK_TASK_JAR_NAME);
 		Path provisionedPath = YarnUtils.provisionResource(jarFile, this.fileSystem, this.applicationName, this.applicationId);
 		LocalResource resource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
-		this.localResources.put("SparkTasks.jar", resource);
+		this.localResources.put(SPARK_TASK_JAR_NAME, resource);
 		String[] serializedTasks = serTaskDir.list();
 		for (String serializedTask : serializedTasks) {
-			File taskFile = new File(jarFile, serializedTask);
+			File taskFile = new File(serTaskDir, serializedTask);
 			boolean deleted = taskFile.delete();
 			if (!deleted){
 				logger.warn("Failed to delete task after provisioning: " + taskFile.getAbsolutePath());
 			}
 		}
-		
 	}
 	
 	/**
@@ -326,40 +335,31 @@ public class DAGBuilder {
 		
 		try {
 			File scalaLibLocation = new File(new URL(path).toURI());
-			this.provisionAndAddToLocalResources(scalaLibLocation);
+			Path provisionedPath = YarnUtils.provisionResource(scalaLibLocation, this.fileSystem, 
+					this.applicationName, this.applicationId);
+			LocalResource localResource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
+			this.localResources.put(provisionedPath.getName(), localResource);
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to provision Scala Library", e);
 		}
 	}
 	
-	/**
-	 * 
-	 * @param file
-	 */
-	private void provisionAndAddToLocalResources(File file){
-		Path provisionedPath = YarnUtils.provisionResource(file, this.fileSystem, 
-				this.applicationName, this.applicationId);
-		LocalResource localResource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
-		this.localResources.put(provisionedPath.getName(), localResource);
+	private ApplicationId generateApplicationId(){
+		try {
+			return this.yarnClient.createApplication().getNewApplicationResponse().getApplicationId();
+		} catch (Exception e) {
+			throw new IllegalStateException("Failed to generate Application ID", e);
+		} 
 	}
 	
-	private static ApplicationId createApplicationId(TezConfiguration tezConfiguration){
+	private static YarnClient createAndInitYarnClient(TezConfiguration tezConfiguration){
 		try {
 			YarnClient yarnClient = YarnClient.createYarnClient();
 			yarnClient.init(tezConfiguration);
 			yarnClient.start();
-			return yarnClient.createApplication().
-			          getNewApplicationResponse().getApplicationId();
+			return yarnClient;
 		} catch (Exception e) {
-			throw new IllegalStateException("Can't generate application id", e);
-		}
-	}
-	
-	private static FileSystem createFileSystem(TezConfiguration tezConfiguration){
-		try {
-			return FileSystem.get(tezConfiguration);
-		} catch (Exception e) {
-			throw new IllegalStateException("Failed to access FileSystem", e);
+			throw new IllegalStateException("Failed to create YARN Client", e);
 		}
 	}
 }
