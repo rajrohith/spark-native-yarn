@@ -81,13 +81,13 @@ public class DAGBuilder {
 	
 	private DAG dag;
 	
-	public DAGBuilder(String applicationName, TezConfiguration tezConfiguration, String outputPath) {
+	public DAGBuilder(TezClient tezClient, String applicationName, TezConfiguration tezConfiguration, String outputPath) {
 		this.tezConfiguration = tezConfiguration;
 		this.applicationName = applicationName;
 		this.dag = new DAG(this.applicationName);
 		this.yarnClient = createAndInitYarnClient(this.tezConfiguration);
 		
-		this.tezClient = new TezClient(this.applicationName, this.tezConfiguration);
+		this.tezClient = tezClient;
 		
 		this.applicationId = this.generateApplicationId();
 		this.fileSystem = YarnUtils.createFileSystem(this.tezConfiguration);
@@ -121,9 +121,9 @@ public class DAGBuilder {
 	    	this.tezClient.start();
 
 		    DAGClient dagClient = null;
-	        if (this.fileSystem.exists(new Path(outputPath))) {
-	          throw new FileAlreadyExistsException("Output directory " + this.outputPath + " already exists");
-	        }
+//	        if (this.fileSystem.exists(new Path(outputPath))) {
+//	          throw new FileAlreadyExistsException("Output directory " + this.outputPath + " already exists");
+//	        }
 
 	        tezClient.waitTillReady();
 	        dagClient = tezClient.submitDAGApplication(this.applicationId, this.dag);

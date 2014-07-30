@@ -32,11 +32,13 @@ import com.hortonworks.spark.tez.DAGBuilder.VertexDescriptor
 import com.hortonworks.spark.tez.utils.TypeAwareStreams.TypeAwareObjectOutputStream
 import org.apache.spark.rdd.ParallelCollectionRDD
 import scala.collection.mutable.ArrayBuffer
+import org.apache.tez.client.TezClient
 
 trait Tez extends SparkContext {
 
-  var outputPath:String = null
+  var outputPath:String = this.appName + "_out"
   val tezConfiguration = new TezConfiguration(new Configuration)
+  val tezClient = new TezClient(this.appName, this.tezConfiguration);
   var dagBuilder:DAGBuilder = null
 
   var taskCounter = 0;
@@ -45,6 +47,10 @@ trait Tez extends SparkContext {
 
   val inputMap = new HashMap[String, Tuple3[Class[_], Class[_], Class[_]]]()
 
+  
+  /**
+   * 
+   */
   override def runJob[T, U: ClassTag](
     rdd: RDD[T],
     func: (TaskContext, Iterator[T]) => U,
@@ -52,9 +58,8 @@ trait Tez extends SparkContext {
     allowLocal: Boolean,
     resultHandler: (Int, U) => Unit) {
     
-    outputPath = this.appName + "_out_" + System.currentTimeMillis()
 	taskCounter = 0;
-    dagBuilder = new DAGBuilder(this.appName, tezConfiguration, outputPath)
+    dagBuilder = new DAGBuilder(tezClient, this.appName, tezConfiguration, outputPath)
     println("Intercepting Spark Job submission and delegating it to Tez")
     
     val stage = this.createStage(rdd, this.dagScheduler)
@@ -64,7 +69,7 @@ trait Tez extends SparkContext {
     println("Current DAG: " + dagBuilder)
 
     dagBuilder.build.execute();
-
+   
     val fs = FileSystem.get(tezConfiguration);
 
     val key = new LongWritable
@@ -86,8 +91,7 @@ trait Tez extends SparkContext {
         while (reader.nextKeyValue()) {
           val kv = reader.getCurrentValue().copyBytes()
           val tuple = ser.deserialize[Tuple2[_, _]](ByteBuffer.wrap(kv))
-          println(tuple)
-
+         
           if (classOf[Option[_]].isAssignableFrom(evidence$1.runtimeClass)){
             resultHandler.apply(counter, tuple._2.asInstanceOf[U])
           }
@@ -95,6 +99,7 @@ trait Tez extends SparkContext {
             l += tuple
           }
         }
+        fs.delete(file)
         if (l != null){
           val s = l.toArray
           resultHandler.apply(counter, s.asInstanceOf[U])

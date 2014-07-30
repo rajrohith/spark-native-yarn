@@ -14,13 +14,9 @@
 -->
 <configuration>
   <property>
-    <name>foo</name>
-    <value>bar</value>
+    <name>tez.am.mode.session</name>
+    <value>true</value>
   </property>
-<!--   <property> -->
-<!--     <name>tez.session.am.dag.submit.timeout.secs</name> -->
-<!--     <value>15</value> -->
-<!--   </property> -->
   <property>
     <name>fs.defaultFS</name>
     <value>hdfs://localhost:55555</value>
