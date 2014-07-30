@@ -59,7 +59,7 @@ trait Tez extends SparkContext {
     resultHandler: (Int, U) => Unit) {
     
 	taskCounter = 0;
-    dagBuilder = new DAGBuilder(tezClient, this.appName, tezConfiguration, outputPath)
+    dagBuilder = new DAGBuilder(tezClient, tezConfiguration, outputPath)
     println("Intercepting Spark Job submission and delegating it to Tez")
     
     val stage = this.createStage(rdd, this.dagScheduler)

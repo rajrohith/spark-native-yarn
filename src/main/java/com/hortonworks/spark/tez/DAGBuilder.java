@@ -13,7 +13,6 @@ import java.util.Map.Entry;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
@@ -57,8 +56,6 @@ public class DAGBuilder {
 	
 	private final TezConfiguration tezConfiguration;
 	
-	private final String applicationName;
-	
 	private final Map<Integer, VertexDescriptor> vertexes = new LinkedHashMap<Integer, VertexDescriptor>();
 	
 	private final ApplicationId applicationId;
@@ -81,14 +78,12 @@ public class DAGBuilder {
 	
 	private DAG dag;
 	
-	public DAGBuilder(TezClient tezClient, String applicationName, TezConfiguration tezConfiguration, String outputPath) {
-		this.tezConfiguration = tezConfiguration;
-		this.applicationName = applicationName;
-		this.dag = new DAG(this.applicationName);
-		this.yarnClient = createAndInitYarnClient(this.tezConfiguration);
-		
+	public DAGBuilder(TezClient tezClient, TezConfiguration tezConfiguration, String outputPath) {
 		this.tezClient = tezClient;
-		
+		this.tezConfiguration = tezConfiguration;
+		this.dag = new DAG(tezClient.getClientName());
+		this.yarnClient = createAndInitYarnClient(this.tezConfiguration);
+
 		this.applicationId = this.generateApplicationId();
 		this.fileSystem = YarnUtils.createFileSystem(this.tezConfiguration);
 		this.initClasspathExclusions();
@@ -103,7 +98,6 @@ public class DAGBuilder {
 		this.tezConfiguration.set(TezConfiguration.TEZ_AM_STAGING_DIR, stagingDirStr);
 		this.stagingDir = this.fileSystem.makeQualified(new Path(stagingDirStr));
 		this.outputPath = outputPath;
-		
 	}
 	
 	public DAGExecutor build(){
@@ -305,17 +299,17 @@ public class DAGBuilder {
 	 */
 	private void provisionAndLocalizeCurrentClasspath() {
 		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(
-				this.fileSystem, this.applicationName, 
+				this.fileSystem, tezClient.getClientName(), 
 				this.applicationId, this.classpathExclusions);
 		this.localResources = YarnUtils.createLocalResources(this.fileSystem, provisionedResourcesPaths);
 			
-		File serTaskDir = new File(System.getProperty("java.io.tmpdir") + "/" + this.applicationName);
+		File serTaskDir = new File(System.getProperty("java.io.tmpdir") + "/" + tezClient.getClientName());
 		if (logger.isDebugEnabled()){
 			logger.debug("Serializing Spark tasks: " + Arrays.asList(serTaskDir.list()) + " and packaging them into " + SPARK_TASK_JAR_NAME);
 		}
 	
 		File jarFile = JarUtils.toJar(serTaskDir, SPARK_TASK_JAR_NAME);
-		Path provisionedPath = YarnUtils.provisionResource(jarFile, this.fileSystem, this.applicationName, this.applicationId);
+		Path provisionedPath = YarnUtils.provisionResource(jarFile, this.fileSystem, tezClient.getClientName(), this.applicationId);
 		LocalResource resource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
 		this.localResources.put(SPARK_TASK_JAR_NAME, resource);
 		String[] serializedTasks = serTaskDir.list();
@@ -339,7 +333,7 @@ public class DAGBuilder {
 		try {
 			File scalaLibLocation = new File(new URL(path).toURI());
 			Path provisionedPath = YarnUtils.provisionResource(scalaLibLocation, this.fileSystem, 
-					this.applicationName, this.applicationId);
+					tezClient.getClientName(), this.applicationId);
 			LocalResource localResource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
 			this.localResources.put(provisionedPath.getName(), localResource);
 		} catch (Exception e) {
