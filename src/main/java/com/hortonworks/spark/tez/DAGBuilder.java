@@ -212,7 +212,9 @@ public class DAGBuilder {
 		            HashPartitioner.class.getName(), null).build();
 		
 		int sequenceCounter = 0;
+		int counter = 0;
 		for (Entry<Integer, VertexDescriptor> vertexDescriptorEntry : vertexes.entrySet()) {
+			counter++;
 			VertexDescriptor vertexDescriptor = vertexDescriptorEntry.getValue();
 			
 			if (vertexDescriptor.input instanceof String) {
@@ -228,7 +230,8 @@ public class DAGBuilder {
 				this.dag.addVertex(vertex);
 			}
 			else {
-				if (vertexDescriptorEntry.getKey() == 0) {
+//				if (vertexDescriptorEntry.getKey() == 0) {
+				if (counter == vertexes.size()) {
 					ProcessorDescriptor pd = new ProcessorDescriptor(TezSparkProcessor.class.getName());
 					Configuration outputConf = new Configuration(this.tezConfiguration);
 					outputConf.set(FileOutputFormat.OUTDIR, this.outputPath);

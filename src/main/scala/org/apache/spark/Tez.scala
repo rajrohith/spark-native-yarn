@@ -31,12 +31,13 @@ import com.hortonworks.spark.tez.DAGBuilder
 import com.hortonworks.spark.tez.DAGBuilder.VertexDescriptor
 import com.hortonworks.spark.tez.utils.TypeAwareStreams.TypeAwareObjectOutputStream
 import org.apache.spark.rdd.ParallelCollectionRDD
+import scala.collection.mutable.ArrayBuffer
 
 trait Tez extends SparkContext {
 
-  val outputPath = this.appName + "_out"
+  var outputPath:String = null
   val tezConfiguration = new TezConfiguration(new Configuration)
-  val dagBuilder = new DAGBuilder(this.appName, tezConfiguration, outputPath)
+  var dagBuilder:DAGBuilder = null
 
   var taskCounter = 0;
 
@@ -50,7 +51,10 @@ trait Tez extends SparkContext {
     partitions: Seq[Int],
     allowLocal: Boolean,
     resultHandler: (Int, U) => Unit) {
-
+    
+    outputPath = this.appName + "_out_" + System.currentTimeMillis()
+	taskCounter = 0;
+    dagBuilder = new DAGBuilder(this.appName, tezConfiguration, outputPath)
     println("Intercepting Spark Job submission and delegating it to Tez")
     
     val stage = this.createStage(rdd, this.dagScheduler)
@@ -66,8 +70,9 @@ trait Tez extends SparkContext {
     val key = new LongWritable
     val value = new Text
     val fStatus = fs.listFiles(new Path(outputPath), false)
-    val l = new ListBuffer[Tuple2[_, _]]
+    val l:ArrayBuffer[Tuple2[_,_]] = if (classOf[Option[_]].isAssignableFrom(evidence$1.runtimeClass)) null else new ArrayBuffer[Tuple2[_,_]]
     var counter = 0
+    
     while (fStatus.hasNext()) {
       val status = fStatus.next()
       val file = status.getPath()
@@ -81,11 +86,21 @@ trait Tez extends SparkContext {
         while (reader.nextKeyValue()) {
           val kv = reader.getCurrentValue().copyBytes()
           val tuple = ser.deserialize[Tuple2[_, _]](ByteBuffer.wrap(kv))
-          l += tuple
+          println(tuple)
+
+          if (classOf[Option[_]].isAssignableFrom(evidence$1.runtimeClass)){
+            resultHandler.apply(counter, tuple._2.asInstanceOf[U])
+          }
+          else {
+            l += tuple
+          }
         }
-        resultHandler.apply(counter, l.toArray[Tuple2[_, _]].asInstanceOf[U])
+        if (l != null){
+          val s = l.toArray
+          resultHandler.apply(counter, s.asInstanceOf[U])
+          l.clear
+        }
         counter += 1
-        l.clear
       }
     }
   }

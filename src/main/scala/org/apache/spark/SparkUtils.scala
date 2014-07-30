@@ -48,6 +48,11 @@ object SparkUtils {
         kvWriter.write(x.asInstanceOf[Product2[_,_]]);
       }
     }
+    else if (v.isInstanceOf[Option[_]]){
+      val kvWriter = SparkEnv.get.shuffleManager.getWriter[Any,Any](null, 0, null)
+      println(kvWriter)
+      kvWriter.write((0, v).asInstanceOf[Product2[_,_]])
+    }
     v
   }
 }
