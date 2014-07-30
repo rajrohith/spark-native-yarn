@@ -19,7 +19,7 @@
   </property>
   <property>
     <name>fs.defaultFS</name>
-    <value>hdfs://localhost:55555</value>
+    <value>hdfs://cn041-10:8020</value>
     <description>NameNode URI</description>
   </property>
    <property>
@@ -37,22 +37,22 @@
   </property>
   <property>       
      <name>yarn.resourcemanager.resourcetracker.address</name>       
-     <value>0.0.0.0:8025</value>  
+     <value>cn042-10:8031</value>  
      <description>Enter your ResourceManager hostname.</description>
   </property>
   <property>       
      <name>yarn.resourcemanager.scheduler.address</name>       
-     <value>0.0.0.0:8035</value>  
+     <value>cn042-10:8030</value>  
      <description>Enter your ResourceManager hostname.</description>
   </property>
   <property>       
     <name>yarn.resourcemanager.address</name>       
-    <value>0.0.0.0:8055</value>  
+    <value>cn042-10:8032</value>  
     <description>Enter your ResourceManager hostname.</description>
   </property>
   <property>
    <name>yarn.resourcemanager.hostname</name>
-   <value>0.0.0.0</value>
+   <value>cn042-10</value>
     <description>The hostname of the RM.</description>
  </property>
  <property>

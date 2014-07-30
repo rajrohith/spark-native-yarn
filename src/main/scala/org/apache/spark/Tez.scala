@@ -33,12 +33,15 @@ import com.hortonworks.spark.tez.utils.TypeAwareStreams.TypeAwareObjectOutputStr
 import org.apache.spark.rdd.ParallelCollectionRDD
 import scala.collection.mutable.ArrayBuffer
 import org.apache.tez.client.TezClient
+import com.hortonworks.spark.tez.utils.YarnUtils
 
 trait Tez extends SparkContext {
 
   var outputPath:String = this.appName + "_out"
   val tezConfiguration = new TezConfiguration(new Configuration)
   val tezClient = new TezClient(this.appName, this.tezConfiguration);
+  
+  val fs = FileSystem.get(tezConfiguration);
   var dagBuilder:DAGBuilder = null
 
   var taskCounter = 0;
@@ -46,7 +49,13 @@ trait Tez extends SparkContext {
   val ser = SparkEnv.get.closureSerializer.newInstance()
 
   val inputMap = new HashMap[String, Tuple3[Class[_], Class[_], Class[_]]]()
-
+ 
+  val yarnClient = YarnUtils.createAndInitYarnClient(tezConfiguration)
+  
+  val applicationId = YarnUtils.generateApplicationId(yarnClient)
+  val localResources = YarnUtils.createLocalResources(fs, appName, applicationId)
+  
+  
   
   /**
    * 
@@ -59,7 +68,7 @@ trait Tez extends SparkContext {
     resultHandler: (Int, U) => Unit) {
     
 	taskCounter = 0;
-    dagBuilder = new DAGBuilder(tezClient, tezConfiguration, outputPath)
+    dagBuilder = new DAGBuilder(tezClient, applicationId, localResources, tezConfiguration, outputPath)
     println("Intercepting Spark Job submission and delegating it to Tez")
     
     val stage = this.createStage(rdd, this.dagScheduler)
@@ -68,9 +77,12 @@ trait Tez extends SparkContext {
 
     println("Current DAG: " + dagBuilder)
 
+    println("######## SUBMITTING TEZ Job")
+     
     dagBuilder.build.execute();
    
-    val fs = FileSystem.get(tezConfiguration);
+    println("######## FINISHED TEZ Job")
+    
 
     val key = new LongWritable
     val value = new Text

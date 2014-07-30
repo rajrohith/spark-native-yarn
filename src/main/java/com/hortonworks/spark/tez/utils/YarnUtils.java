@@ -3,7 +3,9 @@
  */
 package com.hortonworks.spark.tez.utils;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -21,8 +23,12 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.tez.dag.api.TezConfiguration;
+import org.springframework.core.io.ClassPathResource;
+
+import scala.actors.threadpool.Arrays;
 
 /**
  * 
@@ -31,6 +37,60 @@ import org.apache.tez.dag.api.TezConfiguration;
 public class YarnUtils {
 	
 	private static final Log logger = LogFactory.getLog(YarnUtils.class);
+	
+	
+	
+	public static Map<String, LocalResource> createLocalResources(FileSystem fs, String appName, ApplicationId appId) {
+		Map<String, LocalResource> localResources = provisionAndLocalizeCurrentClasspath(fs, appName, appId);
+		provisionAndLocalizeScalaLib(fs, appName, appId, localResources);
+		return localResources;
+	}
+	
+	/**
+	 * 
+	 */
+	private static void provisionAndLocalizeScalaLib(FileSystem fs, String appName, ApplicationId appId, Map<String, LocalResource> localResources){
+		URL url = ClassLoader.getSystemClassLoader().getResource("scala/Function.class");
+		String path = url.getFile();
+		path = path.substring(0, path.indexOf("!"));
+		
+		try {
+			File scalaLibLocation = new File(new URL(path).toURI());
+			Path provisionedPath = YarnUtils.provisionResource(scalaLibLocation, fs, 
+					appName, appId);
+			LocalResource localResource = YarnUtils.createLocalResource(fs, provisionedPath);
+			localResources.put(provisionedPath.getName(), localResource);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to provision Scala Library", e);
+		}
+	}
+	
+	/**
+	 * 
+	 */
+	private static Map<String, LocalResource> provisionAndLocalizeCurrentClasspath(FileSystem fs, String appName, ApplicationId appId) {
+		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(fs, appName, appId, buildClasspathExclusions());
+		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(fs, provisionedResourcesPaths);
+			
+//		File serTaskDir = new File(System.getProperty("java.io.tmpdir") + "/" + appName);
+//		if (logger.isDebugEnabled()){
+//			logger.debug("Serializing Spark tasks: " + Arrays.asList(serTaskDir.list()) + " and packaging them into " + SPARK_TASK_JAR_NAME);
+//		}
+//	
+//		File jarFile = JarUtils.toJar(serTaskDir, SPARK_TASK_JAR_NAME);
+//		Path provisionedPath = YarnUtils.provisionResource(jarFile, fs, appName, appId);
+//		LocalResource resource = YarnUtils.createLocalResource(fs, provisionedPath);
+//		localResources.put(SPARK_TASK_JAR_NAME, resource);
+//		String[] serializedTasks = serTaskDir.list();
+//		for (String serializedTask : serializedTasks) {
+//			File taskFile = new File(serTaskDir, serializedTask);
+//			boolean deleted = taskFile.delete();
+//			if (!deleted){
+//				logger.warn("Failed to delete task after provisioning: " + taskFile.getAbsolutePath());
+//			}
+//		}
+		return localResources;
+	}
 	
 	/**
 	 * 
@@ -53,7 +113,7 @@ public class YarnUtils {
 	 * 
 	 * @return
 	 */
-	public static Path[] provisionClassPath(FileSystem fs, String applicationName, ApplicationId applicationId, String[] classPathExclusions){
+	private static Path[] provisionClassPath(FileSystem fs, String applicationName, ApplicationId applicationId, String[] classPathExclusions){
 		List<Path> provisionedPaths = new ArrayList<Path>();
 		List<File> generatedJars = new ArrayList<File>();
 		URL[] classpath = ((URLClassLoader) ClassLoader.getSystemClassLoader()).getURLs();
@@ -113,7 +173,7 @@ public class YarnUtils {
 	 * @param applicationName
 	 * @return
 	 */
-	public static Map<String, LocalResource> createLocalResources(FileSystem fs, Path[] provisionedResourcesPaths) {
+	private static Map<String, LocalResource> createLocalResources(FileSystem fs, Path[] provisionedResourcesPaths) {
 		Map<String, LocalResource> localResources = new LinkedHashMap<String, LocalResource>();
 		for (Path provisionedResourcesPath : provisionedResourcesPaths) {
 			LocalResource localResource = createLocalResource(fs, provisionedResourcesPath);
@@ -166,5 +226,49 @@ public class YarnUtils {
 		catch (IOException e) {
 			logger.warn("Failed to copy local resource " + sourcePath + " to " + destPath, e);
 		}
+	}
+	
+	/**
+	 * 
+	 */
+	private static String[] buildClasspathExclusions(){
+		String[] classpathExclusions = null;
+		try {
+			ClassPathResource exclusionResource = new ClassPathResource("classpath_exclusions");
+			if (exclusionResource.exists()){
+				List<String> exclusionPatterns = new ArrayList<String>();
+				File file = exclusionResource.getFile();
+				BufferedReader reader = new BufferedReader(new FileReader(file));
+				String line;
+				while ((line = reader.readLine()) != null){
+					exclusionPatterns.add(line.trim());
+				}
+				classpathExclusions = exclusionPatterns.toArray(new String[]{});
+				reader.close();
+			}
+			
+		} catch (Exception e) {
+			logger.warn("Failed to build the list of classpath exclusion. ", e);
+		}
+		return classpathExclusions;
+	}
+	
+	public static YarnClient createAndInitYarnClient(TezConfiguration tezConfiguration){
+		try {
+			YarnClient yarnClient = YarnClient.createYarnClient();
+			yarnClient.init(tezConfiguration);
+			yarnClient.start();
+			return yarnClient;
+		} catch (Exception e) {
+			throw new IllegalStateException("Failed to create YARN Client", e);
+		}
+	}
+	
+	public static ApplicationId generateApplicationId(YarnClient yarnClient){
+		try {
+			return yarnClient.createApplication().getNewApplicationResponse().getApplicationId();
+		} catch (Exception e) {
+			throw new IllegalStateException("Failed to generate Application ID", e);
+		} 
 	}
 }

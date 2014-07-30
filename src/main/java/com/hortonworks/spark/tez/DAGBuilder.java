@@ -1,12 +1,7 @@
 package com.hortonworks.spark.tez;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
-import java.net.URL;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -22,7 +17,6 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileAsBinaryOutputFormat;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
-import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.Edge;
@@ -40,7 +34,6 @@ import org.apache.tez.mapreduce.input.MRInput;
 import org.apache.tez.mapreduce.output.MROutput;
 import org.apache.tez.runtime.library.conf.OrderedPartitionedKVEdgeConfigurer;
 import org.apache.tez.runtime.library.partitioner.HashPartitioner;
-import org.springframework.core.io.ClassPathResource;
 
 import scala.actors.threadpool.Arrays;
 
@@ -68,25 +61,32 @@ public class DAGBuilder {
 	
 	private final Path stagingDir;
 	
-	private Map<String, LocalResource> localResources;
+	private final Map<String, LocalResource> localResources;
 	
 	private final String outputPath;
 	
-	private final YarnClient yarnClient;
+//	private final YarnClient yarnClient;
 	
-	private String[] classpathExclusions;
+//	private String[] classpathExclusions;
+	
+	private final FileSystem fs;
 	
 	private DAG dag;
 	
-	public DAGBuilder(TezClient tezClient, TezConfiguration tezConfiguration, String outputPath) {
+	public DAGBuilder(TezClient tezClient, ApplicationId applicationId, Map<String, LocalResource> localResources, TezConfiguration tezConfiguration, String outputPath) {
+		try {
+			this.fs = FileSystem.get(tezConfiguration);
+		} catch (Exception e) {
+			throw new IllegalStateException("Failed to access FileSystem", e);
+		}
 		this.tezClient = tezClient;
 		this.tezConfiguration = tezConfiguration;
 		this.dag = new DAG(tezClient.getClientName());
-		this.yarnClient = createAndInitYarnClient(this.tezConfiguration);
+//		this.yarnClient = createAndInitYarnClient(this.tezConfiguration);
 
-		this.applicationId = this.generateApplicationId();
+		this.applicationId = applicationId;
 		this.fileSystem = YarnUtils.createFileSystem(this.tezConfiguration);
-		this.initClasspathExclusions();
+//		this.initClasspathExclusions();
 		
 		try {
 			this.user = UserGroupInformation.getCurrentUser().getShortUserName();
@@ -98,6 +98,7 @@ public class DAGBuilder {
 		this.tezConfiguration.set(TezConfiguration.TEZ_AM_STAGING_DIR, stagingDirStr);
 		this.stagingDir = this.fileSystem.makeQualified(new Path(stagingDirStr));
 		this.outputPath = outputPath;
+		this.localResources = localResources;
 	}
 	
 	public DAGExecutor build(){
@@ -196,8 +197,29 @@ public class DAGBuilder {
 	@SuppressWarnings("unchecked")
 	private void doBuild() throws Exception {
 		
-		this.provisionAndLocalizeCurrentClasspath();
-		this.provisionAndLocalizeScalaLib();
+//		this.provisionAndLocalizeCurrentClasspath();
+//		this.provisionAndLocalizeScalaLib();
+		
+		File serTaskDir = new File(System.getProperty("java.io.tmpdir") + "/" + this.tezClient.getClientName());
+		if (logger.isDebugEnabled()){
+			logger.debug("Serializing Spark tasks: " + Arrays.asList(serTaskDir.list()) + " and packaging them into " + SPARK_TASK_JAR_NAME);
+		}
+	
+		File jarFile = JarUtils.toJar(serTaskDir, SPARK_TASK_JAR_NAME);
+		Path provisionedPath = YarnUtils.provisionResource(jarFile, fs, this.tezClient.getClientName(), this.applicationId);
+		LocalResource resource = YarnUtils.createLocalResource(fs, provisionedPath);
+		this.localResources.put(SPARK_TASK_JAR_NAME, resource);
+		String[] serializedTasks = serTaskDir.list();
+		for (String serializedTask : serializedTasks) {
+			File taskFile = new File(serTaskDir, serializedTask);
+			boolean deleted = taskFile.delete();
+			if (!deleted){
+				logger.warn("Failed to delete task after provisioning: " + taskFile.getAbsolutePath());
+			}
+		}
+		
+		
+		
 		this.tezClient.addAppMasterLocalResources(this.localResources);
 		
 		
@@ -271,92 +293,92 @@ public class DAGBuilder {
 		}
 	}
 	
-	/**
-	 * 
-	 */
-	private void initClasspathExclusions(){
-		try {
-			ClassPathResource exclusionResource = new ClassPathResource("classpath_exclusions");
-			if (exclusionResource.exists()){
-				List<String> exclusionPatterns = new ArrayList<String>();
-				File file = exclusionResource.getFile();
-				BufferedReader reader = new BufferedReader(new FileReader(file));
-				String line;
-				while ((line = reader.readLine()) != null){
-					exclusionPatterns.add(line.trim());
-				}
-				this.classpathExclusions = exclusionPatterns.toArray(new String[]{});
-				reader.close();
-			}
-			
-		} catch (Exception e) {
-			logger.warn("Failed to build the list of classpath exclusion. ", e);
-		}
-	}
+//	/**
+//	 * 
+//	 */
+//	private void initClasspathExclusions(){
+//		try {
+//			ClassPathResource exclusionResource = new ClassPathResource("classpath_exclusions");
+//			if (exclusionResource.exists()){
+//				List<String> exclusionPatterns = new ArrayList<String>();
+//				File file = exclusionResource.getFile();
+//				BufferedReader reader = new BufferedReader(new FileReader(file));
+//				String line;
+//				while ((line = reader.readLine()) != null){
+//					exclusionPatterns.add(line.trim());
+//				}
+//				this.classpathExclusions = exclusionPatterns.toArray(new String[]{});
+//				reader.close();
+//			}
+//			
+//		} catch (Exception e) {
+//			logger.warn("Failed to build the list of classpath exclusion. ", e);
+//		}
+//	}
 	
-	/**
-	 * 
-	 */
-	private void provisionAndLocalizeCurrentClasspath() {
-		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(
-				this.fileSystem, tezClient.getClientName(), 
-				this.applicationId, this.classpathExclusions);
-		this.localResources = YarnUtils.createLocalResources(this.fileSystem, provisionedResourcesPaths);
-			
-		File serTaskDir = new File(System.getProperty("java.io.tmpdir") + "/" + tezClient.getClientName());
-		if (logger.isDebugEnabled()){
-			logger.debug("Serializing Spark tasks: " + Arrays.asList(serTaskDir.list()) + " and packaging them into " + SPARK_TASK_JAR_NAME);
-		}
+//	/**
+//	 * 
+//	 */
+//	private void provisionAndLocalizeCurrentClasspath() {
+//		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(
+//				this.fileSystem, tezClient.getClientName(), 
+//				this.applicationId, this.classpathExclusions);
+//		this.localResources = YarnUtils.createLocalResources(this.fileSystem, provisionedResourcesPaths);
+//			
+//		File serTaskDir = new File(System.getProperty("java.io.tmpdir") + "/" + tezClient.getClientName());
+//		if (logger.isDebugEnabled()){
+//			logger.debug("Serializing Spark tasks: " + Arrays.asList(serTaskDir.list()) + " and packaging them into " + SPARK_TASK_JAR_NAME);
+//		}
+//	
+//		File jarFile = JarUtils.toJar(serTaskDir, SPARK_TASK_JAR_NAME);
+//		Path provisionedPath = YarnUtils.provisionResource(jarFile, this.fileSystem, tezClient.getClientName(), this.applicationId);
+//		LocalResource resource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
+//		this.localResources.put(SPARK_TASK_JAR_NAME, resource);
+//		String[] serializedTasks = serTaskDir.list();
+//		for (String serializedTask : serializedTasks) {
+//			File taskFile = new File(serTaskDir, serializedTask);
+//			boolean deleted = taskFile.delete();
+//			if (!deleted){
+//				logger.warn("Failed to delete task after provisioning: " + taskFile.getAbsolutePath());
+//			}
+//		}
+//	}
 	
-		File jarFile = JarUtils.toJar(serTaskDir, SPARK_TASK_JAR_NAME);
-		Path provisionedPath = YarnUtils.provisionResource(jarFile, this.fileSystem, tezClient.getClientName(), this.applicationId);
-		LocalResource resource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
-		this.localResources.put(SPARK_TASK_JAR_NAME, resource);
-		String[] serializedTasks = serTaskDir.list();
-		for (String serializedTask : serializedTasks) {
-			File taskFile = new File(serTaskDir, serializedTask);
-			boolean deleted = taskFile.delete();
-			if (!deleted){
-				logger.warn("Failed to delete task after provisioning: " + taskFile.getAbsolutePath());
-			}
-		}
-	}
+//	/**
+//	 * 
+//	 */
+//	private void provisionAndLocalizeScalaLib(){
+//		URL url = ClassLoader.getSystemClassLoader().getResource("scala/Function.class");
+//		String path = url.getFile();
+//		path = path.substring(0, path.indexOf("!"));
+//		
+//		try {
+//			File scalaLibLocation = new File(new URL(path).toURI());
+//			Path provisionedPath = YarnUtils.provisionResource(scalaLibLocation, this.fileSystem, 
+//					tezClient.getClientName(), this.applicationId);
+//			LocalResource localResource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
+//			this.localResources.put(provisionedPath.getName(), localResource);
+//		} catch (Exception e) {
+//			throw new RuntimeException("Failed to provision Scala Library", e);
+//		}
+//	}
 	
-	/**
-	 * 
-	 */
-	private void provisionAndLocalizeScalaLib(){
-		URL url = ClassLoader.getSystemClassLoader().getResource("scala/Function.class");
-		String path = url.getFile();
-		path = path.substring(0, path.indexOf("!"));
-		
-		try {
-			File scalaLibLocation = new File(new URL(path).toURI());
-			Path provisionedPath = YarnUtils.provisionResource(scalaLibLocation, this.fileSystem, 
-					tezClient.getClientName(), this.applicationId);
-			LocalResource localResource = YarnUtils.createLocalResource(this.fileSystem, provisionedPath);
-			this.localResources.put(provisionedPath.getName(), localResource);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to provision Scala Library", e);
-		}
-	}
-	
-	private ApplicationId generateApplicationId(){
-		try {
-			return this.yarnClient.createApplication().getNewApplicationResponse().getApplicationId();
-		} catch (Exception e) {
-			throw new IllegalStateException("Failed to generate Application ID", e);
-		} 
-	}
-	
-	private static YarnClient createAndInitYarnClient(TezConfiguration tezConfiguration){
-		try {
-			YarnClient yarnClient = YarnClient.createYarnClient();
-			yarnClient.init(tezConfiguration);
-			yarnClient.start();
-			return yarnClient;
-		} catch (Exception e) {
-			throw new IllegalStateException("Failed to create YARN Client", e);
-		}
-	}
+//	private ApplicationId generateApplicationId(){
+//		try {
+//			return this.yarnClient.createApplication().getNewApplicationResponse().getApplicationId();
+//		} catch (Exception e) {
+//			throw new IllegalStateException("Failed to generate Application ID", e);
+//		} 
+//	}
+//	
+//	private static YarnClient createAndInitYarnClient(TezConfiguration tezConfiguration){
+//		try {
+//			YarnClient yarnClient = YarnClient.createYarnClient();
+//			yarnClient.init(tezConfiguration);
+//			yarnClient.start();
+//			return yarnClient;
+//		} catch (Exception e) {
+//			throw new IllegalStateException("Failed to create YARN Client", e);
+//		}
+//	}
 }
