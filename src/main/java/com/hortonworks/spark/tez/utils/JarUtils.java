@@ -17,6 +17,7 @@ package com.hortonworks.spark.tez.utils;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -42,6 +43,25 @@ import org.springframework.util.StringUtils;
  */
 public class JarUtils {
 	private final static Log logger = LogFactory.getLog(JarUtils.class);
+	
+	public static byte[] toJarBytes(File source) {
+		if (!source.isAbsolute()) {
+			throw new IllegalArgumentException("Source must be expressed through absolute path");
+		}
+		Manifest manifest = new Manifest();
+		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
+		//File jarFile = new File(jarName);
+		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+		try {
+			JarOutputStream target = new JarOutputStream(bos, manifest);
+			add(source, source.getAbsolutePath().length(), target);
+			target.close();
+		}
+		catch (Exception e) {
+			throw new IllegalStateException("Failed to generate JAR bytes from " + source.getAbsolutePath(), e);
+		}
+		return bos.toByteArray();
+	}
 	/**
 	 * Will create a JAR file frombase dir
 	 *

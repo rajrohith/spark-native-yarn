@@ -34,14 +34,39 @@ import org.apache.spark.rdd.ParallelCollectionRDD
 import scala.collection.mutable.ArrayBuffer
 import org.apache.tez.client.TezClient
 import com.hortonworks.spark.tez.utils.YarnUtils
+import org.apache.commons.logging.LogFactory
+import com.hortonworks.spark.tez.processor.DummyProcessor
+import org.apache.tez.dag.api.ProcessorDescriptor
+import org.apache.tez.client.PreWarmContext
+import org.apache.tez.mapreduce.hadoop.MRHelpers
+import org.apache.tez.dag.api.Vertex
+import java.net.URLClassLoader
 
 trait Tez extends SparkContext {
 
+  val logger = LogFactory.getLog(classOf[Tez]);
   var outputPath:String = this.appName + "_out"
-  val tezConfiguration = new TezConfiguration(new Configuration)
-  val tezClient = new TezClient(this.appName, this.tezConfiguration);
   
+  val tezConfiguration = new TezConfiguration(new Configuration)
   val fs = FileSystem.get(tezConfiguration);
+
+  logger.debug("Provisioning Local Resources")
+  val localResources = YarnUtils.createLocalResources(fs, "spark-on-tez-cp")
+  logger.debug("Created Local Resources for application classpath")
+  
+  logger.debug("Creating TezClient")
+  val tezClient = new TezClient(this.appName, this.tezConfiguration);
+  this.tezClient.addAppMasterLocalResources(this.localResources);
+  tezClient.start();
+  logger.debug("Created and started TezClient")
+  
+//  val pd = new ProcessorDescriptor(classOf[DummyProcessor].getName);
+//  val pc = new PreWarmContext(pd, MRHelpers.getMapResource(this.tezConfiguration), tezConfiguration.getInt(TezConfiguration.TEZ_AM_SESSION_MIN_HELD_CONTAINERS, 10), null)
+//  pc.setLocalResources(localResources)
+//  val vertex = new Vertex("foo", pd, -1, MRHelpers.getMapResource(this.tezConfiguration));			
+//  pc.setEnvironment(vertex.getTaskEnvironment())
+//  tezClient.preWarm(pc)
+  
   var dagBuilder:DAGBuilder = null
 
   var taskCounter = 0;
@@ -49,13 +74,11 @@ trait Tez extends SparkContext {
   val ser = SparkEnv.get.closureSerializer.newInstance()
 
   val inputMap = new HashMap[String, Tuple3[Class[_], Class[_], Class[_]]]()
- 
-  val yarnClient = YarnUtils.createAndInitYarnClient(tezConfiguration)
   
-  val applicationId = YarnUtils.generateApplicationId(yarnClient)
-  val localResources = YarnUtils.createLocalResources(fs, appName, applicationId)
-  
-  
+  override def stop() {
+    super.stop
+    tezClient.stop()
+  }
   
   /**
    * 
@@ -67,23 +90,25 @@ trait Tez extends SparkContext {
     allowLocal: Boolean,
     resultHandler: (Int, U) => Unit) {
     
+//    println(Thread.currentThread().getContextClassLoader())    
+//    println(Thread.currentThread().getContextClassLoader().isInstanceOf[URLClassLoader])
+    
 	taskCounter = 0;
-    dagBuilder = new DAGBuilder(tezClient, applicationId, localResources, tezConfiguration, outputPath)
-    println("Intercepting Spark Job submission and delegating it to Tez")
+    dagBuilder = new DAGBuilder(tezClient, localResources, tezConfiguration, outputPath)
+    logger.debug("Intercepting Spark Job submission and delegating it to Tez")
     
     val stage = this.createStage(rdd, this.dagScheduler)
 
     this.prepStages(stage, null, func)
 
-    println("Current DAG: " + dagBuilder)
+    logger.debug("Current DAG: " + dagBuilder)
 
-    println("######## SUBMITTING TEZ Job")
+    logger.info("######## SUBMITTING TEZ Job")
      
     dagBuilder.build.execute();
    
-    println("######## FINISHED TEZ Job")
+    logger.info("######## FINISHED TEZ Job")
     
-
     val key = new LongWritable
     val value = new Text
     val fStatus = fs.listFiles(new Path(outputPath), false)
@@ -215,7 +240,7 @@ trait Tez extends SparkContext {
     ser.serializeStream(os)
     os.writeObject(vertextTask);
     os.close();
-    println("Serialized " + file.getAbsolutePath() + " - " + file.length())
+    logger.info("Serialized " + file.getAbsolutePath() + " - " + file.length())
   }
 
   private def createStage(rdd: RDD[_], dagScheduler: AnyRef): Stage = {

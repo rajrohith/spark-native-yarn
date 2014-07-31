@@ -10,6 +10,7 @@ import sun.misc.Unsafe
 import org.apache.spark.rdd.CoGroupPartition
 import java.io.InputStream
 import com.hortonworks.spark.tez.utils.TypeAwareStreams.TypeAwareObjectInputStream
+import java.io.ByteArrayInputStream
 
 object SparkUtils {
   val sparkConf = new SparkConf
@@ -39,6 +40,17 @@ object SparkUtils {
     }
     task
   }
+  
+//  def deserializeSparkTask(inputBytes: Array[Byte], partitionId:Int): Task[_] = {
+//    val serializer = SparkEnv.get.serializer.newInstance
+//    val is = new TypeAwareObjectInputStream(new ByteArrayInputStream(inputBytes))
+//    serializer.deserializeStream(is)
+//    val task = is.readObject.asInstanceOf[Task[_]]
+//    if (task.isInstanceOf[TezShuffleTask]){
+//      task.asInstanceOf[TezShuffleTask].resetPartition(partitionId)
+//    }
+//    task
+//  }
 
   def runTask(task: Any) = {
     val v = task.asInstanceOf[Task[_]].runTask(new TaskContext(0, 1, 1, true))

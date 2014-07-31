@@ -18,8 +18,12 @@
     <value>true</value>
   </property>
   <property>
+    <name>tez.am.session.min.held-containers</name>
+    <value>10</value>
+  </property>
+  <property>
     <name>fs.defaultFS</name>
-    <value>hdfs://cn041-10:8020</value>
+    <value>hdfs://hadoop-node-one:9000</value>
     <description>NameNode URI</description>
   </property>
    <property>
@@ -37,28 +41,28 @@
   </property>
   <property>       
      <name>yarn.resourcemanager.resourcetracker.address</name>       
-     <value>cn042-10:8031</value>  
+     <value>hadoop-node-one:8025</value>  
      <description>Enter your ResourceManager hostname.</description>
   </property>
   <property>       
      <name>yarn.resourcemanager.scheduler.address</name>       
-     <value>cn042-10:8030</value>  
+     <value>hadoop-node-one:8035</value>  
      <description>Enter your ResourceManager hostname.</description>
   </property>
   <property>       
     <name>yarn.resourcemanager.address</name>       
-    <value>cn042-10:8032</value>  
+    <value>hadoop-node-one:8055</value>  
     <description>Enter your ResourceManager hostname.</description>
   </property>
   <property>
    <name>yarn.resourcemanager.hostname</name>
-   <value>cn042-10</value>
+   <value>hadoop-node-one</value>
     <description>The hostname of the RM.</description>
  </property>
  <property>
     <description>The http address of the RM web application.</description>
     <name>yarn.resourcemanager.webapp.address</name>
-    <value>${yarn.resourcemanager.hostname}:8080</value>
+    <value>${yarn.resourcemanager.hostname}:8088</value>
   </property>
   <property>
     <name>yarn.scheduler.minimum-allocation-mb</name>

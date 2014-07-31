@@ -61,6 +61,8 @@ class TezILoop extends SparkILoop {
   override def prompt = "spark-on-tez> "
   addThunk {
     intp.beQuietDuring {
+      intp.getInterpreterClassLoader.setAsContext
+//      println(intp.outputDir)
       intp.addImports("org.apache.hadoop.fs.FileSystem")
       intp.addImports("org.apache.hadoop.fs.Path")
       intp.addImports("org.apache.hadoop.yarn.conf.YarnConfiguration")
@@ -71,7 +73,7 @@ class TezILoop extends SparkILoop {
   }
 
   override def createSparkContext(): SparkContext = {
-    new SparkContext("local", "SparkOnTez") with Tez
+    new SparkContext("local", "SparkOnTez-REPL") with Tez
   }
 
   override def printWelcome() {

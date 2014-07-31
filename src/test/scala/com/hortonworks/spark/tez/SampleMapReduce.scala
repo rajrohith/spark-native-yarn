@@ -14,20 +14,21 @@ object SampleMapReduce extends App {
 //  fs.copyFromLocalFile(false, true, new Path("/Users/ozhurakousky/dev/spark-on-tez/sample-256.txt"), testFile);
 //  println(fs.makeQualified(testFile))
   
-  val sc = new SparkContext("local", "SparkOnTez") with Tez
+  val sc = new SparkContext("local", "SparkOnTez-WordCount") with Tez
   
   println("##### STARTING JOB");
   
   val source = sc.textFile("sample-256.txt")
   val result = source
     .flatMap ( line => line.split(" ") )
-    .map(word => (word, 1L))
-    .filter(x => x._1 != "foo")
+    .map((_, 1L))
     .reduceByKey(_ + _, 4)
     .collect
 
     println("######## FINISHED")
   println(result.toSet)
+  
+  sc.stop
     
   def combine = (x: Int, y: Int) => {
     x + y

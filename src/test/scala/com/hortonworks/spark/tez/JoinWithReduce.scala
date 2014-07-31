@@ -11,7 +11,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
  * This sample is similar to SampleJoin.scala and demonstrates join between two sources
  * However, unlike the SampleJoin.scala it reduces (merges) output by key and then sorts its which results
  * in additional stage making it 4 stage (4 Vertexes) DAG
- * 
+ *
  * First two stages will read and map the file and their output will be read
  * by a third stage and eventually fed into a fourth stage to do the sorting
  */
@@ -22,7 +22,7 @@ object JoinWithReduce extends App {
   testFile = new Path("file2.txt");
   fs.copyFromLocalFile(false, true, new Path("/Users/ozhurakousky/dev/spark-on-tez/file2.txt"), testFile);
 
-  val sc = new SparkContext("local", "SampleJoin") with Tez
+  val sc = new SparkContext("local", "SparkOnTez-joinReduceSort") with Tez
 
   val s1 = sc.textFile("file1.txt")
   val s2 = sc.textFile("file2.txt")
@@ -37,4 +37,6 @@ object JoinWithReduce extends App {
     .collect
 
   println(result.toList)
+
+  sc.stop
 }
