@@ -1,6 +1,7 @@
 protobuff/
 tmp/
 target
+scala-lib
 .idea
 .settings
 .cache
