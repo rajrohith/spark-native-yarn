@@ -33,25 +33,26 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
   /** Get a writer for a given partition. Called on executors by map tasks. */
   def getWriter[K, V](handle: ShuffleHandle, mapId: Int, context: TaskContext): ShuffleWriter[K, V] = {
 //    println("getWriter")
-    val serializer = SparkEnv.get.serializer.newInstance
-    if (output.size() > 1){
-      throw new UnsupportedOperationException("Multiple outputs are not supported yet.")
-    }
-//    val kvWriter = TezThreadLocalContext.getWriter.asInstanceOf[KeyValueWriter]
-    val kvWriter = output.values.iterator.next.getWriter.asInstanceOf[KeyValueWriter]
-    val shuffleWriter = new ShuffleWriter[K, V] {
-      /** Write a record to this task's output */
-      def write(record: Product2[K, V]): Unit = {
-        val bwValue = new BytesWritable(serializer.serialize(record).array())
-        kvWriter.write(key, bwValue)
-      }
-
-      /** Close this writer, passing along whether the map completed */
-      def stop(success: Boolean): Option[MapStatus] = {
-        Some(SparkUtils.createUnsafeInstance(classOf[MapStatus]))
-      }
-    }
-    shuffleWriter
+//    val serializer = SparkEnv.get.serializer.newInstance
+//    if (output.size() > 1){
+//      throw new UnsupportedOperationException("Multiple outputs are not supported yet.")
+//    }
+////    val kvWriter = TezThreadLocalContext.getWriter.asInstanceOf[KeyValueWriter]
+//    val kvWriter = output.values.iterator.next.getWriter.asInstanceOf[KeyValueWriter]
+//    val shuffleWriter = new ShuffleWriter[K, V] {
+//      /** Write a record to this task's output */
+//      def write(record: Product2[K, V]): Unit = {
+//        val bwValue = new BytesWritable(serializer.serialize(record).array())
+//        kvWriter.write(key, bwValue)
+//      }
+//
+//      /** Close this writer, passing along whether the map completed */
+//      def stop(success: Boolean): Option[MapStatus] = {
+//        Some(SparkUtils.createUnsafeInstance(classOf[MapStatus]))
+//      }
+//    }
+//    shuffleWriter
+    null
   }
 
   /**

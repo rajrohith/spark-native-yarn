@@ -61,7 +61,7 @@ configurations {
 		all*.exclude group: "org.mortbay.jetty", module: "jetty-util"
 		all*.exclude group: "xmlenc", module: "xmlenc"
 		all*.exclude group: "org.tukaani", module: "xz"
-		all*.exclude group: "asm", module: "asm"	
+		//all*.exclude group: "asm", module: "asm"	
 		all*.exclude group: "org.codehaus.jackson", module: "jackson-core-asl"
 		all*.exclude group: "org.codehaus.jackson", module: "jackson-mapper-asl"
 		//all*.exclude group: "org.codehaus.jettison", module: "jettison"
@@ -94,6 +94,7 @@ dependencies {
 	compile "org.apache.tez:tez-mapreduce:$tezVersion"
 	compile "org.apache.hadoop:hadoop-hdfs:$hadoopVersion"
 	compile "org.apache.hadoop:hadoop-common:$hadoopVersion"
+	compile "org.ow2.asm:asm-all:5.0.3"
 	
 	testCompile "junit:junit-dep:$junitVersion"
 	testCompile "org.mockito:mockito-all:$mockitoVersion"

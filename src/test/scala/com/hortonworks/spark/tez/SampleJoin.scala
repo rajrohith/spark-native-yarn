@@ -27,6 +27,8 @@ object SampleJoin extends App {
   
   val s1 = sc.textFile("file1.txt")
   val s2 = sc.textFile("file2.txt")
+  
+  
 
   val result = s1.map{line => val x = line.split("\\s+"); (x(2), x(0) + "," +  x(1) )}
   	.join(s2.map{line => val x = line.split("\\s+"); (x(0), x(1))})

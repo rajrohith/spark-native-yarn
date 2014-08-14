@@ -35,12 +35,12 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.tez.client.TezClient
 import com.hortonworks.spark.tez.utils.YarnUtils
 import org.apache.commons.logging.LogFactory
-import com.hortonworks.spark.tez.processor.DummyProcessor
 import org.apache.tez.dag.api.ProcessorDescriptor
 import org.apache.tez.client.PreWarmContext
 import org.apache.tez.mapreduce.hadoop.MRHelpers
 import org.apache.tez.dag.api.Vertex
 import java.net.URLClassLoader
+import org.apache.spark.scheduler.Task
 
 trait Tez extends SparkContext {
 
@@ -105,7 +105,7 @@ trait Tez extends SparkContext {
 
     logger.info("######## SUBMITTING TEZ Job")
      
-    dagBuilder.build.execute();
+//    dagBuilder.build.execute();
    
     logger.info("######## FINISHED TEZ Job")
     
@@ -198,7 +198,7 @@ trait Tez extends SparkContext {
     val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
     val firstDependency = dependencies(0)
     val deps = (if (firstDependency.name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else firstDependency.name)
-    val vd = new VertexDescriptor(stage.id, taskCounter, deps)
+    val vd = new VertexDescriptor(stage.id, taskCounter, deps, null)
     if (deps.isInstanceOf[String]) {
       val inputs = this.inputMap.get(deps.asInstanceOf[String]).get
       vd.setInputFormatClass(inputs._1)
@@ -220,13 +220,13 @@ trait Tez extends SparkContext {
     }
     taskCounter += 1
 
-    val vertextTask =
+    val vertextTask:Task[_] = null
 //      if (classOf[AbstractFileClassLoader].isAssignableFrom(Thread.currentThread().getContextClassLoader().getClass)) {
-        if (stage.isShuffleMap) {
-          new TezShuffleTask(stage.id, stage.rdd, stage.shuffleDep.get, 0, null)
-        } else {
-          new TezResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], func, 0, Nil, 0)
-        }
+//        if (stage.isShuffleMap) {
+//          new TezShuffleTask(stage.id, stage.rdd, stage.shuffleDep.get, 0, null)
+//        } else {
+//          new TezResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], func, 0, Nil, 0)
+//        }
 //      } else {
 //        if (stage.isShuffleMap) {
 //          new ShuffleMapTask(stage.id, stage.rdd, stage.shuffleDep.get, 0, null)

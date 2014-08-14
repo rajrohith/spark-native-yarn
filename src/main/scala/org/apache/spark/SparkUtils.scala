@@ -11,6 +11,9 @@ import org.apache.spark.rdd.CoGroupPartition
 import java.io.InputStream
 import com.hortonworks.spark.tez.utils.TypeAwareStreams.TypeAwareObjectInputStream
 import java.io.ByteArrayInputStream
+import sun.reflect.ReflectionFactory
+import java.io.ObjectInputStream
+import org.apache.spark.tez.VertexTask
 
 object SparkUtils {
   val sparkConf = new SparkConf
@@ -20,24 +23,23 @@ object SparkUtils {
 
   
   def createUnsafeInstance[T](clazz:Class[T]):T = {
+//    ReflectionFactory.getReflectionFactory().
+    //unsafe.defineClass(x$1, x$2, x$3, x$4)
     unsafe.allocateInstance(clazz).asInstanceOf[T]
   }
 
   def createSparkEnv(shuffleManager:TezShuffleManager) {
     val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];   
     val ser = new JavaSerializer(sparkConf)
-    val se = new SparkEnv("0", null, ser, ser, null, null, shuffleManager, null, blockManager, null, null, null, null, null, sparkConf)
+    val se = new SparkEnv("0", null, ser, ser, null, null, shuffleManager, null, blockManager, null, null, null, null, null, null, sparkConf)
     SparkEnv.set(se)
   }
 
-  def deserializeSparkTask(inputStream: InputStream, partitionId:Int): Task[_] = {
+  def deserializeSparkTask(taskBytes: Array[Byte], partitionId:Int): VertexTask = {
     val serializer = SparkEnv.get.serializer.newInstance
-    val is = new TypeAwareObjectInputStream(inputStream)
-    serializer.deserializeStream(is)
-    val task = is.readObject.asInstanceOf[Task[_]]
-    if (task.isInstanceOf[TezShuffleTask]){
-      task.asInstanceOf[TezShuffleTask].resetPartition(partitionId)
-    }
+    
+    val task = serializer.deserialize[VertexTask](ByteBuffer.wrap(taskBytes))
+
     task
   }
   
@@ -54,17 +56,17 @@ object SparkUtils {
 
   def runTask(task: Any) = {
     val v = task.asInstanceOf[Task[_]].runTask(new TaskContext(0, 1, 1, true))
-    if (v.isInstanceOf[Array[Tuple2[_,_]]]){
-      val kvWriter = SparkEnv.get.shuffleManager.getWriter[Any,Any](null, 0, null)
-      for (x <- v.asInstanceOf[Array[Tuple2[_,_]]]){
-        kvWriter.write(x.asInstanceOf[Product2[_,_]]);
-      }
-    }
-    else if (v.isInstanceOf[Option[_]]){
-      val kvWriter = SparkEnv.get.shuffleManager.getWriter[Any,Any](null, 0, null)
-      println(kvWriter)
-      kvWriter.write((0, v).asInstanceOf[Product2[_,_]])
-    }
+//    if (v.isInstanceOf[Array[Tuple2[_,_]]]){
+//      val kvWriter = SparkEnv.get.shuffleManager.getWriter[Any,Any](null, 0, null)
+//      for (x <- v.asInstanceOf[Array[Tuple2[_,_]]]){
+//        kvWriter.write(x.asInstanceOf[Product2[_,_]]);
+//      }
+//    }
+//    else if (v.isInstanceOf[Option[_]]){
+//      val kvWriter = SparkEnv.get.shuffleManager.getWriter[Any,Any](null, 0, null)
+//      println(kvWriter)
+//      kvWriter.write((0, v).asInstanceOf[Product2[_,_]])
+//    }
     v
   }
 }

@@ -1,6 +1,5 @@
 package com.hortonworks.spark.tez.processor;
 
-import java.io.ByteArrayInputStream;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -8,7 +7,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.spark.SparkUtils;
 import org.apache.spark.TezShuffleManager;
-import org.apache.spark.scheduler.Task;
+import org.apache.spark.tez.VertexTask;
 import org.apache.tez.mapreduce.processor.SimpleMRProcessor;
 import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.LogicalOutput;
@@ -32,20 +31,16 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 		if (logger.isInfoEnabled()){
 			logger.info("Executing processor for task: " + this.context.getTaskIndex() + " for DAG " + this.context.getDAGName());
 		}
+		String dataName = this.context.getDAGName() + "_p_" + this.context.getTaskIndex();
 		
-//		int vertextId = this.context.getTaskVertexIndex();
-//		String serializedTaskName = "SparkTask_" + vertextId + ".ser";
-//		ClassPathResource serializedTask = new ClassPathResource(serializedTaskName, Thread.currentThread().getContextClassLoader());
-//		Assert.isTrue(serializedTask.exists(), "Can't locate serialized task '" + serializedTaskName + "' on the classpath");
-		
+		//System.out.println("Vertex Index: " + this.context.get + "-" + this.context.getTaskIndex());
+
 		Map<Integer, LogicalInput> inputs = (Map<Integer, LogicalInput>)this.toIntKey(this.getInputs());
 		Map<Integer, LogicalOutput> outputs = (Map<Integer, LogicalOutput>)this.toIntKey(this.getOutputs());
 		TezShuffleManager shufleManager = new TezShuffleManager(inputs, outputs);
 		SparkUtils.createSparkEnv(shufleManager);
 		
-		ByteArrayInputStream serializedTask = new ByteArrayInputStream(this.context.getUserPayload());
-		
-		Task<?> vertexTask = SparkUtils.deserializeSparkTask(serializedTask, this.context.getTaskIndex());
+		VertexTask vertexTask = SparkUtils.deserializeSparkTask(this.context.getUserPayload(), this.context.getTaskIndex());
 		SparkUtils.runTask(vertexTask);
 	}
 	
