@@ -5,6 +5,8 @@ import java.io.InputStreamReader;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -47,24 +49,24 @@ import org.apache.tez.runtime.library.partitioner.HashPartitioner;
 import com.google.common.base.Preconditions;
 import com.hortonworks.spark.tez.utils.YarnUtils;
 
-public class TezTeraSort {
-
+public class TezWordCount {
+	private final static Log logger = LogFactory.getLog(TezWordCount.class);
 	public static void main(String[] args) throws Exception {
+		String file = "sample-256.txt";
+		if (args.length > 0){
+			file = args[0];
+		}
+		
 		String appName = "WordCount";
 		String outputPath = appName + "_out";
 		DAG dag = new DAG(appName);
 		TezConfiguration tezConfiguration = new TezConfiguration(new YarnConfiguration());
 		FileSystem fs = FileSystem.get(tezConfiguration);
-		
-//		System.out.println("Copying file");
-//		Path testFile = new Path("sample-256.txt");
-//	    fs.copyFromLocalFile(false, true, new Path("/Users/ozhurakousky/dev/spark-on-tez/sample-256.txt"), testFile);  
-//	    System.out.println("Done Ccopying file");
-//	    System.out.println(fs.makeQualified(testFile));
-		
-	    System.out.println("Building local resources");
+		Path inputPath = fs.makeQualified(new Path(file));
+		logger.info("Counting words in " + inputPath);
+		logger.info("Building local resources");
 		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(fs, "stark-cp");
-		System.out.println("Done building local resources");
+		logger.info("Done building local resources");
 		TezClient tezClient = new TezClient(appName, tezConfiguration);
 		tezClient.addAppMasterLocalResources(localResources);
 		tezClient.start();
@@ -80,21 +82,14 @@ public class TezTeraSort {
 		tezConfiguration.set(TezConfiguration.TEZ_AM_STAGING_DIR, stagingDirStr);
 		Path stagingDir = fs.makeQualified(new Path(stagingDirStr));
 		
-		
+		logger.info("Generating DAG");
 		OrderedPartitionedKVEdgeConfigurer edgeConf = OrderedPartitionedKVEdgeConfigurer
 		        .newBuilder(Text.class.getName(), IntWritable.class.getName(),
 		            HashPartitioner.class.getName(), null).build();
 		
 		// MAPPER
-//		ProcessorDescriptor pd = new ProcessorDescriptor(TokenProcessor.class.getName());
-//		Configuration vertexConfig = new Configuration(tezConfiguration);
-//		vertexConfig.set(FileInputFormat.INPUT_DIR, "data/sample-256.txt");
-//		byte[] payload = MRInput.createUserPayload(vertexConfig, TextInputFormat.class.getName(), true, true);	
-//		InputDescriptor id = new InputDescriptor(MRInput.class.getName()).setUserPayload(payload);
-//		Vertex mapper = new Vertex("mapper", pd, -1, MRHelpers.getMapResource(tezConfiguration));
-//		mapper.addDataSource("mapper_a", id, new InputInitializerDescriptor(MRInputAMSplitGenerator.class.getName()));
 		Configuration inputConf = new Configuration(tezConfiguration);
-	    inputConf.set(FileInputFormat.INPUT_DIR, "sample-256.txt");
+	    inputConf.set(FileInputFormat.INPUT_DIR, inputPath.toString());
 	    InputDescriptor id = new InputDescriptor(MRInput.class.getName())
 	        .setUserPayload(MRInput.createUserPayload(inputConf,
 	            TextInputFormat.class.getName(), true, true));
@@ -108,14 +103,6 @@ public class TezTeraSort {
 		dag.addVertex(mapper);
 		
 		// REDUCER
-//		pd = new ProcessorDescriptor(SumProcessor.class.getName());	
-//		Configuration outputConf = new Configuration(tezConfiguration);
-//		outputConf.set(FileOutputFormat.OUTDIR, outputPath);
-//		OutputDescriptor od = new OutputDescriptor(MROutput.class.getName()).setUserPayload(MROutput
-//				.createUserPayload(outputConf, TextOutputFormat.class.getName(), true));
-//		Vertex reducer = new Vertex("reducer", pd, 1, MRHelpers.getReduceResource(tezConfiguration));
-//		reducer.addDataSink("reducer_a", od, new OutputCommitterDescriptor(MROutputCommitter.class.getName()) );
-		
 		Configuration outputConf = new Configuration(tezConfiguration);
 	    outputConf.set(FileOutputFormat.OUTDIR, outputPath);
 	    OutputDescriptor od = new OutputDescriptor(MROutput.class.getName())
@@ -132,16 +119,18 @@ public class TezTeraSort {
 	    
 	    Edge edge = new Edge(mapper, reducer, edgeConf.createDefaultEdgeProperty());
     	dag.addEdge(edge);
+    	logger.info("Done generating DAG");
     	
+    	logger.info("Waitin for Tez session");
     	tezClient.waitTillReady();
-    	System.out.println("Submitting DAG");
+    	logger.info("Submitting DAG");
     	DAGClient dagClient = tezClient.submitDAG(dag);
     	dagClient.waitForCompletion();
-    	System.out.println("Finished DAG");
+    	logger.info("Finished DAG");
     	
     	DAGStatus dagStatus = dagClient.waitForCompletionWithAllStatusUpdates(null);
         if (dagStatus.getState() != DAGStatus.State.SUCCEEDED) {
-          System.out.println("DAG diagnostics: " + dagStatus.getDiagnostics());
+        	logger.info("DAG diagnostics: " + dagStatus.getDiagnostics());
         }
     	
     	RemoteIterator<LocatedFileStatus> iter = fs.listFiles(new Path(outputPath), false);
@@ -150,9 +139,12 @@ public class TezTeraSort {
     		if (status.isFile()){
     			BufferedReader reader = new BufferedReader(new InputStreamReader(fs.open(status.getPath())));
     			String line;
-    			while ((line = reader.readLine()) != null){
-    				System.out.println(line);
+    			int counter = 0;
+    			logger.info("Sampled results: ");
+    			while ((line = reader.readLine()) != null && counter++ < 20){
+    				logger.info(line);		
     			}
+    			logger.info(". . . . . .");
     		}
     	}
     	
