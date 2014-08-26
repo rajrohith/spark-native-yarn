@@ -1,9 +1,9 @@
 package com.hortonworks.spark.tez
 
+import scala.Array.canBuildFrom
+
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import org.apache.spark.Tez
-import scala.Array.canBuildFrom
 
 
 object MapReduce extends App {

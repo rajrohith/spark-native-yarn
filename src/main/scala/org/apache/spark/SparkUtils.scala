@@ -14,6 +14,7 @@ import java.io.ByteArrayInputStream
 import sun.reflect.ReflectionFactory
 import java.io.ObjectInputStream
 import org.apache.spark.tez.VertexTask
+import org.apache.spark.tez.VertexTask
 
 object SparkUtils {
   val sparkConf = new SparkConf
@@ -37,8 +38,8 @@ object SparkUtils {
 
   def deserializeSparkTask(taskBytes: Array[Byte], partitionId:Int): VertexTask = {
     val serializer = SparkEnv.get.serializer.newInstance
-    
-    val task = serializer.deserialize[VertexTask](ByteBuffer.wrap(taskBytes))
+    val taskBytesBuffer = ByteBuffer.wrap(taskBytes)
+    val task = serializer.deserialize[VertexTask](taskBytesBuffer)
 
     task
   }
@@ -54,8 +55,10 @@ object SparkUtils {
 //    task
 //  }
 
-  def runTask(task: Any) = {
-    val v = task.asInstanceOf[Task[_]].runTask(new TaskContext(0, 1, 1, true))
+  def runTask(task: VertexTask) = {
+    
+    task.runTask
+//    val v = task.asInstanceOf[Task[_]].runTask(new TaskContext(0, 1, 1, true))
 //    if (v.isInstanceOf[Array[Tuple2[_,_]]]){
 //      val kvWriter = SparkEnv.get.shuffleManager.getWriter[Any,Any](null, 0, null)
 //      for (x <- v.asInstanceOf[Array[Tuple2[_,_]]]){
@@ -67,6 +70,6 @@ object SparkUtils {
 //      println(kvWriter)
 //      kvWriter.write((0, v).asInstanceOf[Product2[_,_]])
 //    }
-    v
+//    v
   }
 }

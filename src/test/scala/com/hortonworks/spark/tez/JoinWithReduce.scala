@@ -1,12 +1,6 @@
 package com.hortonworks.spark.tez
 
-import org.apache.spark.Tez
-import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.fs.FileSystem
-import org.apache.hadoop.yarn.conf.YarnConfiguration
-import org.apache.spark.tez.TezDelegatingExecutor
 
 /**
  * This sample is similar to SampleJoin.scala and demonstrates join between two sources

@@ -1,5 +1,6 @@
 package com.hortonworks.spark.tez.processor;
 
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -11,10 +12,15 @@ import org.apache.spark.tez.VertexTask;
 import org.apache.tez.mapreduce.processor.SimpleMRProcessor;
 import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.LogicalOutput;
+import org.apache.tez.runtime.api.ProcessorContext;
 
 public class TezSparkProcessor extends SimpleMRProcessor {
 	
 	private final Log logger = LogFactory.getLog(TezSparkProcessor.class);
+	
+	public TezSparkProcessor(ProcessorContext context) {
+		super(context);
+	}
 	
 	@Override
 	public void run() throws Exception {
@@ -22,25 +28,29 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 			this.doRun();
 		} catch (Exception e) {
 			e.printStackTrace();
-			throw new IllegalStateException("Failed to execute processor for Vertex " + this.context.getTaskVertexIndex(), e);
+			throw new IllegalStateException("Failed to execute processor for Vertex " + this.getContext().getTaskVertexIndex(), e);
 		}
 	}
 	
 	@SuppressWarnings("unchecked")
 	private void doRun() throws Exception {
 		if (logger.isInfoEnabled()){
-			logger.info("Executing processor for task: " + this.context.getTaskIndex() + " for DAG " + this.context.getDAGName());
+			logger.info("Executing processor for task: " + this.getContext().getTaskIndex() + " for DAG " + this.getContext().getDAGName());
 		}
-		String dataName = this.context.getDAGName() + "_p_" + this.context.getTaskIndex();
+//		String dataName = this.getContext().getDAGName() + "_p_" + this.getContext().getTaskIndex();
 		
-		//System.out.println("Vertex Index: " + this.context.get + "-" + this.context.getTaskIndex());
+//		System.out.println("Vertex Index: " + this.getContext().getDAGName() + "-" + this.getContext().getTaskIndex());
 
 		Map<Integer, LogicalInput> inputs = (Map<Integer, LogicalInput>)this.toIntKey(this.getInputs());
 		Map<Integer, LogicalOutput> outputs = (Map<Integer, LogicalOutput>)this.toIntKey(this.getOutputs());
 		TezShuffleManager shufleManager = new TezShuffleManager(inputs, outputs);
 		SparkUtils.createSparkEnv(shufleManager);
 		
-		VertexTask vertexTask = SparkUtils.deserializeSparkTask(this.context.getUserPayload(), this.context.getTaskIndex());
+		ByteBuffer payload = this.getContext().getUserPayload().getPayload();
+		payload.rewind();
+		byte[] pBytes = new byte[payload.capacity()];
+		payload.get(pBytes);
+		VertexTask vertexTask = SparkUtils.deserializeSparkTask(pBytes, this.getContext().getTaskIndex());
 		SparkUtils.runTask(vertexTask);
 	}
 	

@@ -41,12 +41,14 @@ public class TestDirectMemoryLayout {
 
 		for (int i = 0; i < NUM_RECORDS; i++) {
 			final DirectMemoryTrade trade = get(i);
+			
+			System.out.println(trade);
 
-			if (trade.getSide() == 'B') {
-				buyCost += (trade.getPrice() * trade.getQuantity());
-			} else {
-				sellCost += (trade.getPrice() * trade.getQuantity());
-			}
+//			if (trade.getSide() == 'B') {
+//				buyCost += (trade.getPrice() * trade.getQuantity());
+//			} else {
+//				sellCost += (trade.getPrice() * trade.getQuantity());
+//			}
 		}
 
 		long duration = System.currentTimeMillis() - start;

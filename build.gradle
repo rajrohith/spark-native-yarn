@@ -8,6 +8,7 @@ apply plugin: 'java'
 apply plugin:'scala'
 apply plugin:'application'
 
+//mainClassName="com.hortonworks.spark.tez.TezWordCount"
 mainClassName="com.hortonworks.spark.tez.TezWordCount"
 
 sourceCompatibility=1.6
@@ -47,7 +48,7 @@ configurations {
 		all*.exclude group: "com.google.inject.extensions", module: "guice-servlet"
 		all*.exclude group: "com.google.code.findbugs", module: "jsr305"
 		//all*.exclude group: "org.apache.avro", module: "avro"
-		all*.exclude group: "org.xerial.snappy", module: "snappy-java"
+		//all*.exclude group: "org.xerial.snappy", module: "snappy-java"
 		all*.exclude group: "com.thoughtworks.paranamer", module: "paranamer"
 		all*.exclude group: "net.java.dev.jets3t", module: "jets3t"
 		all*.exclude group: "org.apache.httpcomponents", module: "httpclient"
@@ -61,7 +62,7 @@ configurations {
 		all*.exclude group: "org.mortbay.jetty", module: "jetty-util"
 		all*.exclude group: "xmlenc", module: "xmlenc"
 		all*.exclude group: "org.tukaani", module: "xz"
-		//all*.exclude group: "asm", module: "asm"	
+		all*.exclude group: "asm", module: "asm"	
 		all*.exclude group: "org.codehaus.jackson", module: "jackson-core-asl"
 		all*.exclude group: "org.codehaus.jackson", module: "jackson-mapper-asl"
 		//all*.exclude group: "org.codehaus.jettison", module: "jettison"
@@ -86,6 +87,9 @@ dependencies {
 	compile ("org.apache.spark:spark-repl_2.10:$sparkVersion") {
 		exclude group: 'org.apache.hadoop'
 	}
+	compile ("org.apache.spark:spark-yarn_2.10:$sparkVersion") {
+		exclude group: 'org.apache.hadoop'
+	}
 	compile "org.springframework:spring-core:$springVersion"
 	compile "org.springframework:spring-beans:$springVersion"
 	compile "org.springframework:spring-aop:$springVersion"
@@ -95,6 +99,7 @@ dependencies {
 	compile "org.apache.hadoop:hadoop-hdfs:$hadoopVersion"
 	compile "org.apache.hadoop:hadoop-common:$hadoopVersion"
 	compile "org.ow2.asm:asm-all:5.0.3"
+	compile "javassist:javassist:3.12.1.GA"
 	
 	testCompile "junit:junit-dep:$junitVersion"
 	testCompile "org.mockito:mockito-all:$mockitoVersion"
