@@ -22,7 +22,7 @@ object WordCountStark extends App {
 //  val fileName = "test-file.txt"
     val fileName = "hdfs://cn105-10:8020/user/zzhang/" + file + ".txt"
 
-  val counter = 1
+  val counter = 10
   val inputFile = fileName
   
 

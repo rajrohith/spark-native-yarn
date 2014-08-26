@@ -11,7 +11,6 @@ import org.apache.spark.shuffle.ShuffleWriter
 import org.apache.tez.runtime.api.Reader
 import org.apache.tez.runtime.library.api.KeyValueWriter
 import org.apache.tez.runtime.library.api.KeyValuesReader
-import com.hortonworks.spark.tez.KeyValueReaderWrapper
 import org.apache.tez.runtime.api.Writer
 import java.util.Map
 import sun.rmi.log.LogInputStream

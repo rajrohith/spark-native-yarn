@@ -58,17 +58,20 @@ public class TezWordCount {
 	static String TOKENIZER = "Tokenizer";
 	static String SUMMATION = "Summation";
 
-	// private final static ExecutorService executor =
-	// Executors.newCachedThreadPool();
-	// private final static CountDownLatch latch = new CountDownLatch(2);
 	public static void main(String[] args) throws Exception {
-//		String file = args[0];
-//		int red  = Integer.parseInt(args[1]);
-//		String file = args[0];
+
+		String file = "hdfs://cn105-10.l42scl.hortonworks.com:8020/user/zzhang/100gb.txt";
+		if (args.length > 0 && args[0] != null){
+			file = args[0];
+		}
+		
 		int red  = 50;
+		if (args.length > 0 && args[1] != null){
+			red = Integer.parseInt(args[1]);
+		}
 		
 //		String file = "hdfs://cn105-10.l42scl.hortonworks.com:8020/user/zzhang/low1gb.txt";
-		String file = "hdfs://cn105-10.l42scl.hortonworks.com:8020/user/zzhang/100gb.txt";
+//		String file = "hdfs://cn105-10.l42scl.hortonworks.com:8020/user/zzhang/100gb.txt";
 //		String file = "hdfs://cn105-10.l42scl.hortonworks.com:8020/user/zzhang/1tb.txt";
 //		 String file = "foo.txt";
 //		 String file = "sample-256.txt";

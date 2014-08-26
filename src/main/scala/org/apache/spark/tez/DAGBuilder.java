@@ -162,8 +162,8 @@ public class DAGBuilder {
 
 				String vertexName = String.valueOf(sequenceCounter++);
 				String dsName = String.valueOf(sequenceCounter++);
-//				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TezSparkProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);
-				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TokenProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);
+				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TezSparkProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);
+//				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TokenProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);
 
 				vertex.setTaskLocalFiles(localResources);
 				dag.addVertex(vertex);
@@ -174,8 +174,8 @@ public class DAGBuilder {
 					UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
 					String vertexName = String.valueOf(sequenceCounter++);
 					String dsName = String.valueOf(sequenceCounter++);
-//					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TezSparkProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
-					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SumProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
+					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TezSparkProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
+//					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SumProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
 					vertex.setTaskLocalFiles(localResources);
 					dag.addVertex(vertex);
 					
