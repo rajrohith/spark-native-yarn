@@ -203,7 +203,7 @@ public class YarnUtils {
 	 * @param sourcePath
 	 * @param destPath
 	 */
-	private static void provisioinResourceToFs(FileSystem fs, Path sourcePath, Path destPath) {
+	private static synchronized void provisioinResourceToFs(FileSystem fs, Path sourcePath, Path destPath) {
 		try {
 			if (logger.isDebugEnabled()){
 				logger.debug("Provisioning '" + sourcePath + "' to " + destPath);
