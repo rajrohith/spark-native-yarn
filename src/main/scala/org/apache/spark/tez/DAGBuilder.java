@@ -36,8 +36,10 @@ import com.hortonworks.spark.tez.processor.TezSparkProcessor;
  * 
  * Once all Vertexes were added invoking {@link #build()} method will generate an executable
  * {@link DAGTask} (See {@link DAGTask#execute()} method)
+ * 
+ * The class is package private. Its main gateway is {@link Utils}.
  */
-public class DAGBuilder {
+class DAGBuilder {
 	
 	private final Log logger = LogFactory.getLog(DAGBuilder.class);
 	

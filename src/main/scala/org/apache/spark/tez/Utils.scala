@@ -20,7 +20,7 @@ import org.apache.spark.ShuffleDependency
 import org.apache.spark.ShuffleDependency
 
 /**
- * 
+ * Utility class used as a gateway to DAGBuilder and DAGTask
  */
 class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U) {
 
@@ -83,6 +83,9 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
     vertexId += 1
   }
   
+  /**
+   * 
+   */
   private def serializePartitions(partitions:Array[Partition]){
     if (partitions.size > 0 && partitions(0).isInstanceOf[ParallelCollectionPartition[_]]){
       var partitionCounter = 0

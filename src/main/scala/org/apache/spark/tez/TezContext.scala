@@ -33,7 +33,9 @@ private abstract class TezContext(conf: SparkConf) {
   }
 
   /**
-   *
+   * Override SparkContext's main 'runJob' method keeping most of its code
+   * while avoiding communication with Spark's DAGScheduler and instead delegating to 
+   * DAGBuilder to construct Tez DAGTask and execute it.
    */
   def runJob[T, U: ClassTag](
     rdd: RDD[T],
@@ -66,7 +68,11 @@ private abstract class TezContext(conf: SparkConf) {
   }
 
   /**
-   *
+   * Override SparkContext's 'parallelize' method by simply serializing partitions
+   * which will transfered to HDFS as files essentially making collection processing 
+   * the same as file processing
+   * 
+   * STUB for now
    */
   def parallelize[T: ClassTag](seq: Seq[T], numSlices: Int = 1): RDD[T] = {
     println("############# parallelize")
@@ -75,14 +81,16 @@ private abstract class TezContext(conf: SparkConf) {
   }
 
   /**
-   *
+   * Override SparkContext's 'textFile' method and delegates to new HADOOP API
+   * rather then the original method supporting old.
    */
   def textFile(path: String, minPartitions: Int = 1): RDD[String] = {
     newAPIHadoopFile(path, classOf[TextInputFormat], classOf[LongWritable], classOf[Text]).map(pair => pair._2.toString)
   }
 
   /**
-   *
+   * Override SparkContext's 'newAPIHadoopFile' method by creating TezRDD instead of HadoopRDD.
+   * TezRDD overrides 'compute' methods to be compatible with Tez readers.
    */
   def newAPIHadoopFile[K, V, F <: InputFormat[K, V]](
     path: String,
@@ -95,7 +103,7 @@ private abstract class TezContext(conf: SparkConf) {
   }
 
   /**
-   *
+   * Override another SparkContext's 'newAPIHadoopFile' delegating to the main one
    */
   def newAPIHadoopFile[K, V, F <: InputFormat[K, V]](path: String)(implicit km: ClassTag[K], vm: ClassTag[V], fm: ClassTag[F]): RDD[(K, V)] = {
     newAPIHadoopFile(
@@ -106,7 +114,8 @@ private abstract class TezContext(conf: SparkConf) {
   }
 }
 /**
- *
+ * Replacement for HadoopRDD.
+ * Overrides 'compute' methods to be compatible with Tez readers.
  */
 class TezRDD[K, V](
   path: String,
@@ -141,6 +150,9 @@ class TezRDD[K, V](
   }
 }
 
+/**
+ * 
+ */
 class PostProcessFunction[K, V] extends Function2[TaskContext, Iterator[_ <: Product2[K, V]], Any] with Serializable {
   def apply(v1: TaskContext, iter: Iterator[_ <: Product2[K, V]]): Any = {
     val writer = SparkEnv.get.shuffleManager.getWriter[K, V](null, 0, null)

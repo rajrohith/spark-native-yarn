@@ -27,10 +27,18 @@ import org.apache.hadoop.io.IntWritable
 import org.apache.spark.shuffle.BaseShuffleHandle
 import org.apache.hadoop.io.NullWritable
 
+/**
+ * Implementation of Spark's ShuffleManager to support Spark's task connectivity 
+ * to Tez's readers and writers
+ * 
+ */
 class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Integer, LogicalOutput]) extends ShuffleManager {
   println("Creating Tez ShuffleManager")
   val key = new BytesWritable
 
+  /**
+   * 
+   */
   def registerShuffle[K, V, C](
     shuffleId: Int,
     numMaps: Int,
@@ -41,12 +49,10 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
 
   /** Get a writer for a given partition. Called on executors by map tasks. */
   def getWriter[K, V](handle: ShuffleHandle, mapId: Int, context: TaskContext): ShuffleWriter[K, V] = {
-//    println("getWriter")
     val serializer = SparkEnv.get.serializer.newInstance
     if (output.size() > 1){
       throw new UnsupportedOperationException("Multiple outputs are not supported yet.")
     }
-//    val kvWriter = TezThreadLocalContext.getWriter.asInstanceOf[KeyValueWriter]
     val kvWriter = output.values.iterator.next.getWriter.asInstanceOf[KeyValueWriter]
     val shuffleWriter = new ShuffleWriter[K, V] {
       /** Write a record to this task's output */
@@ -55,7 +61,6 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
       val v = new IntWritable
       
       def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
-//      def write(record: Product2[K, V]): Unit = {
         for (record <- records) {
 
           if (record._1.isInstanceOf[NullWritable]){ // temporary hack for saveAsTextFile
@@ -88,7 +93,6 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
     context: TaskContext): ShuffleReader[K, C] = {
     
     val reader = this.getReader
-//    val serializer = SparkEnv.get.serializer.newInstance
 
     val shuffleReader = new ShuffleReader[K, C] {
       /** Read the combined key-values for this reduce task */
@@ -142,27 +146,7 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
             }
  
             val product = (key.toString, previousValue)
-//            println("Merged: " + product)
             product.asInstanceOf[Product2[K, C]]
-            
-            
-//            val next =
-//              if (kvsReader.isSingleValue()) {
-//                val key = kvsReader.nextKey
-//                val value = kvsReader.nextValue();
-//                (key, value).asInstanceOf[Product2[K, C]]
-//              } else {
-//            	  val key = kvsReader.nextKey
-//            	  val value = kvsReader.nextValue
-//            	  val product = (key.toString(), value.toString())
-//            	  product.asInstanceOf[Product2[K, C]]
-////            	  null
-//                
-////            	  val bwValue = kvsReader.nextValue.asInstanceOf[BytesWritable].copyBytes()
-////            	  val value = serializer.deserialize[Tuple2[_, _]](ByteBuffer.wrap(bwValue))
-////            	  value.asInstanceOf[Product2[K, C]]
-//              }
-//            next
           }
         }
       }
@@ -189,7 +173,7 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
 /**
  * 
  */
-object WritableDecoder {
+private object WritableDecoder {
   
   def getValue(writable:Writable) = {
     if (writable.isInstanceOf[LongWritable]){
@@ -202,6 +186,4 @@ object WritableDecoder {
       throw new IllegalStateException("Unsupported writable " + writable)
     }
   }
-  
-
 }
