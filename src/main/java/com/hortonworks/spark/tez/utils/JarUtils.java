@@ -37,11 +37,19 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.StringUtils;
 
 /**
- *
+ * Utility class which contains methods related to generating JAR file 
+ * and/or byte stream from passed directory.
+ * Currently used as a dev feature allowing auto-generation of the JAR filr from 
+ * local dev workspace when submitting Tez jobs directly from the IDE.
  */
 public class JarUtils {
 	private final static Log logger = LogFactory.getLog(JarUtils.class);
 	
+	/**
+	 * 
+	 * @param source
+	 * @return
+	 */
 	public static byte[] toJarBytes(File source) {
 		if (!source.isAbsolute()) {
 			throw new IllegalArgumentException("Source must be expressed through absolute path");
