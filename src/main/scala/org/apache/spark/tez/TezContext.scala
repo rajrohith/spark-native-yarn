@@ -20,7 +20,7 @@ import org.apache.tez.dag.api.TezConfiguration
 import org.apache.spark.ShuffleDependency
 
 /**
- *
+ * Source class to instrument SparkContext. See TezInstrumentationAgent for more details
  */
 private abstract class TezContext(conf: SparkConf) {
 

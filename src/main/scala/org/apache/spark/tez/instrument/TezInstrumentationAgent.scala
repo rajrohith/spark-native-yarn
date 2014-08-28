@@ -43,7 +43,8 @@ import javassist.LoaderClassPath
  * those references will also be replaced with the target class. Do the print method of MyPrinter class will print 
  * Printer instead of MyPrinter
  * 
- * At the time of writing this code, the only class that is being instrumented is SparkContext.
+ * At the time of writing this code, the only class that is being instrumented is SparkContext and the 
+ * source of instrumentation is TezContext.
  */
 object TezInstrumentationAgent {
 
