@@ -38,8 +38,6 @@ import org.springframework.util.StringUtils;
 
 /**
  *
- * @author Oleg Zhurakousky
- *
  */
 public class JarUtils {
 	private final static Log logger = LogFactory.getLog(JarUtils.class);
@@ -50,7 +48,6 @@ public class JarUtils {
 		}
 		Manifest manifest = new Manifest();
 		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-		//File jarFile = new File(jarName);
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
 		try {
 			JarOutputStream target = new JarOutputStream(bos, manifest);
@@ -167,6 +164,11 @@ public class JarUtils {
 		}
 	}
 	
+	/**
+	 * 
+	 * @param exclusionFile
+	 * @return
+	 */
 	public static String[] initClasspathExclusions(String exclusionFile){
 		String[] classpathExclusions = null;
 		try {
@@ -188,6 +190,12 @@ public class JarUtils {
 		return classpathExclusions;
 	}
 	
+	/**
+	 * 
+	 * @param path
+	 * @param classPathExclusions
+	 * @return
+	 */
 	public static boolean useClassPathEntry(String path, String[] classPathExclusions){
 		for (String exclusion : classPathExclusions) {
 			if (path.contains(exclusion) || !path.endsWith(".jar")){

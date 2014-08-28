@@ -14,14 +14,24 @@ import org.apache.tez.runtime.api.LogicalInput;
 import org.apache.tez.runtime.api.LogicalOutput;
 import org.apache.tez.runtime.api.ProcessorContext;
 
+/**
+ * 
+ */
 public class TezSparkProcessor extends SimpleMRProcessor {
 	
 	private final Log logger = LogFactory.getLog(TezSparkProcessor.class);
 	
+	/**
+	 * 
+	 * @param context
+	 */
 	public TezSparkProcessor(ProcessorContext context) {
 		super(context);
 	}
 	
+	/**
+	 * 
+	 */
 	@Override
 	public void run() throws Exception {
 		try {
@@ -32,14 +42,15 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 		}
 	}
 	
+	/**
+	 * 
+	 * @throws Exception
+	 */
 	@SuppressWarnings("unchecked")
 	private void doRun() throws Exception {
 		if (logger.isInfoEnabled()){
 			logger.info("Executing processor for task: " + this.getContext().getTaskIndex() + " for DAG " + this.getContext().getDAGName());
 		}
-//		String dataName = this.getContext().getDAGName() + "_p_" + this.getContext().getTaskIndex();
-		
-//		System.out.println("Vertex Index: " + this.getContext().getDAGName() + "-" + this.getContext().getTaskIndex());
 
 		Map<Integer, LogicalInput> inputs = (Map<Integer, LogicalInput>)this.toIntKey(this.getInputs());
 		Map<Integer, LogicalOutput> outputs = (Map<Integer, LogicalOutput>)this.toIntKey(this.getOutputs());
@@ -54,6 +65,11 @@ public class TezSparkProcessor extends SimpleMRProcessor {
 		SparkUtils.runTask(vertexTask);
 	}
 	
+	/**
+	 * 
+	 * @param map
+	 * @return
+	 */
 	private Map<Integer, ?> toIntKey(Map<String, ?> map) {
 		TreeMap<Integer, Object> resultMap = new TreeMap<Integer, Object>();
 		for (String indexName : map.keySet()) {

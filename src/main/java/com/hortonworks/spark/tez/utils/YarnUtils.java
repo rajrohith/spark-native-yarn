@@ -5,7 +5,6 @@ package com.hortonworks.spark.tez.utils;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -30,12 +29,19 @@ import org.apache.tez.dag.api.TezConfiguration;
 import org.springframework.core.io.ClassPathResource;
 
 /**
- * 
+ * Utility functions related to variety of tasks to be performed via YARN
+ * such as setting up LocalResource, provisioning classpath etc.
  *
  */
 public class YarnUtils {
 	private static final Log logger = LogFactory.getLog(YarnUtils.class);
 
+	/**
+	 * 
+	 * @param fs
+	 * @param appName
+	 * @return
+	 */
 	public static Map<String, LocalResource> createLocalResources(FileSystem fs, String appName) {
 		Map<String, LocalResource> localResources = provisionAndLocalizeCurrentClasspath(fs, appName);
 		provisionAndLocalizeScalaLib(fs, appName, localResources);
@@ -98,20 +104,25 @@ public class YarnUtils {
 		for (URL classpathUrl : classpath) {
 			File f = new File(classpathUrl.getFile());
 			if (f.isDirectory()) {
-				String jarFileName = JarUtils.generateJarFileName(applicationName);
-				if (logger.isDebugEnabled()){
-					logger.debug("Generating application JAR: " + jarFileName);
-				}
-				File jarFile = JarUtils.toJar(f, jarFileName);
-				generatedJars.add(jarFile);
-				f = jarFile;
+				System.out.println(" Temporarlily skipping Jar generation. PLEASE FIX!: " + f.getAbsolutePath());
+//				String jarFileName = JarUtils.generateJarFileName(applicationName);
+//				if (logger.isDebugEnabled()){
+//					logger.debug("Generating application JAR: " + jarFileName);
+//				}
+//				File jarFile = JarUtils.toJar(f, jarFileName);
+//				generatedJars.add(jarFile);
+//				f = jarFile;
+				f = null;
 			} 
-			String destinationFilePath = applicationName + "/" + f.getName();
-			Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
-			if (shouldProvision(provisionedPath.getName(), classPathExclusions)){
-				provisioinResourceToFs(fs, new Path(f.getAbsolutePath()), provisionedPath);
-				provisionedPaths.add(provisionedPath);
+			if (f != null){
+				String destinationFilePath = applicationName + "/" + f.getName();
+				Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
+				if (shouldProvision(provisionedPath.getName(), classPathExclusions)){
+					provisioinResourceToFs(fs, new Path(f.getAbsolutePath()), provisionedPath);
+					provisionedPaths.add(provisionedPath);
+				}
 			}
+			
 		}
 		
 		for (File generatedJar : generatedJars) {
@@ -233,24 +244,5 @@ public class YarnUtils {
 			logger.warn("Failed to build the list of classpath exclusion. ", e);
 		}
 		return classpathExclusions;
-	}
-	
-	public static YarnClient createAndInitYarnClient(TezConfiguration tezConfiguration){
-		try {
-			YarnClient yarnClient = YarnClient.createYarnClient();
-			yarnClient.init(tezConfiguration);
-			yarnClient.start();
-			return yarnClient;
-		} catch (Exception e) {
-			throw new IllegalStateException("Failed to create YARN Client", e);
-		}
-	}
-	
-	public static ApplicationId generateApplicationId(YarnClient yarnClient){
-		try {
-			return yarnClient.createApplication().getNewApplicationResponse().getApplicationId();
-		} catch (Exception e) {
-			throw new IllegalStateException("Failed to generate Application ID", e);
-		} 
 	}
 }

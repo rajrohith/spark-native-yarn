@@ -15,30 +15,34 @@ import java.util.concurrent.Executors
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicInteger
 
+/**
+ * 
+ */
 object WordCountSpark extends App {
 
-  val counter = Integer.parseInt(args(0))
+  if (args.length < 3){
+    throw new IllegalArgumentException("Usage:WordCountSpark <concurrent_int> <input_path_str> <reducers_int>")
+  }
+  
+  val concurrent = Integer.parseInt(args(0))
   val inputFile = args(1)
   val reducers = Integer.parseInt(args(2))
-  //  val outputFile = args(2)
+  
   val exeService = Executors.newCachedThreadPool();
-  val latch = new CountDownLatch(counter)
+  val latch = new CountDownLatch(concurrent)
   val start = System.currentTimeMillis();
   var port = new AtomicInteger(33333)
-  for (i <- 0 until counter) {
+  for (i <- 0 until concurrent) {
     
     exeService.execute(new Runnable() {
       def run() {
         val sConf = new SparkConf
         sConf.set("spark.ui.port", port.incrementAndGet() + "")
         sConf.setAppName("Stark-" + i)
-        sConf.setMaster("yarn-client")
         val sc = new SparkContext(sConf)
-//        val sc = new SparkContext("yarn-client", "SparkYARN-" + i)
-
         try {
           println("##### STARTING JOB");
-          val source = sc.newAPIHadoopFile[LongWritable, Text, TextInputFormat](inputFile).map(pair => pair._2.toString).setName(inputFile)
+          val source = sc.textFile(inputFile)
 
           val result = source.flatMap(_.split(" ")).map((_, 1)).reduceByKey(_ + _, reducers).saveAsTextFile(start + "-" + i)
 
@@ -50,12 +54,11 @@ object WordCountSpark extends App {
           sc.stop
           latch.countDown()
         }
-
       }
     })
 //    Thread.sleep(10000)
   }
-  println("Done submitting")
+  println("Done submitting " + concurrent + " jobs")
   latch.await();
   val stop = System.currentTimeMillis();
   println("STOPPED: " + (stop - start))

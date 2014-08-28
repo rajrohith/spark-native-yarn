@@ -2,7 +2,6 @@ package com.hortonworks.spark.tez;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 //import java.util.HashMap;
 import java.util.Map;
@@ -23,9 +22,6 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.spark.SparkUtils;
-import org.apache.spark.TezShuffleManager;
-import org.apache.spark.tez.VertexTask;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.DataSinkDescriptor;
@@ -48,7 +44,6 @@ import org.apache.tez.runtime.library.partitioner.HashPartitioner;
 import org.apache.tez.runtime.library.processor.SimpleProcessor;
 
 import com.google.common.base.Preconditions;
-import com.hortonworks.spark.tez.utils.MutableInteger;
 import com.hortonworks.spark.tez.utils.YarnUtils;
 
 public class TezWordCount {
@@ -164,9 +159,7 @@ public class TezWordCount {
 	}
 
 	public static class TokenProcessor extends SimpleProcessor {
-		//static Map<String, MutableInteger> groups = new HashMap<String, MutableInteger>();
 		static Map<String, MutableInteger> groups = new HashMap<String, MutableInteger>(100000);
-//		DB db;
 	    IntWritable count = new IntWritable(1);
 	    Text word = new Text();
 
@@ -176,9 +169,6 @@ public class TezWordCount {
 
 	    @Override
 	    public void run() throws Exception {
-//	    	String value = UUID.randomUUID().toString();
-//	    	Combiner.setValue(value);
-//	    	System.out.println("==> IN MAPPER: " + Combiner.getValue());
 	      Preconditions.checkArgument(getInputs().size() == 1);
 	      Preconditions.checkArgument(getOutputs().size() == 1);
 	      // the recommended approach is to cast the reader/writer to a specific type instead
@@ -186,22 +176,7 @@ public class TezWordCount {
 	      // without affecting the semantic guarantees of the data type that are represented by
 	      // the reader and writer.
 	      // The inputs/outputs are referenced via the names assigned in the DAG.
-	      
-	      
-//	      TezShuffleManager shufleManager = new TezShuffleManager(null, null);
-//			SparkUtils.createSparkEnv(shufleManager);
-//	      
-//	      ByteBuffer payload = this.getContext().getUserPayload().getPayload();
-//			payload.rewind();
-//			byte[] pBytes = new byte[payload.capacity()];
-//			payload.get(pBytes);
-//			VertexTask vertexTask = SparkUtils.deserializeSparkTask(pBytes, this.getContext().getTaskIndex());
-	      
-	      
-	      
-//	      KeyValueReader kvReader = (KeyValueReader) getInputs().get(INPUT).getReader();
-//	      KeyValueWriter kvWriter = (KeyValueWriter) getOutputs().get(SUMMATION).getWriter();
-	      
+
 	      KeyValueReader kvReader = (KeyValueReader) getInputs().values().iterator().next().getReader();
 	      KeyValueWriter kvWriter = (KeyValueWriter) getOutputs().values().iterator().next().getWriter();
 
@@ -250,20 +225,7 @@ public class TezWordCount {
 //	    	System.out.println("==> IN REDUCER: " + Combiner.getValue());
 	      Preconditions.checkArgument(getInputs().size() == 1);
 	      Preconditions.checkArgument(getOutputs().size() == 1);
-//	      KeyValueWriter kvWriter = (KeyValueWriter) getOutputs().get(OUTPUT).getWriter();
-//	      KeyValuesReader kvReader = (KeyValuesReader) getInputs().get(TOKENIZER).getReader();
-	      // The KeyValues reader provides all values for a given key. The aggregation of values per key
-	      // is done by the LogicalInput. Since the key is the word and the values are its counts in 
-	      // the different TokenProcessors, summing all values per key provides the sum for that word.
-	      
-//	      TezShuffleManager shufleManager = new TezShuffleManager(null, null);
-//			SparkUtils.createSparkEnv(shufleManager);
-//	      ByteBuffer payload = this.getContext().getUserPayload().getPayload();
-//			payload.rewind();
-//			byte[] pBytes = new byte[payload.capacity()];
-//			payload.get(pBytes);
-//			VertexTask vertexTask = SparkUtils.deserializeSparkTask(pBytes, this.getContext().getTaskIndex());
-	      
+
 	      KeyValueWriter kvWriter = (KeyValueWriter) getOutputs().values().iterator().next().getWriter();
 	      KeyValuesReader kvReader = (KeyValuesReader) getInputs().values().iterator().next().getReader();
 	      

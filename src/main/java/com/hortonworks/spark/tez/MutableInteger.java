@@ -1,4 +1,4 @@
-package com.hortonworks.spark.tez.utils;
+package com.hortonworks.spark.tez;
 
 import java.io.Serializable;
 

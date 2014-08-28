@@ -28,10 +28,15 @@ import org.apache.tez.mapreduce.output.MROutput;
 import org.apache.tez.runtime.library.conf.OrderedPartitionedKVEdgeConfig;
 import org.apache.tez.runtime.library.partitioner.HashPartitioner;
 
-import com.hortonworks.spark.tez.TezWordCount.SumProcessor;
-import com.hortonworks.spark.tez.TezWordCount.TokenProcessor;
 import com.hortonworks.spark.tez.processor.TezSparkProcessor;
 
+/**
+ * Builder which builds Tez DAG based on the collection of {@link VertexDescriptor}
+ * added to it via {@link #addVertex(VertexDescriptor)}.
+ * 
+ * Once all Vertexes were added invoking {@link #build()} method will generate an executable
+ * {@link DAGTask} (See {@link DAGTask#execute()} method)
+ */
 public class DAGBuilder {
 	
 	private final Log logger = LogFactory.getLog(DAGBuilder.class);
@@ -41,13 +46,7 @@ public class DAGBuilder {
 	private final Map<Integer, VertexDescriptor> vertexes = new LinkedHashMap<Integer, VertexDescriptor>();
 	
 	private final TezClient tezClient;
-	
-//	private final FileSystem fileSystem;
-	
-//	private final String user;
-	
-//	private final Path stagingDir;
-	
+
 	private final Map<String, LocalResource> localResources;
 	
 	private final String outputPath;
@@ -56,6 +55,13 @@ public class DAGBuilder {
 
 	private DAG dag;
 	
+	/**
+	 * 
+	 * @param tezClient
+	 * @param localResources
+	 * @param tezConfiguration
+	 * @param outputPath
+	 */
 	public DAGBuilder(TezClient tezClient, Map<String, LocalResource> localResources, Configuration tezConfiguration, String outputPath) {
 		this.tezClient = tezClient;
 		this.tezConfiguration = tezConfiguration;
@@ -102,21 +108,23 @@ public class DAGBuilder {
 //	          throw new FileAlreadyExistsException("Output directory " + this.outputPath + " already exists");
 //	        }
 
-		    logger.info("Before ready");
 	        tezClient.waitTillReady();
-	        logger.info("After ready");
-	        
-	        System.out.println("EXECUTED DAG");
+	       
+	        if (logger.isInfoEnabled()){
+	        	logger.info("Submitting generated DAG to YARN/Tez cluster");
+	        }
+	 
 	        dagClient = tezClient.submitDAG(this.dag);
 
-	        // monitoring
-	        logger.info("Before status");
+	
 	        DAGStatus dagStatus =  dagClient.waitForCompletionWithStatusUpdates(null);
 	        
+	        if (logger.isInfoEnabled()){
+	        	logger.info("DAG execution complete");
+	        }
 	        if (dagStatus.getState() != DAGStatus.State.SUCCEEDED) {
 	          logger.error("DAG diagnostics: " + dagStatus.getDiagnostics());
 	        }
-	        logger.info("After status");
 	    } catch (Exception e) {
 	    	throw new IllegalStateException("Failed to execute DAG", e);
 	    } 
@@ -140,9 +148,10 @@ public class DAGBuilder {
 	 * 
 	 * @throws Exception
 	 */
-	@SuppressWarnings("unchecked")
 	private void doBuild() throws Exception {
-		logger.debug("Building Tez DAG");
+		if (logger.isDebugEnabled()){
+			logger.debug("Building Tez DAG");
+		}
 	
 		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
 		        .newBuilder(Text.class.getName(), IntWritable.class.getName(),
@@ -156,16 +165,13 @@ public class DAGBuilder {
 			
 			if (vertexDescriptor.getInput() instanceof TezRDD) {
 				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).name();
-				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), TextInputFormat.class, inputPath).build();
-				
+				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), TextInputFormat.class, inputPath).build();		
 				UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
-
 				String vertexName = String.valueOf(sequenceCounter++);
 				String dsName = String.valueOf(sequenceCounter++);
-				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TezSparkProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);
-//				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TokenProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);
-
+				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TezSparkProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);	
 				vertex.setTaskLocalFiles(localResources);
+				
 				dag.addVertex(vertex);
 			}
 			else {
@@ -175,19 +181,10 @@ public class DAGBuilder {
 					String vertexName = String.valueOf(sequenceCounter++);
 					String dsName = String.valueOf(sequenceCounter++);
 					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TezSparkProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
-//					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SumProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
 					vertex.setTaskLocalFiles(localResources);
-					dag.addVertex(vertex);
 					
-				    if (!(vertexDescriptor.getInput() instanceof String)) {
-				    	for (int stageId : (Iterable<Integer>)vertexDescriptor.getInput()) {
-				    		VertexDescriptor vd = vertexes.get(stageId);
-					    	String vName =  vd.getVertexId() * 2 + "";
-					    	Vertex v = dag.getVertex(vName);
-					    	Edge edge = Edge.create(v, vertex, edgeConf.createDefaultEdgeProperty());
-					    	this.dag.addEdge(edge);
-						}
-				    }    
+					dag.addVertex(vertex);
+					this.addEdges(vertexDescriptor, vertex, edgeConf);   
 				}
 				else {
 					ProcessorDescriptor pd = ProcessorDescriptor.create(TezSparkProcessor.class.getName());
@@ -197,19 +194,31 @@ public class DAGBuilder {
 					vertex.setTaskLocalFiles(localResources);
 					
 				    this.dag.addVertex(vertex);
-				    if (!(vertexDescriptor.getInput() instanceof String)) {
-				    	for (int stageId : (Iterable<Integer>)vertexDescriptor.getInput()) {
-				    		VertexDescriptor vd = vertexes.get(stageId);
-					    	String vertexName =  vd.getVertexId() * 2 + "";
-					    	Vertex v = dag.getVertex(vertexName);
-					    	Edge edge = Edge.create(v, vertex, edgeConf.createDefaultEdgeProperty());
-					    	this.dag.addEdge(edge);
-						}
-				    } 
+				    this.addEdges(vertexDescriptor, vertex, edgeConf);
 				}
 			}
 		}
-		logger.debug("Finished building Tez DAG");
+		if (logger.isDebugEnabled()){
+			logger.debug("Finished building Tez DAG");
+		}
 	}
 	
+	/**
+	 * 
+	 * @param vertexDescriptor
+	 * @param targetVertex
+	 * @param edgeConf
+	 */
+	@SuppressWarnings("unchecked")
+	private void addEdges(VertexDescriptor vertexDescriptor, Vertex targetVertex, OrderedPartitionedKVEdgeConfig edgeConf){
+		if (!(vertexDescriptor.getInput() instanceof String)) {
+	    	for (int stageId : (Iterable<Integer>)vertexDescriptor.getInput()) {
+	    		VertexDescriptor vd = vertexes.get(stageId);
+		    	String vertexName =  vd.getVertexId() * 2 + "";
+		    	Vertex v = dag.getVertex(vertexName);
+		    	Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
+		    	this.dag.addEdge(edge);
+			}
+	    } 
+	}
 }

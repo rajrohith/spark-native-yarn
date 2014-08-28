@@ -25,6 +25,7 @@ import scala.collection.JavaConverters._
 import org.apache.hadoop.io.Writable
 import org.apache.hadoop.io.IntWritable
 import org.apache.spark.shuffle.BaseShuffleHandle
+import org.apache.hadoop.io.NullWritable
 
 class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Integer, LogicalOutput]) extends ShuffleManager {
   println("Creating Tez ShuffleManager")
@@ -56,13 +57,15 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
       def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
 //      def write(record: Product2[K, V]): Unit = {
         for (record <- records) {
-//          println(record)
-//          val bwValue = new BytesWritable(serializer.serialize(record).array())
-//          kvWriter.write(key, bwValue)
-          
-          k.set(record._1.asInstanceOf[String])
-          v.set(record._2.asInstanceOf[Integer])
-          kvWriter.write(k, v)
+
+          if (record._1.isInstanceOf[NullWritable]){ // temporary hack for saveAsTextFile
+            kvWriter.write(NullWritable.get(), record._2.asInstanceOf[Text])
+          }
+          else {
+            k.set(record._1.asInstanceOf[String])
+            v.set(record._2.asInstanceOf[Integer])
+            kvWriter.write(k, v)
+          }
         }
       }
 
@@ -139,7 +142,7 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
             }
  
             val product = (key.toString, previousValue)
-            println("Merged: " + product)
+//            println("Merged: " + product)
             product.asInstanceOf[Product2[K, C]]
             
             

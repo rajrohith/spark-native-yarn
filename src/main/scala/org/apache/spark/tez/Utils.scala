@@ -32,7 +32,6 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
   
   val fs = FileSystem.get(sparkContext.hadoopConfiguration);
   val localResources = YarnUtils.createLocalResources(this.fs, "stark-cp")
-//  val tezConfiguration = new TezConfiguration(sparkContext.hadoopConfiguration)
   val tezConfiguration = new TezConfiguration(new TezConfiguration)
   val tezClient = TezClient.create(sparkContext.appName, tezConfiguration);
   this.tezClient.addAppMasterLocalResources(this.localResources);
