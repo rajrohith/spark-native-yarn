@@ -18,6 +18,8 @@ import org.apache.spark.scheduler.Stage
 import org.apache.spark.util.CallSite
 import org.apache.tez.dag.api.TezConfiguration
 import org.apache.spark.ShuffleDependency
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.Path
 
 /**
  * Source class which contains methods, fields and constructors required to instrument 
@@ -99,7 +101,10 @@ private abstract class TezContext(conf: SparkConf) {
     valueClass: Class[V],
     conf: Configuration = new TezConfiguration(new YarnConfiguration)): RDD[(K, V)] = {
 
-    new TezRDD(path, this.asInstanceOf[org.apache.spark.SparkContext], inputFormatClass, keyClass, valueClass, new Configuration)
+    val fs = FileSystem.get(conf);
+    val qualifiedPath = fs.makeQualified(new Path(path)).toString()
+    
+    new TezRDD(qualifiedPath, this.asInstanceOf[org.apache.spark.SparkContext], inputFormatClass, keyClass, valueClass, new Configuration)
   }
 
   /**

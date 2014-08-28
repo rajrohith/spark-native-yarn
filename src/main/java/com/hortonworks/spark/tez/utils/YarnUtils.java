@@ -23,6 +23,7 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.spark.tez.TezConstants;
 import org.springframework.core.io.ClassPathResource;
 
 /**
@@ -92,7 +93,7 @@ public class YarnUtils {
 	 * @return
 	 */
 	private static Path[] provisionClassPath(FileSystem fs, String applicationName, String[] classPathExclusions){
-		boolean generateJar = System.getProperty("generate-jar") != null;
+		boolean generateJar = System.getProperty(TezConstants.GENERATE_JAR) != null;
 		List<Path> provisionedPaths = new ArrayList<Path>();
 		List<File> generatedJars = new ArrayList<File>();
 		URL[] classpath = ((URLClassLoader) ClassLoader.getSystemClassLoader()).getURLs();
@@ -198,7 +199,7 @@ public class YarnUtils {
 	private static String[] buildClasspathExclusions(){
 		String[] classpathExclusions = null;
 		try {
-			ClassPathResource exclusionResource = new ClassPathResource("classpath_exclusions");
+			ClassPathResource exclusionResource = new ClassPathResource(TezConstants.CLASSPATH_EXCLUSIONS);
 			if (exclusionResource.exists()){
 				List<String> exclusionPatterns = new ArrayList<String>();
 				BufferedReader reader = new BufferedReader(new InputStreamReader(exclusionResource.getInputStream()));

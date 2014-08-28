@@ -24,14 +24,15 @@ import org.apache.hadoop.io.NullWritable
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.SparkEnv
 import org.apache.spark.TaskContext
+import org.apache.spark.Logging
 
 /**
  * Implementation of Spark's ShuffleManager to support Spark's task connectivity 
  * to Tez's readers and writers
  * 
  */
-class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Integer, LogicalOutput]) extends ShuffleManager {
-  println("Creating Tez ShuffleManager")
+class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Integer, LogicalOutput]) extends ShuffleManager with Logging{
+  logDebug("Creating Tez ShuffleManager")
   val key = new BytesWritable
 
   /**
@@ -41,7 +42,6 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
     shuffleId: Int,
     numMaps: Int,
     dependency: ShuffleDependency[K, V, C]): ShuffleHandle = {
-    println("registerShuffle")
     null
   }
 

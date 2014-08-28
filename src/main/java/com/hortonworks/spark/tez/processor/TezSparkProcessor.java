@@ -6,8 +6,8 @@ import java.util.TreeMap;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.spark.SparkUtils;
-import org.apache.spark.TezShuffleManager;
+import org.apache.spark.tez.SparkUtils;
+import org.apache.spark.tez.TezShuffleManager;
 import org.apache.spark.tez.VertexTask;
 import org.apache.tez.mapreduce.processor.SimpleMRProcessor;
 import org.apache.tez.runtime.api.LogicalInput;

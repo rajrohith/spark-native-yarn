@@ -18,11 +18,12 @@ import org.apache.spark.TaskContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.ShuffleDependency
 import org.apache.spark.ShuffleDependency
+import org.apache.spark.Logging
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
  */
-class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U) {
+class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U) extends Logging {
 
   private var vertexId = 0;
   
@@ -30,9 +31,16 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
   
   private val sparkContext = stage.rdd.context
   
-  val fs = FileSystem.get(sparkContext.hadoopConfiguration);
-  val localResources = YarnUtils.createLocalResources(this.fs, "stark-cp")
-  val tezConfiguration = new TezConfiguration(new TezConfiguration)
+  private val tezConfiguration = new TezConfiguration
+  
+  val fs = FileSystem.get(tezConfiguration);
+  val updateClassPath = System.getProperty(TezConstants.UPDATE_CLASSPATH) != null
+  if (updateClassPath){
+    logInfo("Refreshing application classpath, by deleting the existing one. New one will be provisioned")
+    fs.delete(new Path(TezConstants.CLASSPATH_PATH))
+  }
+  val localResources = YarnUtils.createLocalResources(this.fs, TezConstants.CLASSPATH_PATH)
+  
   val tezClient = TezClient.create(sparkContext.appName, tezConfiguration);
   this.tezClient.addAppMasterLocalResources(this.localResources);
   tezClient.start();
@@ -45,7 +53,7 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
   def build():DAGTask = {
     prepareDag(stage, null, func)
     val dagTask = dagBuilder.build()
-    println("DAG: " + dagBuilder.toString())
+    logInfo("DAG: " + dagBuilder.toString())
     dagTask
   }
 
@@ -62,11 +70,11 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
 
     val vertexTask =
       if (stage.isShuffleMap) {
-        println(stage.shuffleDep.get)
-        println("STAGE Shuffle: " + stage + " - " + stage.rdd.partitions.toList + " vertex: " + vertexId)
+        logInfo(stage.shuffleDep.get.toString)
+        logInfo("STAGE Shuffle: " + stage + " - " + stage.rdd.partitions.toList + " vertex: " + vertexId)
         new VertexTask(stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any,Any,Any]]])   
       } else {
-        println("STAGE Result: " + stage + " - " + stage.rdd.partitions.toList + " vertex: " + vertexId)
+        logInfo("STAGE Result: " + stage + " - " + stage.rdd.partitions.toList + " vertex: " + vertexId)
         new VertexResultTask(stage.rdd.asInstanceOf[RDD[T]], func)
       }
     
@@ -92,7 +100,7 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
       for (partition <- partitions) {
         val partitionPath = new Path(this.sparkContext.appName + "_p_" + partitionCounter)
         val os = fs.create(partitionPath)
-        println("serializing: " + partitionPath)
+        logDebug("serializing: " + partitionPath)
         partitionCounter += 1
         serializer.serializeStream(os).writeObject(partition).close
       }

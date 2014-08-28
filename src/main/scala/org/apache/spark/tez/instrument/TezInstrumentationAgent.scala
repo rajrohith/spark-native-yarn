@@ -12,6 +12,7 @@ import org.apache.tez.dag.api.TezConfiguration
 import java.net.URLClassLoader
 import javassist.ClassPath
 import javassist.LoaderClassPath
+import org.apache.spark.Logging
 
 /**
  * Byte-code instrumentation agent based on Javassist API - http://www.csg.ci.i.u-tokyo.ac.jp/
@@ -46,7 +47,7 @@ import javassist.LoaderClassPath
  * At the time of writing this code, the only class that is being instrumented is SparkContext and the 
  * source of instrumentation is TezContext.
  */
-object TezInstrumentationAgent {
+object TezInstrumentationAgent extends Logging{
 
   val unsafe = {
     val field = classOf[Unsafe].getDeclaredField("theUnsafe");
@@ -60,10 +61,8 @@ object TezInstrumentationAgent {
   pool.insertClassPath(cp)
 
   val cl3 = pool.getClassLoader().asInstanceOf[URLClassLoader]
-  println("Classpath available to JAVASSIST instrumentation")
-  println(cl3.getURLs().toList)
-  println()
-  
+  logDebug("Classpath available to JAVASSIST instrumentation\n" + cl3.getURLs().toList)
+
   private val tezContextClass = pool.get("org.apache.spark.tez.TezContext")
   private val sparkContextClass = pool.get("org.apache.spark.SparkContext")
   
@@ -79,6 +78,7 @@ object TezInstrumentationAgent {
    * 
    */
   def instrument = {
+    logInfo("Instrumenting SparkContext for Tez")
     // this code will be plugged in when ready to override primary constructor to avoid Spark's garbage not required by Tez
 //    val baseConstructor = this.sparkContextClass.getConstructor("(Lorg/apache/spark/SparkConf;)V")
 //    val instrConstructor = this.tezContextClass.getConstructor("(Lorg/apache/spark/SparkConf;)V")
@@ -115,8 +115,12 @@ object TezInstrumentationAgent {
     try {
       val sourceMethod = tezContextClass.getMethod(targetMethod.getName(), desc)
       targetMethod.setBody(sourceMethod, null)
+      logDebug("Instrumented" + targetMethod.getMethodInfo.getDescriptor)
     } catch {
-      case e: Throwable => throw new IllegalStateException(e);
+      case e: Throwable => 
+        logDebug("skipping instrumentatoin of the " + targetMethod.getMethodInfo.getDescriptor)
+        				   // ignore since methods that are not found based on CtMethod 
+        				   // definitions are not going to be replaced
     }
   }
 }
