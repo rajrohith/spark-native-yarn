@@ -92,25 +92,31 @@ public class YarnUtils {
 	/**
 	 * Will provision current classpath to YARN and return an array of 
 	 * {@link Path}s representing provisioned resources
+	 * If 'generate-jar' system property is set it will also generate the JAR for the current 
+	 * working directory (mainly used when executing from IDE)
 	 * 
 	 * @return
 	 */
 	private static Path[] provisionClassPath(FileSystem fs, String applicationName, String[] classPathExclusions){
+		boolean generateJar = System.getProperty("generate-jar") != null;
 		List<Path> provisionedPaths = new ArrayList<Path>();
 		List<File> generatedJars = new ArrayList<File>();
 		URL[] classpath = ((URLClassLoader) ClassLoader.getSystemClassLoader()).getURLs();
 		for (URL classpathUrl : classpath) {
 			File f = new File(classpathUrl.getFile());
 			if (f.isDirectory()) {
-				System.out.println(" Temporarlily skipping Jar generation. PLEASE FIX!: " + f.getAbsolutePath());
-//				String jarFileName = JarUtils.generateJarFileName(applicationName);
-//				if (logger.isDebugEnabled()){
-//					logger.debug("Generating application JAR: " + jarFileName);
-//				}
-//				File jarFile = JarUtils.toJar(f, jarFileName);
-//				generatedJars.add(jarFile);
-//				f = jarFile;
-				f = null;
+				if (generateJar){
+					String jarFileName = JarUtils.generateJarFileName(applicationName);
+					if (logger.isDebugEnabled()){
+						logger.debug("Generating application JAR: " + jarFileName);
+					}
+					File jarFile = JarUtils.toJar(f, jarFileName);
+					generatedJars.add(jarFile);
+					f = jarFile;
+				}
+				else {
+					f = null;
+				}
 			} 
 			if (f != null){
 				String destinationFilePath = applicationName + "/" + f.getName();
