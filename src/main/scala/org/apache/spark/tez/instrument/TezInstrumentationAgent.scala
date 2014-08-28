@@ -17,8 +17,8 @@ import javassist.LoaderClassPath
  * Byte-code instrumentation agent based on Javassist API - http://www.csg.ci.i.u-tokyo.ac.jp/
  * Its main purpose is to instrument various Spark classes in order to allow Spark to support 
  * Tez execution engine.
- * It allows type-safe instrumentation based on swapping re-implemented methods, constructors and field
- * with your own defined in some other class as long as their definitions match essentially causing the same effect
+ * It allows type-safe instrumentation based on swapping re-implemented methods, constructors and fields
+ * with your own defined in some other class, as long as their definitions match; essentially causing the same effect
  * as if the target class was extended.
  * 
  * For example:
@@ -35,12 +35,12 @@ import javassist.LoaderClassPath
  *    }
  * }
  * 
- * This class can swap 'print' method in Printer class with the one in MyPrinter
- * since method definitions are the same making Printer look like MyPrinter without
+ * This class can swap 'print' method in the Printer class with the one in MyPrinter
+ * since method definitions are the same, making Printer look like MyPrinter without
  * it being extended.
  * 
  * In case if there are references inside the methods to the class that is used as source of transformation,
- * those references will also be replaced with the target class. Do the print method of MyPrinter class will print 
+ * those references will also be replaced with the target class. So the print method of MyPrinter class will print 
  * Printer instead of MyPrinter
  * 
  * At the time of writing this code, the only class that is being instrumented is SparkContext and the 
