@@ -16,7 +16,10 @@ import org.apache.spark.tez.VertexTask
 import org.apache.spark.tez.VertexTask
 
 /**
- * 
+ * Utility functions related to Spark functionality.
+ * Mainly used by TezSparkProcessor to deserialize tasks and 
+ * create light version of SparkEnv to satisfy Spark requirements 
+ * (e.g., avoid NPE mainly)
  */
 object SparkUtils {
   val sparkConf = new SparkConf
