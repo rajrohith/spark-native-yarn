@@ -24,7 +24,7 @@ object WordCount extends BaseDemo {
   def main(args: Array[String]) {
     
     val jobName = "WordCount"
-    val inputFile = "src/test/sample-data.txt"
+    val inputFile = "src/test/scala/dev/demo/sample-data.txt"
     prepare(jobName, inputFile)
 
     val sConf = new SparkConf

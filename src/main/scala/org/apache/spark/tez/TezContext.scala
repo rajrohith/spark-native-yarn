@@ -20,6 +20,7 @@ import org.apache.tez.dag.api.TezConfiguration
 import org.apache.spark.ShuffleDependency
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
+import org.apache.commons.io.FileUtils
 
 /**
  * Source class which contains methods, fields and constructors required to instrument 

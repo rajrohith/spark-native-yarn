@@ -55,19 +55,13 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
     val shuffleWriter = new ShuffleWriter[K, V] {
       /** Write a record to this task's output */
       
-      val k = new Text
-      val v = new IntWritable
-      
       def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
         for (record <- records) {
-
-          if (record._1.isInstanceOf[NullWritable]){ // temporary hack for saveAsTextFile
-            kvWriter.write(NullWritable.get(), record._2.asInstanceOf[Text])
+          if (record._1.isInstanceOf[Writable] && record._2.isInstanceOf[Writable]){ 
+            kvWriter.write(record._1, record._2)
           }
           else {
-            k.set(record._1.asInstanceOf[String])
-            v.set(record._2.asInstanceOf[Integer])
-            kvWriter.write(k, v)
+            kvWriter.write(WritableDecoder.toWritable(record._1), WritableDecoder.toWritable(record._2))
           }
         }
       }
@@ -111,7 +105,7 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
           }
 
           override def next(): Product2[K, C] = {
-       
+
             val (key, readerValue) =
               if (reader.isInstanceOf[KeyValueReader]) {
                 val r = reader.asInstanceOf[KeyValueReader]
@@ -124,25 +118,23 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
                 val rVal = r.getCurrentValues()
                 (rKey, rVal)
               }
-            
-            
-            var previousValue:Any = null
-            if (readerValue.isInstanceOf[Iterable[_]]){
-              val iter = readerValue.asInstanceOf[Iterable[Writable]].asScala  
+
+            var previousValue: Any = null
+            if (readerValue.isInstanceOf[Iterable[_]]) {
+              val iter = readerValue.asInstanceOf[Iterable[Writable]].asScala
               val mergeFunction = handle.asInstanceOf[BaseShuffleHandle[K, Any, C]].dependency.aggregator.get.mergeValue
-            
-              var acumulatedValue:Any = null
-              
-              for (value <- iter){
-                val decodedValue = WritableDecoder.getValue(value)        									
+
+              var acumulatedValue: Any = null
+
+              for (value <- iter) {
+                val decodedValue = WritableDecoder.fromWritable(value)
                 acumulatedValue = mergeFunction(acumulatedValue.asInstanceOf[C], decodedValue.asInstanceOf[K])
               }
               previousValue = acumulatedValue
-            }
-            else {
+            } else {
               previousValue = readerValue
             }
- 
+
             val product = (key.toString, previousValue)
             product.asInstanceOf[Product2[K, C]]
           }
@@ -169,19 +161,36 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
 }
 
 /**
- * 
+ *
  */
 private object WritableDecoder {
-  
-  def getValue(writable:Writable) = {
-    if (writable.isInstanceOf[LongWritable]){
+  /**
+   *
+   */
+  def fromWritable(writable: Writable) = {
+    if (writable.isInstanceOf[LongWritable]) {
       writable.asInstanceOf[LongWritable].get
-    } else if (writable.isInstanceOf[IntWritable]){
+    } else if (writable.isInstanceOf[IntWritable]) {
       writable.asInstanceOf[IntWritable].get
-    } else if (writable.isInstanceOf[Text]){
+    } else if (writable.isInstanceOf[Text]) {
       writable.toString
     } else {
       throw new IllegalStateException("Unsupported writable " + writable)
+    }
+  }
+  
+  /**
+   *
+   */
+  def toWritable(value: Any) = {
+    if (value.isInstanceOf[Integer]) {
+      new IntWritable(value.asInstanceOf[Integer])
+    } else if (value.isInstanceOf[Long]) {
+      new LongWritable(value.asInstanceOf[Long])
+    } else if (value.isInstanceOf[String]) {
+      new Text(value.asInstanceOf[String])
+    } else {
+      throw new IllegalStateException("Unsupported type to convert to Writable " + value.getClass.getName())
     }
   }
 }
