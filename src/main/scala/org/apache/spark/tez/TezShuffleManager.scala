@@ -1,6 +1,4 @@
-package org.apache.spark
-
-import java.nio.ByteBuffer
+package org.apache.spark.tez
 import scala.collection.Iterator
 import org.apache.hadoop.io.BytesWritable
 import org.apache.spark.scheduler.MapStatus
@@ -11,21 +9,21 @@ import org.apache.spark.shuffle.ShuffleWriter
 import org.apache.tez.runtime.api.Reader
 import org.apache.tez.runtime.library.api.KeyValueWriter
 import org.apache.tez.runtime.library.api.KeyValuesReader
-import org.apache.tez.runtime.api.Writer
 import java.util.Map
-import sun.rmi.log.LogInputStream
 import org.apache.tez.runtime.api.LogicalInput
 import org.apache.tez.runtime.api.LogicalOutput
 import org.apache.tez.runtime.library.api.KeyValueReader
 import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.io.Text
-import java.lang.Long
 import java.lang.Iterable
 import scala.collection.JavaConverters._
 import org.apache.hadoop.io.Writable
 import org.apache.hadoop.io.IntWritable
 import org.apache.spark.shuffle.BaseShuffleHandle
 import org.apache.hadoop.io.NullWritable
+import org.apache.spark.ShuffleDependency
+import org.apache.spark.SparkEnv
+import org.apache.spark.TaskContext
 
 /**
  * Implementation of Spark's ShuffleManager to support Spark's task connectivity 

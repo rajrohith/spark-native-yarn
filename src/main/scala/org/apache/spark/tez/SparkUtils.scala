@@ -1,19 +1,13 @@
-package org.apache.spark
+package org.apache.spark.tez
 
 import java.nio.ByteBuffer
-import org.apache.spark.scheduler.ResultTask
-import org.apache.spark.scheduler.Task
 import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.storage.BlockManager
-import org.apache.spark.scheduler.ResultTask
 import sun.misc.Unsafe
-import org.apache.spark.rdd.CoGroupPartition
-import java.io.InputStream
-import java.io.ByteArrayInputStream
-import sun.reflect.ReflectionFactory
-import java.io.ObjectInputStream
-import org.apache.spark.tez.VertexTask
-import org.apache.spark.tez.VertexTask
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkEnv
+import org.apache.spark.storage.BlockManager
+import sun.misc.Unsafe
 
 /**
  * Utility functions related to Spark functionality.
