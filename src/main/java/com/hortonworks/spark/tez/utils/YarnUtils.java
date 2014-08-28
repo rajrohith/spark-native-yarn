@@ -23,7 +23,6 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import org.apache.tez.dag.api.TezConfiguration;
 import org.springframework.core.io.ClassPathResource;
 
 /**
@@ -35,6 +34,7 @@ public class YarnUtils {
 	private static final Log logger = LogFactory.getLog(YarnUtils.class);
 
 	/**
+	 * Creates {@link LocalResource}s based on the current user's classpath
 	 * 
 	 * @param fs
 	 * @param appName
@@ -47,39 +47,11 @@ public class YarnUtils {
 	}
 	
 	/**
-	 * 
-	 */
-	private static void provisionAndLocalizeScalaLib(FileSystem fs, String appName,  Map<String, LocalResource> localResources){
-		URL url = ClassLoader.getSystemClassLoader().getResource("scala/Function.class");
-		String path = url.getFile();
-		path = path.substring(0, path.indexOf("!"));
-		
-		try {
-			File scalaLibLocation = new File(new URL(path).toURI());
-			Path provisionedPath = YarnUtils.provisionResource(scalaLibLocation, fs, appName);
-			LocalResource localResource = YarnUtils.createLocalResource(fs, provisionedPath);
-			localResources.put(provisionedPath.getName(), localResource);
-		} catch (Exception e) {
-			throw new RuntimeException("Failed to provision Scala Library", e);
-		}
-	}
-	
-	/**
-	 * 
-	 */
-	private static Map<String, LocalResource> provisionAndLocalizeCurrentClasspath(FileSystem fs, String appName) {
-		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(fs, appName, buildClasspathExclusions());
-		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(fs, provisionedResourcesPaths);
-
-		return localResources;
-	}
-	
-	/**
+	 * Provisions resource represented as {@link File} to the {@link FileSystem} for a given application
 	 * 
 	 * @param localResource
 	 * @param fs
 	 * @param applicationName
-	 * @param applicationId
 	 * @return
 	 */
 	public static Path provisionResource(File localResource, FileSystem fs, String applicationName) {
@@ -87,6 +59,28 @@ public class YarnUtils {
 		Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
 		provisioinResourceToFs(fs, new Path(localResource.getAbsolutePath()), provisionedPath);
 		return provisionedPath;
+	}
+	
+	/**
+	 * Creates a single {@link LocalResource} for the provisioned resource identified with {@link Path}
+	 * 
+	 * @param fs
+	 * @param provisionedResourcePath
+	 * @return
+	 */
+	public static LocalResource createLocalResource(FileSystem fs, Path provisionedResourcePath){
+		try {
+			FileStatus scFileStatus = fs.getFileStatus(provisionedResourcePath);
+			LocalResource localResource = LocalResource.newInstance(
+					ConverterUtils.getYarnUrlFromURI(provisionedResourcePath.toUri()),
+					LocalResourceType.FILE,
+					LocalResourceVisibility.APPLICATION, scFileStatus.getLen(),
+					scFileStatus.getModificationTime());
+			return localResource;
+		} 
+		catch (Exception e) {
+			throw new IllegalStateException("Failed to communicate with FileSystem while creating LocalResource: " + fs, e);
+		}
 	}
 	
 	/**
@@ -174,35 +168,7 @@ public class YarnUtils {
 		}
 		return localResources;
 	}
-	
-	public static FileSystem createFileSystem(TezConfiguration tezConfiguration){
-		try {
-			return FileSystem.get(tezConfiguration);
-		} catch (Exception e) {
-			throw new IllegalStateException("Failed to access FileSystem", e);
-		}
-	}
-	
-	/**
-	 * 
-	 * @param fs
-	 * @param provisionedResourcePath
-	 * @return
-	 */
-	public static LocalResource createLocalResource(FileSystem fs, Path provisionedResourcePath){
-		try {
-			FileStatus scFileStatus = fs.getFileStatus(provisionedResourcePath);
-			LocalResource localResource = LocalResource.newInstance(
-					ConverterUtils.getYarnUrlFromURI(provisionedResourcePath.toUri()),
-					LocalResourceType.FILE,
-					LocalResourceVisibility.APPLICATION, scFileStatus.getLen(),
-					scFileStatus.getModificationTime());
-			return localResource;
-		} 
-		catch (Exception e) {
-			throw new IllegalStateException("Failed to communicate with FileSystem while creating LocalResource: " + fs, e);
-		}
-	}
+
 	/**
 	 * 
 	 * @param fs
@@ -248,5 +214,33 @@ public class YarnUtils {
 			logger.warn("Failed to build the list of classpath exclusion. ", e);
 		}
 		return classpathExclusions;
+	}
+	
+	/**
+	 * 
+	 */
+	private static void provisionAndLocalizeScalaLib(FileSystem fs, String appName,  Map<String, LocalResource> localResources){
+		URL url = ClassLoader.getSystemClassLoader().getResource("scala/Function.class");
+		String path = url.getFile();
+		path = path.substring(0, path.indexOf("!"));
+		
+		try {
+			File scalaLibLocation = new File(new URL(path).toURI());
+			Path provisionedPath = YarnUtils.provisionResource(scalaLibLocation, fs, appName);
+			LocalResource localResource = YarnUtils.createLocalResource(fs, provisionedPath);
+			localResources.put(provisionedPath.getName(), localResource);
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to provision Scala Library", e);
+		}
+	}
+	
+	/**
+	 * 
+	 */
+	private static Map<String, LocalResource> provisionAndLocalizeCurrentClasspath(FileSystem fs, String appName) {
+		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(fs, appName, buildClasspathExclusions());
+		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(fs, provisionedResourcesPaths);
+
+		return localResources;
 	}
 }
