@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.hortonworks.spark.tez.utils;
+package org.apache.spark.tez;
 
 import java.io.BufferedReader;
 import java.io.File;

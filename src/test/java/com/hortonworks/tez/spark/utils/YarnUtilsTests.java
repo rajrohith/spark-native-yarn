@@ -1,19 +1,5 @@
 package com.hortonworks.tez.spark.utils;
 
-import java.io.File;
-import java.net.URI;
-
-import junit.framework.Assert;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.LocalFileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.LocalResource;
-import org.junit.Test;
-import org.mockito.Mockito;
-
-import com.hortonworks.spark.tez.utils.YarnUtils;
 
 public class YarnUtilsTests {
 

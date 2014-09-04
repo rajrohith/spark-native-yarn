@@ -8,6 +8,9 @@ import org.apache.spark.SparkConf
 import org.apache.spark.SparkEnv
 import org.apache.spark.storage.BlockManager
 import sun.misc.Unsafe
+import org.apache.spark.TaskContext
+import org.apache.spark.scheduler.Task
+import org.apache.spark.shuffle.ShuffleMemoryManager
 
 /**
  * Utility functions related to Spark functionality.
@@ -17,6 +20,8 @@ import sun.misc.Unsafe
  */
 object SparkUtils {
   val sparkConf = new SparkConf
+  val ser = new JavaSerializer(sparkConf)
+  val serializerInstance = ser.newInstance
   val unsafeConstructor = classOf[Unsafe].getDeclaredConstructor();
   unsafeConstructor.setAccessible(true);
   val unsafe = unsafeConstructor.newInstance();
@@ -33,26 +38,24 @@ object SparkUtils {
    */
   def createSparkEnv(shuffleManager:TezShuffleManager) {
     val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];   
-    val ser = new JavaSerializer(sparkConf)
-    val se = new SparkEnv("0", null, ser, ser, null, null, shuffleManager, null, blockManager, null, null, null, null, null, null, sparkConf)
+    val memoryManager = new ShuffleMemoryManager(20793262)
+    val se = new SparkEnv("0", null, ser, ser, null, null, shuffleManager, null, blockManager, null, null, null, null, null, memoryManager, sparkConf)
     SparkEnv.set(se)
   }
 
   /**
    * 
    */
-  def deserializeSparkTask(taskBytes: Array[Byte], partitionId:Int): VertexTask = {
-    val serializer = SparkEnv.get.serializer.newInstance
+  def deserializeSparkTask(taskBytes: Array[Byte], partitionId:Int): Task[_] = {
     val taskBytesBuffer = ByteBuffer.wrap(taskBytes)
-    val task = serializer.deserialize[VertexTask](taskBytesBuffer)
-
+    val task = serializerInstance.deserialize[Task[_]](taskBytesBuffer)
     task
   }
   
   /**
    * 
    */
-  def runTask(task: VertexTask) = { 
-    task.runTask
+  def runTask(task: Task[_]) = { 
+    task.runTask(new TaskContext(1,1,1))
   }
 }

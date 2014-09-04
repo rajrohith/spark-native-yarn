@@ -13,6 +13,7 @@ import java.net.URLClassLoader
 import javassist.ClassPath
 import javassist.LoaderClassPath
 import org.apache.spark.Logging
+import org.apache.spark.rdd.CoGroupedRDD
 
 /**
  * Byte-code instrumentation agent based on Javassist API - http://www.csg.ci.i.u-tokyo.ac.jp/
@@ -65,6 +66,46 @@ object TezInstrumentationAgent extends Logging{
 
   private val tezContextClass = pool.get("org.apache.spark.tez.TezContext")
   private val sparkContextClass = pool.get("org.apache.spark.SparkContext")
+  
+  
+  
+  
+  private val tezCoGrpupedRDDClass = pool.get("org.apache.spark.tez.TezPairRDDFunctions")
+  private val sparkCoGrpupedRDDClass = pool.get("org.apache.spark.rdd.PairRDDFunctions")
+  tezCoGrpupedRDDClass.getNestedClasses().foreach{
+    x => x.replaceClassName("org.apache.spark.tez.TezPairRDDFunctions", "org.apache.spark.rdd.PairRDDFunctions"); 
+    x.toClass()
+  }
+  val coGroupTargetMethods = sparkCoGrpupedRDDClass.getDeclaredMethods
+  for (tm <- coGroupTargetMethods) {
+    if (tm.getName() == "combineByKey") {
+      val desc = tm.getMethodInfo().getDescriptor()
+//      println(desc)
+      try {
+        for (m <- tezCoGrpupedRDDClass.getDeclaredMethods()){
+          if (m.getName() == "combineByKey") {
+            println(m.getMethodInfo().getDescriptor())
+          }
+        }
+        val sm = tezCoGrpupedRDDClass.getMethod(tm.getName(), desc)
+        
+        tm.insertBefore("com.hortonworks.spark.tez.processor.ClientExecutionContext.setKey(mergeValue);")
+//        tm.setWrappedBody(sm, null)
+//        tm.setBody(sm, null)
+        logDebug("Instrumented" + tm.getMethodInfo.getDescriptor)
+      } catch {
+        case e: Throwable =>
+          logDebug("skipping instrumentatoin of the " + tm.getMethodInfo.getDescriptor)
+      }
+    }
+  }
+  
+  val coGrBytes = this.sparkCoGrpupedRDDClass.toBytecode()
+//  unsafe.defineClass(null, coGrBytes, 0, coGrBytes.length, this.getClass.getClassLoader(), this.getClass.getProtectionDomain())
+  
+//  val cg = unsafe.allocateInstance(classOf[CoGroupedRDD[_]]).asInstanceOf[CoGroupedRDD[_]]
+//  cg.compute(null, null)
+  
   
   // This block will finally replace all references to 'org.apache.spark.tez.TezContext' with 'org.apache.spark.SparkContext'
   // to finalize SparkContext instrumentation

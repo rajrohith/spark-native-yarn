@@ -24,18 +24,27 @@ object WordCount extends BaseDemo {
   def main(args: Array[String]) {
     
     val jobName = "WordCount"
-    val inputFile = "src/test/scala/dev/demo/sample-data.txt"
-    prepare(jobName, inputFile)
+    val inputFile = "src/test/scala/dev/demo/test.txt"
+    prepare(jobName, Array(inputFile))
 
     val sConf = new SparkConf
     sConf.setAppName(jobName)
     sConf.setMaster("local")
+//    sConf.set("spark.shuffle.spill", "false")
     val sc = new SparkContext(sConf)
     val source = sc.textFile(inputFile)
+    
+    val result = source
+    	.flatMap{x => 
+    	  println("flatmap")
+    	  x.split(" ")
+    	}.map{x => 
+    	  println("map")
+    	  (x, 1)}.
+    	  reduceByKey((x,y) => x+y, 2).saveAsTextFile("hello")
+    	    
 
-    val result = source.flatMap(_.split(" ")).map((_, 1)).reduceByKey(_ + _, 2).collect
-
-    printResults(jobName)
+//    println(result.toList)
 
     sc.stop
   }

@@ -2,7 +2,7 @@ package com.hortonworks.spark.tez;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.util.HashMap;
+import java.nio.ByteBuffer;
 //import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -14,14 +14,15 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.spark.tez.TezConstants;
+import org.apache.spark.tez.YarnUtils;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.DataSinkDescriptor;
@@ -44,7 +45,6 @@ import org.apache.tez.runtime.library.partitioner.HashPartitioner;
 import org.apache.tez.runtime.library.processor.SimpleProcessor;
 
 import com.google.common.base.Preconditions;
-import com.hortonworks.spark.tez.utils.YarnUtils;
 
 public class TezWordCount {
 	private final static Log logger = LogFactory.getLog(TezWordCount.class);
@@ -54,16 +54,16 @@ public class TezWordCount {
 	static String SUMMATION = "Summation";
 
 	public static void main(String[] args) throws Exception {
-
-		String file = "hdfs://cn105-10.l42scl.hortonworks.com:8020/user/zzhang/100gb.txt";
-		if (args.length > 0 && args[0] != null){
-			file = args[0];
-		}
-		
-		int red  = 50;
-		if (args.length > 0 && args[1] != null){
-			red = Integer.parseInt(args[1]);
-		}
+		System.setProperty(TezConstants.GENERATE_JAR, "true");
+		String file = "/Users/ozhurakousky/dev/spark-on-tez/src/test/scala/dev/demo/test.txt";
+//		if (args.length > 0 && args[0] != null){
+//			file = args[0];
+//		}
+//		
+//		int red  = 50;
+//		if (args.length > 0 && args[1] != null){
+//			red = Integer.parseInt(args[1]);
+//		}
 		
 //		String file = "hdfs://cn105-10.l42scl.hortonworks.com:8020/user/zzhang/low1gb.txt";
 //		String file = "hdfs://cn105-10.l42scl.hortonworks.com:8020/user/zzhang/100gb.txt";
@@ -75,14 +75,13 @@ public class TezWordCount {
 		String appName = "tez-wc";
 		String outputPath = appName + "_out";
 		final DAG dag = new DAG(appName);
-		TezConfiguration tezConfiguration = new TezConfiguration(
-				new YarnConfiguration());
+		TezConfiguration tezConfiguration = new TezConfiguration(new YarnConfiguration());
 		FileSystem fs = FileSystem.get(tezConfiguration);
-		fs.delete(new Path(appName + "_out"), true);
+		fs.delete(new Path(outputPath), true);
 //		fs.delete(new Path("stark-cp"), true);
 
-//		Path testFile = new Path(file);
-//		fs.copyFromLocalFile(false, true, new Path("/Users/ozhurakousky/dev/spark-on-tez/" + file), testFile);
+		Path testFile = new Path(file);
+		fs.copyFromLocalFile(false, true, new Path(file), testFile);
 
 		System.out.println("STARTING JOB");
 
@@ -92,22 +91,25 @@ public class TezWordCount {
 		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(fs, "stark-cp");
 		logger.info("Done building local resources");
 		
-		UserGroupInformation.setConfiguration(tezConfiguration);
+//		UserGroupInformation.setConfiguration(tezConfiguration);
 		final TezClient tezClient = TezClient.create("WordCount", tezConfiguration);
 		tezClient.addAppMasterLocalResources(localResources);
 		tezClient.start();
 		
 		logger.info("Generating DAG");
 		
+//		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
+//		        .newBuilder(Text.class.getName(), IntWritable.class.getName(),
+//		            HashPartitioner.class.getName(), null).build();
 		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
-		        .newBuilder(Text.class.getName(), IntWritable.class.getName(),
+		        .newBuilder(BytesWritable.class.getName(), BytesWritable.class.getName(),
 		            HashPartitioner.class.getName(), null).build();
 
 //		edgeConf.
 		
 		DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), TextInputFormat.class, file).build();
 		
-		DataSinkDescriptor dataSink = MROutput.createConfigBuilder(new Configuration(tezConfiguration),TextOutputFormat.class, outputPath).build();
+		DataSinkDescriptor dataSink = MROutput.createConfigBuilder(new Configuration(tezConfiguration), org.apache.hadoop.mapred.SequenceFileOutputFormat.class, outputPath).build();
 		
 		Vertex mapper = Vertex.create(TOKENIZER, ProcessorDescriptor.create(
 			        TokenProcessor.class.getName())).addDataSource(INPUT, dataSource);
@@ -115,7 +117,7 @@ public class TezWordCount {
 		dag.addVertex(mapper);
 		
 		Vertex reducer = Vertex.create(SUMMATION,
-		        ProcessorDescriptor.create(SumProcessor.class.getName()), red)
+		        ProcessorDescriptor.create(SumProcessor.class.getName()), 1)
 		        .addDataSink(OUTPUT, dataSink);
 		reducer.setTaskLocalFiles(localResources);
 		dag.addVertex(reducer);
@@ -159,9 +161,9 @@ public class TezWordCount {
 	}
 
 	public static class TokenProcessor extends SimpleProcessor {
-		static Map<String, MutableInteger> groups = new HashMap<String, MutableInteger>(100000);
-	    IntWritable count = new IntWritable(1);
-	    Text word = new Text();
+//		static Map<String, MutableInteger> groups = new HashMap<String, MutableInteger>(100000);
+//	    IntWritable count = new IntWritable(1);
+//	    Text word = new Text();
 
 	    public TokenProcessor(ProcessorContext context) {
 	      super(context);
@@ -184,24 +186,26 @@ public class TezWordCount {
 	        StringTokenizer itr = new StringTokenizer(kvReader.getCurrentValue().toString());
 	        while (itr.hasMoreTokens()) {
 	          String token = itr.nextToken();
-	          MutableInteger intValue = new MutableInteger(1);
-	          MutableInteger oldValue = groups.put(token, intValue);
+//	          MutableInteger intValue = new MutableInteger(1);
+//	          MutableInteger oldValue = groups.put(token, intValue);
 //	          word.set(itr.nextToken());
 	          // Count 1 every time a word is observed. Word is the key a 1 is the value
-//	          kvWriter.write(word, count);
+	          byte[] key = ByteBuffer.wrap(token.getBytes()).array();
+	          byte[] value = ByteBuffer.allocate(4).putInt(1).array();
+	          kvWriter.write(new BytesWritable(key), new BytesWritable(value));
 	          
-	          if (oldValue != null){
-	        	  intValue.set(oldValue.get()+1);
-	          }
+//	          if (oldValue != null){
+//	        	  intValue.set(oldValue.get()+1);
+//	          }
 	        }
 	      }
-	      for (Map.Entry<String, MutableInteger> entry : groups.entrySet()) {
-	    	  word.set(entry.getKey());
-	    	  count.set(entry.getValue().get());
-	    	  kvWriter.write(word, count);
-	      }
+//	      for (Map.Entry<String, MutableInteger> entry : groups.entrySet()) {
+//	    	  word.set(entry.getKey());
+//	    	  count.set(entry.getValue().get());
+//	    	  kvWriter.write(word, count);
+//	      }
 //	      db.close();
-	      groups.clear();
+//	      groups.clear();
 	    }
 
 	  }

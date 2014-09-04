@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hortonworks.spark.tez.utils;
+package org.apache.spark.tez;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;

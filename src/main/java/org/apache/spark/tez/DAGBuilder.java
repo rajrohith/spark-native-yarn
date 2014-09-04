@@ -7,11 +7,11 @@ import java.util.Map.Entry;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.spark.tez.io.DelegatingWritable;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.DataSinkDescriptor;
@@ -27,8 +27,6 @@ import org.apache.tez.mapreduce.input.MRInput;
 import org.apache.tez.mapreduce.output.MROutput;
 import org.apache.tez.runtime.library.conf.OrderedPartitionedKVEdgeConfig;
 import org.apache.tez.runtime.library.partitioner.HashPartitioner;
-
-import com.hortonworks.spark.tez.processor.TezSparkProcessor;
 
 /**
  * Builder which builds Tez DAG based on the collection of {@link VertexDescriptor}
@@ -155,9 +153,15 @@ class DAGBuilder {
 			logger.debug("Building Tez DAG");
 		}
 	
+//		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
+//		        .newBuilder(Text.class.getName(), IntWritable.class.getName(),
+//		            HashPartitioner.class.getName(), null).build();
 		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
-		        .newBuilder(Text.class.getName(), IntWritable.class.getName(),
+		        .newBuilder(DelegatingWritable.class.getName(), BytesWritable.class.getName(),
 		            HashPartitioner.class.getName(), null).build();
+//		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
+//		        .newBuilder(DelegatingWritable.class.getName(), BytesWritable.class.getName(),
+//		            HashPartitioner.class.getName(), null).build();
 		
 		int sequenceCounter = 0;
 		int counter = 0;
@@ -171,25 +175,29 @@ class DAGBuilder {
 				UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
 				String vertexName = String.valueOf(sequenceCounter++);
 				String dsName = String.valueOf(sequenceCounter++);
-				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TezSparkProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);	
+				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);	
 				vertex.setTaskLocalFiles(localResources);
 				
 				dag.addVertex(vertex);
 			}
 			else {
 				if (counter == vertexes.size()) {
-					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(new Configuration(tezConfiguration), TextOutputFormat.class, outputPath).build();
+					Configuration dsConfig = new Configuration(tezConfiguration);
+					dsConfig.setClass("mapreduce.job.output.key.class", DelegatingWritable.class, Writable.class);
+					dsConfig.setClass("mapreduce.job.output.value.class", BytesWritable.class, Writable.class);
+					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, org.apache.hadoop.mapred.SequenceFileOutputFormat.class, outputPath).build();
+//					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, TextOutputFormat.class, outputPath).build();
 					UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
 					String vertexName = String.valueOf(sequenceCounter++);
 					String dsName = String.valueOf(sequenceCounter++);
-					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(TezSparkProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
+					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
 					vertex.setTaskLocalFiles(localResources);
 					
 					dag.addVertex(vertex);
 					this.addEdges(vertexDescriptor, vertex, edgeConf);   
 				}
 				else {
-					ProcessorDescriptor pd = ProcessorDescriptor.create(TezSparkProcessor.class.getName());
+					ProcessorDescriptor pd = ProcessorDescriptor.create(SparkTaskProcessor.class.getName());
 					UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
 					pd.setUserPayload(payload);
 					Vertex vertex = Vertex.create(String.valueOf(sequenceCounter++), pd, vertexDescriptor.getNumPartitions(), MRHelpers.getResourceForMRReducer(this.tezConfiguration));

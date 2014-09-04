@@ -10,10 +10,17 @@ import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import org.apache.hadoop.io.SequenceFile
+import org.apache.hadoop.io.BytesWritable
+import org.apache.hadoop.mapred.SequenceFileRecordReader
+import org.apache.spark.SparkEnv
+import java.nio.ByteBuffer
+import org.apache.spark.tez.io.ComparableObjectWritable
+import org.apache.spark.tez.io.DelegatingWritable
 
 trait BaseDemo {
 
-  def prepare(jobName:String, inputFile:String) {
+  def prepare(jobName:String, inputFiles:Array[String]) {
     val cl = ClassLoader.getSystemClassLoader().asInstanceOf[URLClassLoader]
     val m = classOf[URLClassLoader].getDeclaredMethod("addURL", classOf[URL]);
 	m.setAccessible(true);
@@ -27,7 +34,8 @@ trait BaseDemo {
     
     val fs = FileSystem.get(configuration);
     fs.delete(new Path(jobName + "_out"))
-    fs.copyFromLocalFile(new Path(inputFile), new Path(inputFile))
+    inputFiles.foreach(x => fs.copyFromLocalFile(new Path(x), new Path(x)))
+    
   }
 
   /**
@@ -35,32 +43,46 @@ trait BaseDemo {
    */
   def printResults(jobName: String) {
     println("=======================================")
-    val fs = FileSystem.get(new TezConfiguration);
+    val conf = new TezConfiguration
+    val fs = FileSystem.get(conf);
     val iter = fs.listFiles(new Path(jobName + "_out"), false);
     var counter = 0;
     var run = true
     while (iter.hasNext() && run) {
       val status = iter.next();
       if (status.isFile()) {
-        val reader = new BufferedReader(new InputStreamReader(fs.open(status.getPath())));
-        var line: String = null
         if (!status.getPath().toString().endsWith("_SUCCESS")) {
           println("Sampled results from " + status.getPath() + ":");
-
-          var x = true
-          while (x) {
-            line = reader.readLine()
-            if (line == null) {
-              x = false
-            } else {
-              println(line);
-              counter += 1
-            }
-            if (counter == 10) {
-              x = false
-              run = false
-            }
+         
+          val r = new SequenceFile.Reader(conf, SequenceFile.Reader.file(status.getPath()))
+          
+          DelegatingWritable.setType(classOf[String])
+          val key = new DelegatingWritable()
+          val value = new BytesWritable
+          
+          val reader = new BufferedReader(new InputStreamReader(fs.open(status.getPath())));
+          var line: String = null
+          
+          val ser = SparkEnv.get.serializer.newInstance
+          while (r.next(key, value)){
+            println(key.getValue)
           }
+
+//          var x = true
+//          while (x) {
+//            line = reader.readLine()
+//            if (line == null) {
+//              x = false
+//            } else {
+//              println(line);
+//              counter += 1
+//            }
+//            if (counter == 10) {
+//              x = false
+//              run = false
+//            }
+//          }
+//          reader.close()
         }
       }
     }

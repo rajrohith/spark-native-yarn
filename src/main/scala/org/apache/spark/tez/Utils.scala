@@ -1,24 +1,20 @@
 package org.apache.spark.tez
 
-import org.apache.spark.scheduler.Stage
-import scala.collection.JavaConverters._
+import scala.collection.JavaConverters.asJavaCollectionConverter
 import scala.reflect.ClassTag
-import org.apache.spark.SparkEnv
-import org.apache.spark.serializer.SerializerInstance
-import org.apache.spark.Partition
-import org.apache.spark.rdd.ParallelCollectionPartition
-import org.apache.hadoop.fs.Path
+
 import org.apache.hadoop.fs.FileSystem
-import com.hortonworks.spark.tez.utils.YarnUtils
-import org.apache.tez.client.TezClient
-import org.apache.spark.SparkContext
-import org.apache.tez.dag.api.TezConfiguration
-import java.nio.ByteBuffer
-import org.apache.spark.TaskContext
-import org.apache.spark.rdd.RDD
-import org.apache.spark.ShuffleDependency
-import org.apache.spark.ShuffleDependency
+import org.apache.hadoop.fs.Path
 import org.apache.spark.Logging
+import org.apache.spark.Partition
+import org.apache.spark.ShuffleDependency
+import org.apache.spark.SparkEnv
+import org.apache.spark.TaskContext
+import org.apache.spark.rdd.ParallelCollectionPartition
+import org.apache.spark.rdd.RDD
+import org.apache.spark.scheduler.Stage
+import org.apache.tez.client.TezClient
+import org.apache.tez.dag.api.TezConfiguration
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
@@ -47,6 +43,7 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
   
   val dagBuilder = new DAGBuilder(this.tezClient, this.localResources, tezConfiguration, sparkContext.appName + "_out")
   
+  def getConfiguration = tezConfiguration
   /**
    * 
    */
@@ -72,10 +69,13 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
       if (stage.isShuffleMap) {
         logInfo(stage.shuffleDep.get.toString)
         logInfo("STAGE Shuffle: " + stage + " - " + stage.rdd.partitions.toList + " vertex: " + vertexId)
-        new VertexTask(stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any,Any,Any]]])   
+        new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any,Any,Any]]]) 
       } else {
         logInfo("STAGE Result: " + stage + " - " + stage.rdd.partitions.toList + " vertex: " + vertexId)
-        new VertexResultTask(stage.rdd.asInstanceOf[RDD[T]], func)
+//        println(stage.rdd.getNarrowAncestors.sortBy(_.id))
+//        stage.rdd.a
+        val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
+        new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), func) 
       }
     
     val vertexTaskBuffer = serializer.serialize(vertexTask)
