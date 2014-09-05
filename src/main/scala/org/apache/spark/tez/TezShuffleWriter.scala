@@ -23,64 +23,61 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], ha
   private val kvOutput = output.values.iterator().next()
   private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
   private val serializer = SparkEnv.get.serializer.newInstance
+  private val kw:DelegatingWritable = new DelegatingWritable
+  private val vw:BytesWritable = new BytesWritable
   var set = false;
 
   /**
    * 
    */
   def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
-    
-    val (iterator, mergeFunction) =
+    val (keyValues, mergeFunction) =
       if (combine){
         this.buildCombinedIterator(records)
       }
       else {
         (records, null.asInstanceOf[Function2[C,V,C]])
       }
-
-
-    var kw:DelegatingWritable = new DelegatingWritable
-    var vw:BytesWritable = new BytesWritable
+    
+    this.sinkKeyValuesIterator(keyValues, mergeFunction)
+  }
+  
+  /**
+   * 
+   */
+  private def sinkKeyValuesIterator(keyValues: Iterator[_ <: Product2[K, V]], mergeFunction:Function2[C,V,C]) {
     var previousKey:Any = null
     var mergedValue: Any = null
-    
-    val aggregate = mergeFunction != null
-    
-    for (element <- iterator) {
-      if (aggregate) {
+    for (keyValue <- keyValues) {
+      this.prepareTypeIfNecessary(keyValue)
+      if (mergeFunction != null) {
         if (previousKey == null) {
-          previousKey = element._1
-          mergedValue = element._2
-        } else if (previousKey == element._1) {
+          previousKey = keyValue._1
+          mergedValue = keyValue._2
+        } else if (previousKey == keyValue._1) {
           println("REDUCING IN WRITER")
-          mergedValue = mergeFunction(mergedValue.asInstanceOf[C], element._2)
+          mergedValue = mergeFunction(mergedValue.asInstanceOf[C], keyValue._2)
         } else {
-          println("Writing out to FS: " + previousKey + "-" + mergedValue)
-          this.prepareTypeIfNecessary(element)
-          kw.setValue(previousKey)
-          val bytes = serializer.serialize[Any](mergedValue).array
-          vw.set(bytes, 0, bytes.length)
-          kvWriter.write(kw, vw)
+          this.writeKeyValue(previousKey, mergedValue)
 
-          previousKey = element._1
-          mergedValue = element._2
+          previousKey = keyValue._1
+          mergedValue = keyValue._2
         }
       } else {
-        println("Writing out to FS: " + element)
-        this.prepareTypeIfNecessary(element)
-        kw.setValue(element._1)
-        val bytes = serializer.serialize[Any](element._2).array
-        vw.set(bytes, 0, bytes.length)
-        kvWriter.write(kw, vw)
+        this.writeKeyValue(keyValue._1, keyValue._2)
       }
     }
     // last element need to be flushed
     if (previousKey != null) {
-      kw.setValue(previousKey)
-      val bytes = serializer.serialize[Any](mergedValue).array
-      vw.set(bytes, 0, bytes.length)
-      kvWriter.write(kw, vw)
+      this.writeKeyValue(previousKey, mergedValue)
     }
+  }
+
+  private def writeKeyValue(key: Any, value: Any) {
+    kw.setValue(key)
+    val bytes = serializer.serialize[Any](value).array
+    vw.set(bytes, 0, bytes.length)
+    kvWriter.write(kw, vw)
   }
 
   /**
@@ -112,10 +109,10 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], ha
    * 
    */
   private def prepareTypeIfNecessary(element: Product2[_, _]) {
-    if (!set) {
+    if (!this.set) {
       DelegatingWritable.setType(element._1.getClass);
       ExecutionContext.getObjectRegistry().cacheForSession("KEY_TYPE", element._1.getClass)
-      set = true
+      this.set = true
     }
   }
 }
