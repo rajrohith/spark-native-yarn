@@ -15,6 +15,7 @@ import org.apache.hadoop.io.Writable
 import org.apache.hadoop.io.BytesWritable
 import java.nio.ByteBuffer
 import org.apache.hadoop.io.ByteWritable
+import org.apache.spark.util.collection.ExternalAppendOnlyMap
 
 /**
  * 
@@ -25,34 +26,43 @@ class TezShuffleReader[K, C](input: java.util.Map[Integer, LogicalInput], var ha
   val reader = input.remove(inputIndex).getReader()
 
   /**
-   * 
+   *
    */
   def read(): Iterator[Product2[K, C]] = {
-    val iter = new TezIterator(reader)
-
-    val aggregatedIter: Iterator[Product2[K, C]] =
-      if (combine && handle != null) {
-        val dep = handle.dependency
-        if (dep.aggregator.isDefined) {
-          if (dep.mapSideCombine) {
-            new InterruptibleIterator(context, dep.aggregator.get.combineCombinersByKey(iter, context))
-          } else {
-            new InterruptibleIterator(context, dep.aggregator.get.combineValuesByKey(iter, context))
-          }
-        } else if (dep.aggregator.isEmpty && dep.mapSideCombine) {
-          throw new IllegalStateException("Aggregator is empty for map-side combine")
-        } else {
-          // Convert the Product2s to pairs since this is what downstream RDDs currently expect
-          iter.asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
-        }
+    val iterator =
+      if (combine) {
+        this.combinedIterator(new TezIterator(reader))
       } else {
-        iter.asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
+        new TezIterator(reader).asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
       }
 
-
-    aggregatedIter
+    iterator
+  }
+  
+  /**
+   * 
+   */
+  def combinedIterator(iter:Iterator[Product2[K, C]]):Iterator[Product2[K, C]] = {
+    if (handle != null) {
+      val dep = handle.dependency
+      if (dep.aggregator.isDefined) {
+        val mergeCombiners = dep.aggregator.get.mergeCombiners
+        val combiners = new ExternalAppendOnlyMap[K, C, C](identity, mergeCombiners, mergeCombiners)
+        combiners.insertAll(iter)
+        combiners.iterator
+      } else {
+        // Convert the Product2s to pairs since this is what downstream RDDs currently expect
+        iter.asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
+      }
+    }
+    else {
+      iter.asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
+    }
   }
 
+  /**
+   * 
+   */
   def stop = ()
 }
 /**
@@ -85,7 +95,6 @@ private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[K, C]]
           DelegatingWritable.setType(keyType);
         }
         wrappedReader.asInstanceOf[KVSIterator].hasNext
-//        reader.asInstanceOf[KeyValuesReader].next()
       }
     hasNext
   }

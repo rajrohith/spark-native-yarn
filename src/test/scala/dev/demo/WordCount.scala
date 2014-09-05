@@ -41,10 +41,10 @@ object WordCount extends BaseDemo {
     	}.map{x => 
     	  println("map")
     	  (x, 1)}.
-    	  reduceByKey((x,y) => x+y, 2).saveAsTextFile("hello")
+    	  reduceByKey{(x,y) => println("REDUSING!"); x+y}.collect
     	    
 
-//    println(result.toList)
+    println(result.toList)
 
     sc.stop
   }

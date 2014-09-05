@@ -58,7 +58,7 @@ class TezShuffleWriter[K, V](output:java.util.Map[Integer, LogicalOutput], handl
       if (aggregate) {
         if (previousKey == null) {
           previousKey = element._1
-          mergedValue = mergeFunction(null, element._2)
+          mergedValue = element._2
         } else if (previousKey == element._1) {
           mergedValue = mergeFunction(mergedValue, element._2)
         } else {
