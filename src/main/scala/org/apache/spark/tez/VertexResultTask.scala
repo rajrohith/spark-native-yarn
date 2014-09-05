@@ -36,8 +36,7 @@ class VertexResultTask[T, U](
 
     val m = func.getClass().getDeclaredMethods().filter(m => classOf[TaskContext].isAssignableFrom(m.getParameterTypes()(0)))
     val unit = m(0).getReturnType().getCanonicalName() == "void"
-      println(func.getClass().getDeclaredMethods().toList)
-     
+
     val collectFunction = (iter: Iterator[Product2[_,_]]) => {
       val dependency = rdd.dependencies.head
       val handle =
