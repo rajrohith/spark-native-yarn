@@ -14,8 +14,12 @@ import scala.reflect.runtime.universe._
 import org.apache.hadoop.io.BytesWritable
 import org.apache.spark.SparkEnv
 import java.nio.ByteBuffer
+import org.apache.spark.util.collection.ExternalAppendOnlyMap
 
-class TezShuffleWriter[K, V](output:java.util.Map[Integer, LogicalOutput], handle: BaseShuffleHandle[K, V, _], context: TaskContext, combine:Boolean = true) extends ShuffleWriter[K, V] {
+/**
+ * 
+ */
+class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], handle: BaseShuffleHandle[K, V, C], context: TaskContext, combine:Boolean = true) extends ShuffleWriter[K, V] {
   private val kvOutput = output.values.iterator().next()
   private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
   private val serializer = SparkEnv.get.serializer.newInstance
@@ -25,42 +29,31 @@ class TezShuffleWriter[K, V](output:java.util.Map[Integer, LogicalOutput], handl
    * 
    */
   def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
-    /*
-     * Combine and merge are different 
-     * 	merge group values
-     *  combine keys
-     *  
-     *  In the context of this 'write' they are mutually exclusive
-     *  since 'merge' is specific to Tez's built in functionality to automatically group values by key so the only thing left is to combine grouped values
-     *  	so it essentially delegates to the combiner
-     *  combine is Spark's specific implementation which aggregates grouped values of a unique key
-     *  so combine implies some grouped iterable which containes groyped values, so it dependes on merge or other func to group values
-     */
-    val iter = if (combine) this.buildCombinedIterator(records);
-        	   else records
-     
-      
+    
+    val (iterator, mergeFunction) =
+      if (combine){
+        this.buildCombinedIterator(records)
+      }
+      else {
+        (records, null.asInstanceOf[Function2[C,V,C]])
+      }
+
 
     var kw:DelegatingWritable = new DelegatingWritable
     var vw:BytesWritable = new BytesWritable
     var previousKey:Any = null
     var mergedValue: Any = null
-    // if aggregator present and combiner absent
-    val aggregate = handle != null && !combine
-    val mergeFunction = if (aggregate) {
-      handle.dependency.aggregator.get.mergeValue.asInstanceOf[Function2[Any, Any, Any]]
-    }
-    else {
-      null
-    }
-
-    for (element <- iter) {
+    
+    val aggregate = mergeFunction != null
+    
+    for (element <- iterator) {
       if (aggregate) {
         if (previousKey == null) {
           previousKey = element._1
           mergedValue = element._2
         } else if (previousKey == element._1) {
-          mergedValue = mergeFunction(mergedValue, element._2)
+          println("REDUCING IN WRITER")
+          mergedValue = mergeFunction(mergedValue.asInstanceOf[C], element._2)
         } else {
           println("Writing out to FS: " + previousKey + "-" + mergedValue)
           this.prepareTypeIfNecessary(element)
@@ -96,27 +89,23 @@ class TezShuffleWriter[K, V](output:java.util.Map[Integer, LogicalOutput], handl
   def stop(success: Boolean): Option[MapStatus] = {
     Some(SparkUtils.createUnsafeInstance(classOf[MapStatus]))
   }
-  
+
   /**
-   * 
+   *
    */
-  private def buildCombinedIterator(records: Iterator[_ <: Product2[K, V]]) = {
-    if (handle != null) {
-        val dep = handle.dependency
-        if (dep.aggregator.isDefined) {
-          if (dep.mapSideCombine) {
-            dep.aggregator.get.combineValuesByKey(records, context)
-          } else {
-            records
-          }
-        } else if (dep.aggregator.isEmpty && dep.mapSideCombine) {
-          throw new IllegalStateException("Aggregator is empty for map-side combine")
-        } else {
-          records
-        }
-      } else {
-        records
-      }
+  private def buildCombinedIterator(records: Iterator[_ <: Product2[K, V]]):Tuple2[Iterator[_ <: Product2[K, V]], Function2[C,V,C]] = {
+    if (handle != null && handle.dependency.aggregator.isDefined) {
+      val aggregator = handle.dependency.aggregator.get
+
+      val createCombinerFunction = aggregator.createCombiner
+      val mergeValueFunction = aggregator.mergeValue
+      val merCombinersFunction = aggregator.mergeCombiners
+      val combiners = new ExternalAppendOnlyMap[K, V, C](createCombinerFunction, mergeValueFunction, merCombinersFunction)
+      combiners.insertAll(records)
+      (combiners.iterator.asInstanceOf[Iterator[_ <: Product2[K, V]]], mergeValueFunction)
+    } else {
+      (records, null.asInstanceOf[Function2[C,V,C]])
+    }
   }
 
   /**

@@ -16,50 +16,26 @@ import org.apache.hadoop.io.BytesWritable
 import java.nio.ByteBuffer
 import org.apache.hadoop.io.ByteWritable
 import org.apache.spark.util.collection.ExternalAppendOnlyMap
+import java.util.Map
 
 /**
- * 
+ * Implementation of Spark's ShuffleReader tailored for Tez which means its is aware of
+ * two different readers provided by Tez; KeyValueReader and KeyValuesReader
  */
-class TezShuffleReader[K, C](input: java.util.Map[Integer, LogicalInput], var handle: BaseShuffleHandle[K, _, C], context: TaskContext, combine:Boolean = true) extends ShuffleReader[K, C] {
-  val serializer = SparkEnv.get.serializer.newInstance
-  val inputIndex = input.keySet().iterator().next()
-  val reader = input.remove(inputIndex).getReader()
+class TezShuffleReader[K, C](input: Map[Integer, LogicalInput], handle: BaseShuffleHandle[K, _, C], context: TaskContext, combine:Boolean = true) 
+								extends ShuffleReader[K, C] {
+  private val serializer = SparkEnv.get.serializer.newInstance
+  private val inputIndex = input.keySet().iterator().next()
+  private val reader = input.remove(inputIndex).getReader()
 
   /**
    *
    */
-  def read(): Iterator[Product2[K, C]] = {
-    val iterator =
-      if (combine) {
-        this.combinedIterator(new TezIterator(reader))
-      } else {
-        new TezIterator(reader).asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
-      }
-
+  override def read(): Iterator[Product2[K, C]] = {
+    val iterator = new TezIterator(reader).asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
     iterator
   }
-  
-  /**
-   * 
-   */
-  def combinedIterator(iter:Iterator[Product2[K, C]]):Iterator[Product2[K, C]] = {
-    if (handle != null) {
-      val dep = handle.dependency
-      if (dep.aggregator.isDefined) {
-        val mergeCombiners = dep.aggregator.get.mergeCombiners
-        val combiners = new ExternalAppendOnlyMap[K, C, C](identity, mergeCombiners, mergeCombiners)
-        combiners.insertAll(iter)
-        combiners.iterator
-      } else {
-        // Convert the Product2s to pairs since this is what downstream RDDs currently expect
-        iter.asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
-      }
-    }
-    else {
-      iter.asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
-    }
-  }
-
+ 
   /**
    * 
    */
@@ -69,24 +45,22 @@ class TezShuffleReader[K, C](input: java.util.Map[Integer, LogicalInput], var ha
  * 
  */
 private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[K, C]] {
-  val serializer = SparkEnv.get.serializer.newInstance
+  private val serializer = SparkEnv.get.serializer.newInstance
   
-  val wrappedReader = 
+  private val wrappedReader = 
     if (reader.isInstanceOf[KeyValueReader]){
     	reader
     }
     else {
       new KVSIterator(reader.asInstanceOf[KeyValuesReader])
-//      reader
     }
   
   /**
    * 
    */
   override def hasNext(): Boolean = {
-    var valuesCount = 0
     val hasNext =
-      if (wrappedReader.isInstanceOf[KeyValueReader]) {
+      if (this.wrappedReader.isInstanceOf[KeyValueReader]) {
         reader.asInstanceOf[KeyValueReader].next()
       }
       else {
@@ -94,7 +68,7 @@ private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[K, C]]
         if (!DelegatingWritable.initialized()) {
           DelegatingWritable.setType(keyType);
         }
-        wrappedReader.asInstanceOf[KVSIterator].hasNext
+        this.wrappedReader.asInstanceOf[KVSIterator].hasNext
       }
     hasNext
   }
@@ -103,66 +77,57 @@ private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[K, C]]
    * 
    */
   override def next(): Product2[K, C] = {
-    val (key, readerValue) =
+    val (key, value) =
       if (wrappedReader.isInstanceOf[KeyValueReader]) {
-        val r = wrappedReader.asInstanceOf[KeyValueReader]
-        val rKey = r.getCurrentKey()
-        val rVal = r.getCurrentValue()
-        (rKey, rVal)
-      } 
-
-      else {
-        val r = wrappedReader.asInstanceOf[KVSIterator]
-        val rKey = r.currentKey
-        val rVal = r.nextValue
-        println("Deserialized: " + rKey + "-" + rVal)
-        (rKey, rVal)
+        val kvr = wrappedReader.asInstanceOf[KeyValueReader]
+        (kvr.getCurrentKey(), kvr.getCurrentValue())
+      } else {
+        val kvi = wrappedReader.asInstanceOf[KVSIterator]
+        (kvi.currentKey, kvi.nextValue)
       }
-
-    println(key + "-" + readerValue)
     
-    (key, readerValue).asInstanceOf[Product2[K, C]]
+    (key, value).asInstanceOf[Product2[K, C]]
   }
 }
 
-private class KVSIterator(kvReader:KeyValuesReader) {
+/**
+ * Wrapper over Tez's KeyValuesReader which uses semantics of java.util.Iterator
+ * while giving you access to "current key" and "next value" contained in KeyValuesReader's ValuesIterator. 
+ */
+private class KVSIterator(kvReader: KeyValuesReader) {
   val serializer = SparkEnv.get.serializer.newInstance
-  var vIter:java.util.Iterator[_] = null
-  
+  var vIter: java.util.Iterator[_] = kvReader.getCurrentValues().iterator()
+
+  /**
+   * Checks if underlying reader contains more data to read.
+   */
   def hasNext = {
-    var next = false;
-    if (vIter == null){
-      if (kvReader.next()){
-        vIter = kvReader.getCurrentValues().iterator()
-        next = true
-      }
-      else {
-        next = false
-      }
-    }
-    else {
-      if (vIter.hasNext()){
-        next = true
-      }
-      else {
-        if (kvReader.next()){
+    var next =
+      if (vIter.hasNext()) {
+        true
+      } else {
+        if (kvReader.next()) {
           vIter = kvReader.getCurrentValues().iterator()
-          next = true
-        }
-        else {
-          next = false
+          true
+        } else {
+          false
         }
       }
-    }
     next
   }
-  
+
+  /**
+   * Returns the next value in the current ValuesIterator
+   */
   def nextValue() = {
     val valueBuffer = ByteBuffer.wrap(vIter.next().asInstanceOf[BytesWritable].getBytes())
     val value = serializer.deserialize[Any](valueBuffer)
     value
   }
-  
+
+  /**
+   * Returns current key associated with the current ValuesIterator
+   */
   def currentKey = {
     kvReader.getCurrentKey().asInstanceOf[DelegatingWritable].getValue()
   }
