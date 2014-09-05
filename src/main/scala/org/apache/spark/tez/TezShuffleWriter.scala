@@ -32,12 +32,12 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], ha
    */
   def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
     val (keyValues, mergeFunction) =
-      if (combine){
-        this.buildCombinedIterator(records)
-      }
-      else {
-        (records, null.asInstanceOf[Function2[C,V,C]])
-      }
+//      if (combine){
+        this.buildCombinedIterator(records, combine)
+//      }
+//      else {
+//        (records, null.asInstanceOf[Function2[C,V,C]])
+//      }
     
     this.sinkKeyValuesIterator(keyValues, mergeFunction)
   }
@@ -55,7 +55,7 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], ha
           previousKey = keyValue._1
           mergedValue = keyValue._2
         } else if (previousKey == keyValue._1) {
-          println("REDUCING IN WRITER")
+//          println("REDUCING IN WRITER")
           mergedValue = mergeFunction(mergedValue.asInstanceOf[C], keyValue._2)
         } else {
           this.writeKeyValue(previousKey, mergedValue)
@@ -90,18 +90,23 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], ha
   /**
    *
    */
-  private def buildCombinedIterator(records: Iterator[_ <: Product2[K, V]]):Tuple2[Iterator[_ <: Product2[K, V]], Function2[C,V,C]] = {
+  private def buildCombinedIterator(records: Iterator[_ <: Product2[K, V]], combine:Boolean):Tuple2[Iterator[_ <: Product2[K, V]], Function2[C,V,C]] = {
     if (handle != null && handle.dependency.aggregator.isDefined) {
       val aggregator = handle.dependency.aggregator.get
 
-      val createCombinerFunction = aggregator.createCombiner
       val mergeValueFunction = aggregator.mergeValue
-      val merCombinersFunction = aggregator.mergeCombiners
-      val combiners = new ExternalAppendOnlyMap[K, V, C](createCombinerFunction, mergeValueFunction, merCombinersFunction)
-      combiners.insertAll(records)
-      (combiners.iterator.asInstanceOf[Iterator[_ <: Product2[K, V]]], mergeValueFunction)
+      if (combine) {
+        val createCombinerFunction = aggregator.createCombiner
+
+        val merCombinersFunction = aggregator.mergeCombiners
+        val combiners = new ExternalAppendOnlyMap[K, V, C](createCombinerFunction, mergeValueFunction, merCombinersFunction)
+        combiners.insertAll(records)
+        (combiners.iterator.asInstanceOf[Iterator[_ <: Product2[K, V]]], null.asInstanceOf[Function2[C, V, C]])
+      } else {
+        (records, mergeValueFunction)
+      }
     } else {
-      (records, null.asInstanceOf[Function2[C,V,C]])
+      (records, null.asInstanceOf[Function2[C, V, C]])
     }
   }
 
@@ -111,7 +116,7 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], ha
   private def prepareTypeIfNecessary(element: Product2[_, _]) {
     if (!this.set) {
       DelegatingWritable.setType(element._1.getClass);
-      ExecutionContext.getObjectRegistry().cacheForSession("KEY_TYPE", element._1.getClass)
+      ExecutionContext.getObjectRegistry().cacheForDAG("KEY_TYPE", element._1.getClass)
       this.set = true
     }
   }

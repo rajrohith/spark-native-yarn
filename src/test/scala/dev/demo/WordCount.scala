@@ -24,7 +24,8 @@ object WordCount extends BaseDemo {
   def main(args: Array[String]) {
     
     val jobName = "WordCount"
-    val inputFile = "src/test/scala/dev/demo/test.txt"
+//    val inputFile = "src/test/scala/dev/demo/test.txt"
+      val inputFile = "/Users/ozhurakousky/dev/data-gener/sample.txt"
     prepare(jobName, Array(inputFile))
 
     val sConf = new SparkConf
@@ -36,17 +37,22 @@ object WordCount extends BaseDemo {
     
     val result = source
     	.flatMap{x => 
-    	  println("flatmap")
+//    	  println("flatmap")
     	  x.split(" ")
     	}.map{x => 
-    	  println("map")
+//    	  println("map")
     	  (x, 1)}.
-    	  reduceByKey{(x,y) => println("REDUSING!"); x+y}.collect
+    	  reduceByKey(f, 7).collect
     	    
 
     println(result.toList)
 
     sc.stop
   }
-
+  
+  val f = (x:Int,y:Int) =>  {
+//    println("Reducing")
+    x+y
+  }
+    
 }
