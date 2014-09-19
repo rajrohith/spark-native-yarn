@@ -58,11 +58,11 @@ $> git clone https://github.com/hortonworks/spark-on-tez.git
 $> cd spark-on-tez
 ```
 ##### Setup STARK development environment
-Eclipse
+**_Eclipse_**
 ```
 $> ./gradlew clean eclipse
 ```
-IntelliJ Idea
+**_IntelliJ Idea_**
 ```
 $> ./gradlew clean idea
 ```
