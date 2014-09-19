@@ -6,7 +6,7 @@ It is dependent on modifications to SPARK code described [here](https://issues.a
 This means that to use it, one must have a custom build of Spark which incorporates pending [Pull Request](https://github.com/apache/spark/pull/2422).
 Below are the directions on how to get started.
 
-**_Checkout and Build SPARK-3561_**
+### Checkout and Build SPARK-3561
 ```
 $> git clone https://github.com/olegz/spark-1.git
 $> cd spark-1
@@ -21,7 +21,7 @@ export MAVEN_OPTS="-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m"
 
 The above will ensure there is no OOM errors during build. For more details see [Spark's documentation](https://spark.apache.org/docs/latest/building-with-maven.html)
 
-*** Build and install SPARK-3561 into your local maven repository ***
+#### Build and install SPARK-3561 into your local maven repository
 
 ```
 $> mvn -Pyarn -Phadoop-2.4 -Dhadoop.version=2.4.0 -DskipTests clean install
