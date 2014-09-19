@@ -11,7 +11,8 @@ Below are the directions on how to get started.
 $> git clone https://github.com/olegz/spark-1.git
 $> cd spark-1
 $> git fetch --all
-$> git checkout -b SPARK-HADOOP
+$> git branch --track SPARK-HADOOP origin/SPARK-HADOOP
+$> git checkout SPARK-HADOOP
 ```
 Spark uses Maven for its build so it must be present
 
@@ -64,3 +65,9 @@ IntelliJ Idea
 ```
 $> ./gradlew clean idea
 ```
+Import projects into your workspace as regular project (not maven or gradle project) as all required artifacts were already generated.
+For example in Eclipse:
+```
+File -> Import -> General -> Existing Project into Workspace 
+```
+Your code 
