@@ -7,11 +7,7 @@ import java.util.Map.Entry;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.BytesWritable;
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.yarn.api.records.LocalResource;
-import org.apache.spark.tez.io.DelegatingWritable;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.DataSinkDescriptor;
@@ -49,7 +45,7 @@ class DAGBuilder {
 
 	private final Map<String, LocalResource> localResources;
 	
-	private final String outputPath;
+//	private final String outputPath;
 	
 	private final String applicationInstanceName;
 
@@ -62,21 +58,20 @@ class DAGBuilder {
 	 * @param tezConfiguration
 	 * @param outputPath
 	 */
-	public DAGBuilder(TezClient tezClient, Map<String, LocalResource> localResources, Configuration tezConfiguration, String outputPath) {
+	public DAGBuilder(TezClient tezClient, Map<String, LocalResource> localResources, Configuration tezConfiguration) {
 		this.tezClient = tezClient;
 		this.tezConfiguration = tezConfiguration;
 		this.applicationInstanceName = tezClient.getClientName() + "_" + System.currentTimeMillis();
-		this.dag = new DAG(this.applicationInstanceName);
-		this.outputPath = outputPath;
+		this.dag = DAG.create(this.applicationInstanceName);
 		this.localResources = localResources;
 	}
 	/**
 	 * 
 	 * @return
 	 */
-	public DAGTask build(){
+	public DAGTask build(Class<?> keyClass, Class<?> valueClass, Class<?> outputFormatClass, String outputPath){
 		try {
-			this.doBuild();
+			this.doBuild(keyClass, valueClass, outputFormatClass, outputPath);
 		} catch (Exception e) {
 			throw new IllegalStateException(e);
 		}
@@ -148,21 +143,14 @@ class DAGBuilder {
 	 * 
 	 * @throws Exception
 	 */
-	private void doBuild() throws Exception {
+	private void doBuild(Class<?> keyClass, Class<?> valueClass, Class<?> outputFormatClass, String outputPath) throws Exception {
 		if (logger.isDebugEnabled()){
 			logger.debug("Building Tez DAG");
 		}
-	
-//		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
-//		        .newBuilder(Text.class.getName(), IntWritable.class.getName(),
-//		            HashPartitioner.class.getName(), null).build();
+
 		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
-		        .newBuilder(DelegatingWritable.class.getName(), BytesWritable.class.getName(),
-		            HashPartitioner.class.getName(), null).build();
-//		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
-//		        .newBuilder(DelegatingWritable.class.getName(), BytesWritable.class.getName(),
-//		            HashPartitioner.class.getName(), null).build();
-		
+		        .newBuilder(keyClass.getName(), valueClass.getName(), HashPartitioner.class.getName(), null).build();
+
 		int sequenceCounter = 0;
 		int counter = 0;
 		for (Entry<Integer, VertexDescriptor> vertexDescriptorEntry : vertexes.entrySet()) {
@@ -170,28 +158,26 @@ class DAGBuilder {
 			VertexDescriptor vertexDescriptor = vertexDescriptorEntry.getValue();
 			
 			if (vertexDescriptor.getInput() instanceof TezRDD) {
-				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).name();
-				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), TextInputFormat.class, inputPath).build();		
+				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).getPath();
+				Class<?> inputFormatClass = ((TezRDD<?,?>)vertexDescriptor.getInput()).inputFormatClass();
+				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();		
 				UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
 				String vertexName = String.valueOf(sequenceCounter++);
 				String dsName = String.valueOf(sequenceCounter++);
 				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);	
-				vertex.setTaskLocalFiles(localResources);
+				vertex.addTaskLocalFiles(localResources);
 				
 				dag.addVertex(vertex);
 			}
 			else {
 				if (counter == vertexes.size()) {
 					Configuration dsConfig = new Configuration(tezConfiguration);
-					dsConfig.setClass("mapreduce.job.output.key.class", DelegatingWritable.class, Writable.class);
-					dsConfig.setClass("mapreduce.job.output.value.class", BytesWritable.class, Writable.class);
-					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, org.apache.hadoop.mapred.SequenceFileOutputFormat.class, outputPath).build();
-//					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, TextOutputFormat.class, outputPath).build();
+					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
 					UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
 					String vertexName = String.valueOf(sequenceCounter++);
 					String dsName = String.valueOf(sequenceCounter++);
 					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
-					vertex.setTaskLocalFiles(localResources);
+					vertex.addTaskLocalFiles(localResources);
 					
 					dag.addVertex(vertex);
 					this.addEdges(vertexDescriptor, vertex, edgeConf);   
@@ -201,7 +187,7 @@ class DAGBuilder {
 					UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
 					pd.setUserPayload(payload);
 					Vertex vertex = Vertex.create(String.valueOf(sequenceCounter++), pd, vertexDescriptor.getNumPartitions(), MRHelpers.getResourceForMRReducer(this.tezConfiguration));
-					vertex.setTaskLocalFiles(localResources);
+					vertex.addTaskLocalFiles(localResources);
 					
 				    this.dag.addVertex(vertex);
 				    this.addEdges(vertexDescriptor, vertex, edgeConf);

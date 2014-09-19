@@ -34,28 +34,28 @@ class VertexResultTask[T, U](
   override def runTask(context: TaskContext): U = {
     val manager = SparkEnv.get.shuffleManager
 
-    val m = func.getClass().getDeclaredMethods().filter(m => classOf[TaskContext].isAssignableFrom(m.getParameterTypes()(0)))
-    val unit = m(0).getReturnType().getCanonicalName() == "void"
-
-    val collectFunction = (iter: Iterator[Product2[_,_]]) => {
-      val dependency = rdd.dependencies.head
-      val handle =
-        if (dependency.isInstanceOf[ShuffleDependency[_, _, _]]) {
-          new BaseShuffleHandle(0, 0, dependency.asInstanceOf[ShuffleDependency[_, _, _]])
-        } else {
-          null
-        }
-      val writer = manager.getWriter[Any, Any](handle, 0, context)
-      writer.write(iter)
-    }
+//    val m = func.getClass().getDeclaredMethods().filter(m => classOf[TaskContext].isAssignableFrom(m.getParameterTypes()(0)))
+//    val unit = m(0).getReturnType().getCanonicalName() == "void"
+//
+//    val collectFunction = (iter: Iterator[Product2[_,_]]) => {
+//      val dependency = rdd.dependencies.head
+//      val handle =
+//        if (dependency.isInstanceOf[ShuffleDependency[_, _, _]]) {
+//          new BaseShuffleHandle(0, 0, dependency.asInstanceOf[ShuffleDependency[_, _, _]])
+//        } else {
+//          null
+//        }
+//      val writer = manager.getWriter[Any, Any](handle, 0, context)
+//      writer.write(iter)
+//    }
       
     try {
       val result =
-        if (unit) {
+//        if (unit) {
           func(context, rdd.iterator(partition, context))
-        } else {
-           collectFunction(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_,_]]])
-        }
+//        } else {
+//           collectFunction(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_,_]]])
+//        }
       ().asInstanceOf[U]
     } catch {
       case e:Exception => e.printStackTrace();throw new IllegalStateException(e)

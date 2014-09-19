@@ -20,11 +20,13 @@ import org.apache.spark.shuffle.ShuffleMemoryManager
  */
 object SparkUtils {
   val sparkConf = new SparkConf
-  val ser = new JavaSerializer(sparkConf)
-  val serializerInstance = ser.newInstance
+  val closueSerializer = new JavaSerializer(sparkConf)
+  val closureSerializerInstance = closueSerializer.newInstance
   val unsafeConstructor = classOf[Unsafe].getDeclaredConstructor();
   unsafeConstructor.setAccessible(true);
   val unsafe = unsafeConstructor.newInstance();
+  
+  val taskContext = new TaskContext(1,1,1)
 
   /**
    * 
@@ -39,7 +41,7 @@ object SparkUtils {
   def createSparkEnv(shuffleManager:TezShuffleManager) {
     val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];   
     val memoryManager = new ShuffleMemoryManager(20793262)
-    val se = new SparkEnv("0", null, ser, ser, null, null, shuffleManager, null, blockManager, null, null, null, null, null, memoryManager, sparkConf)
+    val se = new SparkEnv("0", null, closueSerializer, closueSerializer, null, null, shuffleManager, null, null, blockManager, null, null, null, null, memoryManager, sparkConf)
     SparkEnv.set(se)
   }
 
@@ -48,7 +50,7 @@ object SparkUtils {
    */
   def deserializeSparkTask(taskBytes: Array[Byte], partitionId:Int): Task[_] = {
     val taskBytesBuffer = ByteBuffer.wrap(taskBytes)
-    val task = serializerInstance.deserialize[Task[_]](taskBytesBuffer)
+    val task = closureSerializerInstance.deserialize[Task[_]](taskBytesBuffer)
     task
   }
   
@@ -56,6 +58,6 @@ object SparkUtils {
    * 
    */
   def runTask(task: Task[_]) = { 
-    task.runTask(new TaskContext(1,1,1))
+    task.runTask(taskContext)
   }
 }

@@ -10,7 +10,6 @@ import org.apache.spark.scheduler.Task
 import org.apache.spark.Partition
 import org.apache.spark.TaskContext
 import org.apache.tez.runtime.library.api.KeyValueWriter
-import org.apache.spark.tez.io.DelegatingWritable
 import org.apache.hadoop.io.BytesWritable
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.IntWritable

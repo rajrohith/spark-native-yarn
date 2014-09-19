@@ -38,18 +38,18 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
   val localResources = YarnUtils.createLocalResources(this.fs, TezConstants.CLASSPATH_PATH)
   
   val tezClient = TezClient.create(sparkContext.appName, tezConfiguration);
-  this.tezClient.addAppMasterLocalResources(this.localResources);
+  this.tezClient.addAppMasterLocalFiles(this.localResources);
   tezClient.start();
   
-  val dagBuilder = new DAGBuilder(this.tezClient, this.localResources, tezConfiguration, sparkContext.appName + "_out")
+  val dagBuilder = new DAGBuilder(this.tezClient, this.localResources, tezConfiguration)
   
   def getConfiguration = tezConfiguration
   /**
    * 
    */
-  def build():DAGTask = {
+  def build(keyClass:Class[_], valueClass:Class[_], outputFormatClass:Class[_], outputPath:String):DAGTask = {
     prepareDag(stage, null, func)
-    val dagTask = dagBuilder.build()
+    val dagTask = dagBuilder.build(keyClass, valueClass, outputFormatClass, outputPath)
     logInfo("DAG: " + dagBuilder.toString())
     dagTask
   }
@@ -68,17 +68,16 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
     val vertexTask =
       if (stage.isShuffleMap) {
         logInfo(stage.shuffleDep.get.toString)
-        logInfo("STAGE Shuffle: " + stage + " - " + stage.rdd.partitions.toList + " vertex: " + vertexId)
+        logInfo("STAGE Shuffle: " + stage + " - " + stage.rdd.partitions.length + " vertex: " + vertexId)
         new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any,Any,Any]]]) 
       } else {
-        logInfo("STAGE Result: " + stage + " - " + stage.rdd.partitions.toList + " vertex: " + vertexId)
-//        println(stage.rdd.getNarrowAncestors.sortBy(_.id))
-//        stage.rdd.a
+        logInfo("STAGE Result: " + stage + " - " + stage.rdd.partitions.length + " vertex: " + vertexId)
         val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
         new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), func) 
       }
     
     val vertexTaskBuffer = serializer.serialize(vertexTask)
+    
     // will serialize only ParallelCollectionPartition instances. The rest are ignored
     this.serializePartitions(stage.rdd.partitions)
 

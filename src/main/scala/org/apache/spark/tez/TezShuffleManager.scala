@@ -19,7 +19,6 @@ import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.shuffle.ShuffleManager
 import org.apache.spark.shuffle.ShuffleReader
 import org.apache.spark.shuffle.ShuffleWriter
-import org.apache.spark.tez.io.DelegatingWritable
 import org.apache.tez.runtime.api.LogicalInput
 import org.apache.tez.runtime.api.LogicalOutput
 import org.apache.tez.runtime.api.Reader

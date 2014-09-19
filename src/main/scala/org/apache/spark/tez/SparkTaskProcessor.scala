@@ -5,6 +5,8 @@ import org.apache.tez.mapreduce.processor.SimpleMRProcessor
 import org.apache.tez.runtime.api.LogicalInput
 import org.apache.tez.runtime.api.LogicalOutput
 import org.apache.tez.runtime.api.ProcessorContext
+import java.io.File
+import org.apache.tez.runtime.library.processor.SimpleProcessor
 
 class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcessor(context) with Logging {
 
@@ -22,9 +24,7 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
     logInfo("Executing processor for task: " + this.getContext().getTaskIndex() + " for DAG " + this.getContext().getDAGName());
     val inputs = this.toIntKey(this.getInputs()).asInstanceOf[java.util.Map[Integer, LogicalInput]]
     val outputs = this.toIntKey(this.getOutputs()).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
-
-    ExecutionContext.setObjectRegistry(context.getObjectRegistry());
-
+    
     val taskBytes = TezUtils.getTaskBuffer(context)
     val vertexTask = SparkUtils.deserializeSparkTask(taskBytes, this.getContext().getTaskIndex());
 
