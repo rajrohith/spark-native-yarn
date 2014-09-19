@@ -45,4 +45,5 @@ Aside from porting SPARK DAG execution to run on Tez, this project provides addi
  * _executing your code from the IDE (Eclipse and or Idea)_
  * _transparent classpath management_ 
  * _integration with mini-cluster environment_ 
+ 
 Details are described below.
