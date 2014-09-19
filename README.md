@@ -10,13 +10,19 @@ Below are the directions on how to get started.
 ```
 $> git clone https://github.com/olegz/spark-1.git
 $> cd spark-1
+$> git fetch --all
+$> git checkout -b SPARK-HADOOP
 ```
-Spark uses Maven as for its build so it must be present
+Spark uses Maven for its build so it must be present
 
 ```
 export MAVEN_OPTS="-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m"
-
 ```
 
 The above will ensure there is no OOM errors during build. For more details see [Spark's documentation](https://spark.apache.org/docs/latest/building-with-maven.html)
 
+*** Build and install SPARK-3561 into your local maven repository ***
+
+```
+$> mvn -Pyarn -Phadoop-2.4 -Dhadoop.version=2.4.0 -DskipTests clean install
+```
