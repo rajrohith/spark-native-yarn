@@ -62,7 +62,7 @@ $> cd spark-on-tez
 ```
 $> ./gradlew clean eclipse
 ```
-**_IntelliJ Idea_**
+**_IntelliJ_**
 ```
 $> ./gradlew clean idea
 ```
