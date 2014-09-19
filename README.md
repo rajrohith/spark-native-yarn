@@ -26,3 +26,16 @@ The above will ensure there is no OOM errors during build. For more details see 
 ```
 $> mvn -Pyarn -Phadoop-2.4 -Dhadoop.version=2.4.0 -DskipTests clean install
 ```
+You should see a successful build
+```
+INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary:
+[INFO]
+[INFO] Spark Project Parent POM .......................... SUCCESS [  2.281 s]
+[INFO] Spark Project Core ................................ SUCCESS [02:33 min]
+[INFO] Spark Project Bagel ............................... SUCCESS [ 18.959 s]
+. . .
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+```
