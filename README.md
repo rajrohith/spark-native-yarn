@@ -42,6 +42,8 @@ INFO] ------------------------------------------------------------------------
 
 This completes pre-requisite required to run STARK
 
+==
+
 #### STARK 
 Aside from enabling SPARK DAG execution to run on Tez, this project provides additional functionality which addresses developer productivity including but not limited to:
  * _executing your code from the IDE (Eclipse and or Idea)_
