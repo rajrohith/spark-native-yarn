@@ -14,13 +14,12 @@ $> git fetch --all
 $> git branch --track SPARK-HADOOP origin/SPARK-HADOOP
 $> git checkout SPARK-HADOOP
 ```
-Spark uses Maven for its build so it must be present
+Spark uses Maven for its build so it must be present. And to ensure there are no OOM errors set up Maven options as below. 
+See [Spark's documentation](https://spark.apache.org/docs/latest/building-with-maven.html) for more details.
 
 ```
 export MAVEN_OPTS="-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m"
 ```
-
-The above will ensure there is no OOM errors during build. For more details see [Spark's documentation](https://spark.apache.org/docs/latest/building-with-maven.html)
 
 ##### Build and install SPARK-3561 into your local maven repository
 
