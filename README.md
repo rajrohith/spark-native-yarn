@@ -77,7 +77,7 @@ The project should import successfully with no build errors (if any let me know)
 The sample program is [src/test/scala/ReduceByKey.scala](https://github.com/hortonworks/spark-on-tez/blob/master/src/test/scala/dev/demo/ReduceByKey.scala). You can run it 
 on YARN/DFS mini-cluster or real cluster.
 You can use a pre-packaged [mini-cluster available here](https://github.com/hortonworks/mini-dev-cluster). Just follow the directions in the [README](https://github.com/hortonworks/mini-dev-cluster/blob/master/README.md)
-to start the cluster. Once started you can simply run the sample program as any other Scala program. Its default runtime configurations are already setup to run against the mini-cluster 
+to import and start the cluster in your ev environment. Once started you can simply run the sample program as any other Scala program. Its default runtime configurations are already setup to run against the mini-cluster 
 and you can review them at [src/test/resources/mini](https://github.com/hortonworks/spark-on-tez/tree/master/src/test/resources/mini).
 The above program provides a very small test file which will be automatically copied to DFS before the actual execution of SPARK code.
 
