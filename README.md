@@ -41,8 +41,8 @@ INFO] ------------------------------------------------------------------------
 ```
 
 #### SPARK-ON-TEZ 
-Aside from porting SPARK DAGs to run on Tez, this project provides additional functionality which addresses developer productivity including but not limited to:
- * executing your code from the IDE (Eclipse and or Idea)
- * transparent classpath management 
- * integration with mini-cluster environment 
+Aside from porting SPARK DAG execution to run on Tez, this project provides additional functionality which addresses developer productivity including but not limited to:
+ * _executing your code from the IDE (Eclipse and or Idea)_
+ * _transparent classpath management_ 
+ * _integration with mini-cluster environment_ 
 Details are described below.
