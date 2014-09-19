@@ -58,7 +58,8 @@ $> git clone https://github.com/hortonworks/spark-on-tez.git
 $> cd spark-on-tez
 ```
 ##### Setup STARK development environment
-**_Eclipse_**
+**_Eclipse_** 
+Must use [Eclipse Scala IDE for For Scala 2.10.4](http://scala-ide.org/download/sdk.html)
 ```
 $> ./gradlew clean eclipse
 ```
