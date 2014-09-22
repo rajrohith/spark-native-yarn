@@ -11,6 +11,7 @@ import sun.misc.Unsafe
 import org.apache.spark.TaskContext
 import org.apache.spark.scheduler.Task
 import org.apache.spark.shuffle.ShuffleMemoryManager
+import org.apache.spark.tez.io.TezShuffleManager
 
 /**
  * Utility functions related to Spark functionality.

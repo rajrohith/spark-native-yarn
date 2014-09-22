@@ -1,62 +1,60 @@
 package dev.demo
 
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.FileSystem
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.tez.TezJobExecutionContext
-import org.apache.spark.tez.io.ValueWritable
-import org.apache.tez.dag.api.TezConfiguration
+import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.IntWritable
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
+import org.apache.hadoop.io.BytesWritable
+import java.io.BufferedReader
+import org.apache.tez.dag.api.TezConfiguration
+import org.apache.hadoop.fs.FileSystem
+import java.io.InputStreamReader
+import org.apache.hadoop.fs.Path
 
-/**
- * 
- */
-object ReduceByKey extends BaseDemo {
+object Join extends BaseDemo {
 
   def main(args: Array[String]) {
-    
-    val jobName = this.getClass().getName() + "-" + System.currentTimeMillis()
+    val jobName = "Join-" + System.currentTimeMillis()
+    val file1 = "src/test/scala/dev/demo/file1.txt"
+    val file2 = "src/test/scala/dev/demo/file2.txt"
     val outputPath = jobName + "foo.nla_out"
-    val inputFile = "src/test/scala/dev/demo/test.txt"
-    prepare(jobName, Array(inputFile))
+    prepare(jobName, Array(file1, file2))
 
     val sConf = new SparkConf
     sConf.setAppName(jobName)
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName()
     sConf.setMaster(masterUrl)
     val sc = new SparkContext(sConf)
-    val source = sc.textFile(inputFile)
 
-   try {
-      val result = source
-        .flatMap(x => x.split(" "))
-        .map(x => (x, 1))
-        .reduceByKey((x, y) => x + y, 2) 
-        .saveAsNewAPIHadoopFile(outputPath, classOf[Text], classOf[IntWritable], classOf[TextOutputFormat[_, _]])
-        /*
-         * .saveAsTextFile(outputPath)
-         * Will not work at the moment since its format is NullWritable/Text which will essentially go into Tez
-         * thus creating incompatibility for key/value going into reduce
-         */
-        
-        /*
-         * .saveAsHadoopFile(outputPath, classOf[Text], classOf[IntWritable], classOf[org.apache.hadoop.mapred.TextOutputFormat[_,_]])
-         * Does work 
-         */
+    val source1 = sc.textFile(file1)
+    val source2 = sc.textFile(file2)
+
+    val two = source2.map { x =>
+      val s = x.split(" ")
+      val key: Int = Integer.parseInt(s(0))
+      (key, s(1))
+    }
+
+    try {
+      val result = source1.map { x =>
+        val s = x.split(" ")
+        val key: Int = Integer.parseInt(s(2))
+        val t = (key, (s(0), s(1)))
+        t
+      }.join(two).reduceByKey { (x, y) =>
+        println("REDUCING!!!!!!!!!")
+        ((x._1.toString, y._1.toString), x._2)
+      }
+        .saveAsNewAPIHadoopFile(outputPath, classOf[IntWritable], classOf[Text], classOf[TextOutputFormat[_, _]])
     } catch {
       // this is temporary. need to figure out how to avoid Spark's writer commit logic since it is the one that throws the exception 
       // Tez already commits the outut for us so we simply need to avoid it. 
       case e: Exception => println(e)
     }
     sc.stop
-    
     this.printSampleResults(outputPath)
   }
   

@@ -7,7 +7,10 @@ import java.util.Map.Entry;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.spark.tez.io.TezRDD;
+//import org.apache.spark.tez.io.ValueWritable;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.DataSinkDescriptor;
@@ -149,7 +152,7 @@ class DAGBuilder {
 		}
 
 		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
-		        .newBuilder(keyClass.getName(), valueClass.getName(), HashPartitioner.class.getName(), null).build();
+		        .newBuilder(keyClass.getName(), "org.apache.spark.tez.io.ValueWritable", HashPartitioner.class.getName(), null).build();
 
 		int sequenceCounter = 0;
 		int counter = 0;
@@ -171,12 +174,15 @@ class DAGBuilder {
 			}
 			else {
 				if (counter == vertexes.size()) {
-					Configuration dsConfig = new Configuration(tezConfiguration);
+					JobConf dsConfig = new JobConf(tezConfiguration);
+					dsConfig.setOutputKeyClass(keyClass);
+					dsConfig.setOutputValueClass(valueClass);
 					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
 					UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
 					String vertexName = String.valueOf(sequenceCounter++);
 					String dsName = String.valueOf(sequenceCounter++);
-					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload), vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
+					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload), 
+							vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
 					vertex.addTaskLocalFiles(localResources);
 					
 					dag.addVertex(vertex);

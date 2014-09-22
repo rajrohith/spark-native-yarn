@@ -1,4 +1,4 @@
-package org.apache.spark.tez
+package org.apache.spark.tez.io
 
 import java.lang.Iterable
 import java.lang.reflect.Field
@@ -49,7 +49,12 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
 
   /** Get a writer for a given partition. Called on executors by map tasks. */
   def getWriter[K, V](handle: ShuffleHandle, mapId: Int, context: TaskContext): ShuffleWriter[K, V] = {
-    new TezShuffleWriter(output, handle.asInstanceOf[BaseShuffleHandle[K, V, _]], context, shuffleStage)
+    if (shuffleStage){
+      new TezShuffleWriter(output, handle.asInstanceOf[BaseShuffleHandle[K, V, _]], context, shuffleStage)
+    }
+    else {
+      new TezResultWriter(output, handle.asInstanceOf[BaseShuffleHandle[K, V, _]], context, shuffleStage)
+    }
   }
 
   /**

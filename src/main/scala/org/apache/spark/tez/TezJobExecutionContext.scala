@@ -22,6 +22,7 @@ import org.apache.spark.util.CallSite
 import org.apache.spark.SparkHadoopWriter
 import org.apache.spark.SerializableWritable
 import org.apache.spark.Logging
+import org.apache.spark.tez.io.TezRDD
 
 class TezJobExecutionContext extends JobExecutionContext with Logging {
 

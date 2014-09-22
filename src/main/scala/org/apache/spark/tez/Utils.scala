@@ -73,7 +73,7 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
       } else {
         logInfo("STAGE Result: " + stage + " - " + stage.rdd.partitions.length + " vertex: " + vertexId)
         val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
-        new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), func) 
+        new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), null) 
       }
     
     val vertexTaskBuffer = serializer.serialize(vertexTask)

@@ -1,20 +1,13 @@
 package dev.demo
 
-import java.net.URLClassLoader
-import java.net.URL
 import java.io.File
-import org.apache.spark.tez.instrument.TezInstrumentationAgent
-import org.apache.spark.tez.TezConstants
-import org.apache.tez.dag.api.TezConfiguration
+import java.net.URL
+import java.net.URLClassLoader
+
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import org.apache.hadoop.io.SequenceFile
-import org.apache.hadoop.io.BytesWritable
-import org.apache.hadoop.mapred.SequenceFileRecordReader
-import org.apache.spark.SparkEnv
-import java.nio.ByteBuffer
+import org.apache.spark.tez.TezConstants
+import org.apache.tez.dag.api.TezConfiguration
 
 trait BaseDemo {
 

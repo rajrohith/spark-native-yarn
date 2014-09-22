@@ -1,38 +1,34 @@
-package org.apache.spark.tez
+package org.apache.spark.tez.io
 
 import org.apache.spark.shuffle.ShuffleWriter
 import org.apache.hadoop.io.Writable
-import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.tez.runtime.api.LogicalOutput
 import org.apache.tez.runtime.library.api.KeyValueWriter
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.shuffle.BaseShuffleHandle
 import org.apache.spark.TaskContext
 import scala.reflect.runtime.universe._
-import org.apache.hadoop.io.BytesWritable
 import org.apache.spark.SparkEnv
-import java.nio.ByteBuffer
-import org.apache.spark.util.collection.ExternalAppendOnlyMap
 import scala.collection.mutable.HashMap
 import org.apache.hadoop.io.IntWritable
 import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.io.Text
 import org.apache.spark.Logging
+import org.apache.spark.tez.SparkUtils
 
 /**
  * 
  */
-class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], 
+class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], 
     handle: BaseShuffleHandle[K, V, C], 
     context: TaskContext, 
     combine:Boolean = true) extends ShuffleWriter[K, V] with Logging {
+  
   private val kvOutput = output.values.iterator().next()
   private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
   private val serializer = SparkEnv.get.serializer.newInstance
   private var kw:Writable = null
   private var vw:Writable = null
-  var set = false;
-
   /**
    * 
    */
@@ -74,13 +70,7 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   }
 
   private def writeKeyValue(key: Any, value: Any) {
-    if (key.isInstanceOf[Writable]) {
-      kvWriter.write(key, value)
-    } else {
-      this.toKeyWritable(key)
-      this.toValueWritable(value)
-      kvWriter.write(kw, vw)
-    }
+    kvWriter.write(key, value)
   }
 
   /**
@@ -118,6 +108,9 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
     }
   }
 
+  /*
+   * Below code (two methods) is temporary and will be exposed thru TypeConversion and Serialization framework 
+   */
   private def toKeyWritable(value: Any) = {
     if (kw == null) {
       kw =
@@ -154,20 +147,19 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
         } else if (value.isInstanceOf[String]) {
           new Text(value.toString)
         } else {
-          val valueBuffer = serializer.serialize(value).array
-          new BytesWritable(valueBuffer)
+          throw new IllegalStateException("Unsupported type: " + value.getClass)
         }
-    } else {
-      if (vw.isInstanceOf[Text]) {
+    } 
+    else {
+      if (vw.isInstanceOf[Text]){
         vw.asInstanceOf[Text].set(value.toString)
-      } else if (vw.isInstanceOf[IntWritable]) {
-        vw.asInstanceOf[IntWritable].set(value.asInstanceOf[Integer])
-      } else if (vw.isInstanceOf[LongWritable]) {
-        vw.asInstanceOf[LongWritable].set(value.asInstanceOf[Long])
-      } else if (vw.isInstanceOf[BytesWritable]) {
-        val valueBuffer = serializer.serialize(value).array
-        vw.asInstanceOf[BytesWritable].set(valueBuffer, 0, valueBuffer.length)
       } 
+      else if (vw.isInstanceOf[IntWritable]) {
+        vw.asInstanceOf[IntWritable].set(value.asInstanceOf[Integer])
+      }
+      else if (vw.isInstanceOf[LongWritable]) {
+        vw.asInstanceOf[LongWritable].set(value.asInstanceOf[Long])
+      }
     }
   }
 }

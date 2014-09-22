@@ -1,20 +1,13 @@
-package org.apache.spark.tez
+package org.apache.spark.tez.io
 
 import org.apache.spark.shuffle.ShuffleReader
 import org.apache.tez.runtime.api.LogicalInput
-import org.apache.spark.SparkEnv
 import org.apache.tez.runtime.api.Reader
 import org.apache.tez.runtime.library.api.KeyValuesReader
 import org.apache.tez.runtime.library.api.KeyValueReader
 import org.apache.spark.shuffle.BaseShuffleHandle
-import org.apache.spark.InterruptibleIterator
-import org.apache.spark.shuffle.ShuffleHandle
 import org.apache.spark.TaskContext
 import org.apache.hadoop.io.Writable
-import org.apache.hadoop.io.BytesWritable
-import java.nio.ByteBuffer
-import org.apache.hadoop.io.ByteWritable
-import org.apache.spark.util.collection.ExternalAppendOnlyMap
 import java.util.Map
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.IntWritable
@@ -128,6 +121,8 @@ private class KVSIterator(kvReader: KeyValuesReader) {
         s.asInstanceOf[IntWritable].get
       } else if (s.isInstanceOf[LongWritable]) {
         s.asInstanceOf[LongWritable].get
+      } else if (s.isInstanceOf[ValueWritable]) {
+        s.asInstanceOf[ValueWritable].getValue
       } else {
         throw new IllegalArgumentException("Unrecognized writable: " + s)
       }

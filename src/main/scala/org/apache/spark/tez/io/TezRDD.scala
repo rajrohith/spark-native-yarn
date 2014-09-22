@@ -1,4 +1,4 @@
-package org.apache.spark.tez
+package org.apache.spark.tez.io
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.InterruptibleIterator
