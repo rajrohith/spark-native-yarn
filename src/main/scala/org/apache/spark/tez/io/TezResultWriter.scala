@@ -33,12 +33,7 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
    * 
    */
   def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
-    val (keyValues, mergeFunction) = {
-      val s = this.buildCombinedIterator(records, combine)
-      (s._1, s._2)
-    }
-
-    this.sinkKeyValuesIterator(keyValues, mergeFunction)
+    this.sinkKeyValuesIterator(records, null)
   }
   
   /**
@@ -78,34 +73,6 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
    */
   def stop(success: Boolean): Option[MapStatus] = {
     Some(SparkUtils.createUnsafeInstance(classOf[MapStatus]))
-  }
-
-  /**
-   *
-   */
-  private def buildCombinedIterator(records: Iterator[_ <: Product2[K, V]], combine: Boolean): Tuple2[Iterator[_ <: Product2[K, V]], Function2[Any, Any, Any]] = {
-    if (handle != null && handle.dependency.aggregator.isDefined) {
-      val aggregator = handle.dependency.aggregator.get
-
-      val mergeValueFunction = aggregator.mergeValue.asInstanceOf[Function2[Any, Any, Any]]
-      if (combine) {
-        val combiners = new HashMap[Any, Any]
-        for (record <- records) {
-          if (combiners.contains(record._1)) {
-            val v1 = combiners.get(record._1).get
-            val mergedValue = mergeValueFunction(v1, record._2)
-            combiners.put(record._1, mergedValue)
-          } else {
-            combiners += record.asInstanceOf[Tuple2[K, V]]
-          }
-        }
-        (combiners.iterator.asInstanceOf[Iterator[_ <: Product2[K, V]]], null)
-      } else {
-        (records, mergeValueFunction)
-      }
-    } else {
-      (records, null)
-    }
   }
 
   /*

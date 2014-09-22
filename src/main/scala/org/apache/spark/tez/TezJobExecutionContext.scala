@@ -82,7 +82,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     if (outputMetadata == null){
       throw new IllegalArgumentException("Failed to determine output metadata (KEY/VALUE/OutputFormat type)")
     }
-    logInfo("Will save output as " + outputMetadata)
+//    logInfo("Will save output as " + outputMetadata)
     
     
     val stage = this.caclulateStages(sc, rdd)

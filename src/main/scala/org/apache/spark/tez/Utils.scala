@@ -2,7 +2,6 @@ package org.apache.spark.tez
 
 import scala.collection.JavaConverters.asJavaCollectionConverter
 import scala.reflect.ClassTag
-
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
 import org.apache.spark.Logging
@@ -15,6 +14,9 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.scheduler.Stage
 import org.apache.tez.client.TezClient
 import org.apache.tez.dag.api.TezConfiguration
+import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectOutputStream
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
@@ -76,7 +78,11 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
         new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), null) 
       }
     
-    val vertexTaskBuffer = serializer.serialize(vertexTask)
+    val bos = new ByteArrayOutputStream()
+    val os = new TypeAwareObjectOutputStream(bos)
+    os.writeObject(vertexTask)
+    
+    val vertexTaskBuffer = ByteBuffer.wrap(bos.toByteArray())
     
     // will serialize only ParallelCollectionPartition instances. The rest are ignored
     this.serializePartitions(stage.rdd.partitions)

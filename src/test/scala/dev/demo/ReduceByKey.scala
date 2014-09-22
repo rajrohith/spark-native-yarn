@@ -14,6 +14,8 @@ import org.apache.spark.tez.TezJobExecutionContext
 import org.apache.spark.tez.io.ValueWritable
 import org.apache.tez.dag.api.TezConfiguration
 import org.apache.hadoop.io.IntWritable
+import org.apache.hadoop.yarn.conf.YarnConfiguration
+import scala.reflect.io.File
 
 /**
  * 
@@ -31,6 +33,7 @@ object ReduceByKey extends BaseDemo {
     sConf.setAppName(jobName)
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName()
     sConf.setMaster(masterUrl)
+//    sConf.set("spark.jars", "/Users/ozhurakousky/dev/spark-on-tez/build/install/spark-on-tez/lib/tez-runtime-library-0.5.0.jar")
     val sc = new SparkContext(sConf)
     val source = sc.textFile(inputFile)
 

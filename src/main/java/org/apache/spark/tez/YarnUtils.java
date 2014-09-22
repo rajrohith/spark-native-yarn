@@ -106,6 +106,15 @@ public class YarnUtils {
 					File jarFile = ClassPathUtils.toJar(f, jarFileName);
 					generatedJars.add(jarFile);
 					f = jarFile;
+				} 
+				else if (f.getName().equals("stark-conf")){
+					String jarFileName = ClassPathUtils.generateJarFileName(applicationName + "_conf");
+					if (logger.isDebugEnabled()){
+						logger.debug("Generating application JAR: " + jarFileName);
+					}
+					File jarFile = ClassPathUtils.toJar(f, jarFileName);
+					generatedJars.add(jarFile);
+					f = jarFile;
 				}
 				else {
 					f = null;

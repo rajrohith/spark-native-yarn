@@ -9,6 +9,12 @@ import java.io.File
 import org.apache.tez.runtime.library.processor.SimpleProcessor
 import org.apache.spark.tez.io.TezShuffleManager
 import org.apache.spark.scheduler.Task
+import java.io.ByteArrayInputStream
+import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectInputStream
+
+/**
+ * 
+ */
 object SparkTaskProcessor {
   var task:Task[_] = null
   var vertexIndex = -1
@@ -45,12 +51,22 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
     
     if (SparkTaskProcessor.task == null) {
       val taskBytes = TezUtils.getTaskBuffer(context)
-      SparkTaskProcessor.task = SparkUtils.deserializeSparkTask(taskBytes, this.getContext().getTaskIndex());
+      
+      val bis = new ByteArrayInputStream(taskBytes)
+      val is = new TypeAwareObjectInputStream(bis)
+      SparkTaskProcessor.task = is.readObject().asInstanceOf[Task[_]]
       SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
+      
+//      SparkTaskProcessor.task = SparkUtils.deserializeSparkTask(taskBytes, this.getContext().getTaskIndex());
+//      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
     } else if (context.getTaskVertexName() != SparkTaskProcessor.vertexIndex){
       val taskBytes = TezUtils.getTaskBuffer(context)
-      SparkTaskProcessor.task = SparkUtils.deserializeSparkTask(taskBytes, this.getContext().getTaskIndex());
-      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex
+      val bis = new ByteArrayInputStream(taskBytes)
+      val is = new TypeAwareObjectInputStream(bis)
+      SparkTaskProcessor.task = is.readObject().asInstanceOf[Task[_]]
+      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
+//      SparkTaskProcessor.task = SparkUtils.deserializeSparkTask(taskBytes, this.getContext().getTaskIndex());
+//      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex
     } 
     
     val shuffleStage = SparkTaskProcessor.task.isInstanceOf[VertexShuffleTask]
