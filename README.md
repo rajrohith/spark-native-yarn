@@ -11,6 +11,7 @@ Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache
  
 At the moment of writing, STARK is dependent on modifications to SPARK code described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
 This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2422).
+
 Below are the directions on how to get started.
 
 > NOTE: Please follow the pre-requisite described below and then continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Getting-Started) guide.
