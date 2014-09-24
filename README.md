@@ -9,7 +9,7 @@ Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache
  * _seamless and simplified integration with mini-cluster environment_ 
  * _ability to place breakpoints in SPARK code to facilitate debugging when using mini-cluster (see InJvmContainerExecutor provided with [mini-dev-cluster](https://github.com/hortonworks/mini-dev-cluster))_
  
-At the moment of writing, STARK is dependent on modifications to SPARK code described int [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
+At the moment of writing, STARK is dependent on modifications to SPARK code described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
 This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2422).
 Below are the directions on how to get started.
 
