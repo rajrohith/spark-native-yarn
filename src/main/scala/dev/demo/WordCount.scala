@@ -20,20 +20,29 @@ import scala.reflect.io.File
 /**
  * 
  */
-object ReduceByKey extends BaseDemo {
+object WordCount extends BaseDemo {
 
   def main(args: Array[String]) {
+    var reducers = 1
+    var inputFile = "src/test/scala/dev/demo/test.txt"
+    if (args != null && args.length > 0){
+      reducers = Integer.parseInt(args(0))
+      if (args.length > 1){
+        inputFile = args(1)
+      }
+    }
+    
+    println("Will execute WordCount on file: " + inputFile + 
+        " after copying it to HDFS using " + reducers + "  reducers")
     
     val jobName = this.getClass().getName() + "-" + System.currentTimeMillis()
-    val outputPath = jobName + "foo.nla_out"
-    val inputFile = "src/test/scala/dev/demo/test.txt"
+    val outputPath = jobName + "_out"
     prepare(jobName, Array(inputFile))
 
     val sConf = new SparkConf
     sConf.setAppName(jobName)
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName()
     sConf.setMaster(masterUrl)
-//    sConf.set("spark.jars", "/Users/ozhurakousky/dev/spark-on-tez/build/install/spark-on-tez/lib/tez-runtime-library-0.5.0.jar")
     val sc = new SparkContext(sConf)
     val source = sc.textFile(inputFile)
 
@@ -41,7 +50,7 @@ object ReduceByKey extends BaseDemo {
       val result = source
         .flatMap(x => x.split(" "))
         .map(x => (x, 1))
-        .reduceByKey((x, y) => x + y, 2) 
+        .reduceByKey((x, y) => x + y, reducers) 
         .saveAsNewAPIHadoopFile(outputPath, classOf[Text], classOf[IntWritable], classOf[TextOutputFormat[_, _]])
         /*
          * .saveAsTextFile(outputPath)

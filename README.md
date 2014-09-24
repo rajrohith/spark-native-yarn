@@ -6,7 +6,7 @@ It is dependent on modifications to SPARK code described int [SPARK-3561](https:
 This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2422).
 Below are the directions on how to get started.
 
-> NOTE: Please follow the pre-requisite described below and then continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Getting-Started) guide
+> NOTE: Please follow the pre-requisite described below and then continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Getting-Started) guide.
 
 #### Checkout and Build SPARK-3561
 ```
@@ -28,7 +28,7 @@ export MAVEN_OPTS="-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m"
 ```
 $> mvn -Pyarn -Phadoop-2.4 -Dhadoop.version=2.4.0 -DskipTests clean install
 ```
-You should see a successful build
+The build should take 20-30 min depending on your machine. You should see a successful build
 ```
 INFO] ------------------------------------------------------------------------
 [INFO] Reactor Summary:
@@ -49,7 +49,8 @@ $> git clone https://github.com/hortonworks/stark.git
 $> cd stark
 ```
 
-This completes pre-requisite required to run STARK
+This completes pre-requisite required to run STARK and you can now 
+continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Getting-Started) guide.
 
 ==
 
