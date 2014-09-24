@@ -45,7 +45,7 @@ object Join extends BaseDemo {
         val t = (key, (s(0), s(1)))
         t
       }.join(two).reduceByKey { (x, y) =>
-        println("REDUCING!!!!!!!!!")
+        println("REDUCING!!!!!!!!!") // good place to set a breakpoint when executing in mini-cluster to observe debug features
         ((x._1.toString, y._1.toString), x._2)
       }
         .saveAsNewAPIHadoopFile(outputPath, classOf[IntWritable], classOf[Text], classOf[TextOutputFormat[_, _]])
