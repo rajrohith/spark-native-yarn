@@ -2,7 +2,13 @@ STARK - Spark on Tez
 ============
 
 This project represents a prototype of running DAGs assembled using SPARK API on [Apache Tez](http://tez.apache.org/)
-It is dependent on modifications to SPARK code described int [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
+
+Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache.org/), this project provides additional functionality which addresses developer productivity including but not limited to:
+ * _executing your code directly from the IDE (Eclipse and or Idea)_
+ * _transparent classpath management_ 
+ * _integration with mini-cluster environment_ 
+ 
+At the moment of writing, STARK is dependent on modifications to SPARK code described int [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
 This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2422).
 Below are the directions on how to get started.
 
