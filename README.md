@@ -4,7 +4,7 @@ STARK - Spark on Tez
 This project represents a prototype of running DAGs assembled using SPARK API on [Apache Tez](http://tez.apache.org/)
 
 Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache.org/), this project provides additional functionality which addresses developer productivity including but not limited to:
- * _executing your code directly from the IDE (Eclipse and/or Idea)_
+ * _executing your code directly from the IDE (Eclipse and/or IntelliJ)_
  * _transparent classpath management_ 
  * _integration with mini-cluster environment_ 
  
