@@ -62,7 +62,7 @@ $> git clone https://github.com/hortonworks/stark.git
 $> cd stark
 ```
 
-This completes pre-requisite required to run STARK and you can now 
+This completes the pre-requisite required to run STARK and you can now 
 continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Getting-Started) guide.
 
 ==
