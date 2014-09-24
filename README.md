@@ -13,6 +13,11 @@ Below are the directions on how to get started.
 $> git clone https://github.com/olegz/spark-1.git
 $> cd spark-1
 $> git fetch --all
+```
+
+Switch to SPARK-3561 branch
+
+```
 $> git branch --track SPARK-HADOOP origin/SPARK-HADOOP
 $> git checkout SPARK-HADOOP
 ```
