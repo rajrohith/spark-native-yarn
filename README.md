@@ -6,7 +6,8 @@ This project represents a prototype of running DAGs assembled using SPARK API on
 Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache.org/), this project provides additional functionality which addresses developer productivity including but not limited to:
  * _executing your code directly from the IDE (Eclipse and/or IntelliJ)_
  * _transparent classpath management_ 
- * _integration with mini-cluster environment_ 
+ * _seamless and simplified integration with mini-cluster environment_ 
+ * _ability to use breakpoints in SPARK code to facilitate debugging when using mini-cluster_
  
 At the moment of writing, STARK is dependent on modifications to SPARK code described int [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
 This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2422).
