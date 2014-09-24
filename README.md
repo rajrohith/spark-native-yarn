@@ -6,7 +6,7 @@ It is dependent on modifications to SPARK code described int [SPARK-3561](https:
 This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2422).
 Below are the directions on how to get started.
 
-### PREREQUISITE
+> NOTE: Please follow the pre-requisite described below and then continue to [Getting Started](Getting-Started) guide
 
 #### Checkout and Build SPARK-3561
 ```
@@ -53,6 +53,5 @@ This completes pre-requisite required to run STARK
 
 ==
 
-[Getting Started](Getting-Started)
 
 
