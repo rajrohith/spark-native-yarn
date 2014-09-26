@@ -8,7 +8,8 @@ samples please refer to [Functionality](Functionality).
 
 ==
 
-**_STARK_** project represents a prototype demonstrating an approach for running DAGs assembled using SPARK API on [Apache Tez](http://tez.apache.org/)
+**_STARK_** project represents an extension to Apache Spark which enables DAGs assembled using SPARK API to run on [Apache Tez](http://tez.apache.org/),
+thus allowing one to benefit from native features of Tez, especially related to large scale Batch/ETL applications.
 
 Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache.org/), this project provides additional functionality which addresses developer productivity including but not limited to:
  * _executing your code directly from the IDE (Eclipse and/or IntelliJ)_
