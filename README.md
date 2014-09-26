@@ -14,7 +14,7 @@ This means that to use it, one must have a custom build of Spark which incorpora
 
 Below are the directions on how to get started.
 
-> NOTE: Please follow the pre-requisite described below and then continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Getting-Started) guide.
+> NOTE: Please follow the pre-requisite described below and then continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Home) guide.
 
 #### Checkout and Build SPARK-3561
 ```
@@ -63,7 +63,7 @@ $> cd stark
 ```
 
 This completes the pre-requisite required to run STARK and you can now 
-continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Getting-Started) guide.
+continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Home) guide.
 
 ==
 
