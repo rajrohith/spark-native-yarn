@@ -49,13 +49,10 @@ import org.apache.spark.rdd.CoGroupedRDD
 object SparkToTezAdapter extends Logging{
 
   private val unsafe = this.createUnsafe
-  
-  private val pool = ClassPool.getDefault();
 
-  this.logDebug{
-    val cl = pool.getClassLoader().asInstanceOf[URLClassLoader]
-    "Classpath available to JAVASSIST instrumentation\n" + cl.getURLs().toList
-  }
+  private val pool = ClassPool.getDefault();
+  
+  val systemClassLoader = ClassLoader.getSystemClassLoader()
 
   private val pairRddFunctionsAdapter = pool.get("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter")
   private val pairRddFunctions = pool.get("org.apache.spark.rdd.PairRDDFunctions")
@@ -65,7 +62,7 @@ object SparkToTezAdapter extends Logging{
   // java.lang.NoSuchMethodError: org.apache.spark.tez.TezContext$$anonfun$textFile$1.<init>(Lorg/apache/spark/SparkContext;)V  
   pairRddFunctionsAdapter.getNestedClasses().foreach{
     x => x.replaceClassName("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter", "org.apache.spark.rdd.PairRDDFunctions"); 
-    x.toClass()
+    x.toClass(systemClassLoader)
   }
   
   /**
@@ -77,11 +74,14 @@ object SparkToTezAdapter extends Logging{
     for (targetMethod <- pairRddTargetMethods){
       if (targetMethod.getName() == "saveAsNewAPIHadoopDataset"){
         this.swapPairRddFunctionsMethodBody(targetMethod)
-        //targetMethod.setBody("this.self.context().runJob(self, null);")
+      }
+      else  if (targetMethod.getName() == "saveAsHadoopDataset"){
+        this.swapPairRddFunctionsMethodBody(targetMethod)
       }
     }
     val pairRddFunctionsBytes = this.pairRddFunctions.toBytecode()
-    unsafe.defineClass(null, pairRddFunctionsBytes, 0, pairRddFunctionsBytes.length, this.getClass.getClassLoader(), this.getClass.getProtectionDomain())
+    
+    unsafe.defineClass(null, pairRddFunctionsBytes, 0, pairRddFunctionsBytes.length, systemClassLoader, systemClassLoader.getClass.getProtectionDomain())
   }
 
   /**

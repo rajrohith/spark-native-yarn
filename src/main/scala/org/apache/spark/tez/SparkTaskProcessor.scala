@@ -56,17 +56,12 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
       val is = new TypeAwareObjectInputStream(bis)
       SparkTaskProcessor.task = is.readObject().asInstanceOf[Task[_]]
       SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
-      
-//      SparkTaskProcessor.task = SparkUtils.deserializeSparkTask(taskBytes, this.getContext().getTaskIndex());
-//      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
     } else if (context.getTaskVertexName() != SparkTaskProcessor.vertexIndex){
       val taskBytes = TezUtils.getTaskBuffer(context)
       val bis = new ByteArrayInputStream(taskBytes)
       val is = new TypeAwareObjectInputStream(bis)
       SparkTaskProcessor.task = is.readObject().asInstanceOf[Task[_]]
       SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
-//      SparkTaskProcessor.task = SparkUtils.deserializeSparkTask(taskBytes, this.getContext().getTaskIndex());
-//      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex
     } 
     
     val shuffleStage = SparkTaskProcessor.task.isInstanceOf[VertexShuffleTask]
