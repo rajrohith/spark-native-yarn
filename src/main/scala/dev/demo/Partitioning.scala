@@ -21,7 +21,11 @@ import org.apache.hadoop.mapred.lib.MultipleTextOutputFormat
 import org.apache.hadoop.io.NullWritable
 
 /**
- *
+ * This demo demonstrates one of the rudimentary ETL use cases such as partitioning source data.
+ * Similar to the 'reduceBy', the data will be partitioned via 'partitionBy' and then 
+ * written as file-per-key into as many files as there are keys in the source file using 
+ * custom implementation of MultipleTextOutputFormat.
+ * 
  */
 object Partitioning extends BaseDemo {
 

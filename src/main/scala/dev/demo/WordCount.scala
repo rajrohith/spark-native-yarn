@@ -18,7 +18,8 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 import scala.reflect.io.File
 
 /**
- *
+ * This demo demonstrates one of the rudimentary Hadoop use case - WordCount
+ * 
  */
 object WordCount extends BaseDemo {
 
