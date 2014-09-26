@@ -4,7 +4,7 @@ STARK - Spark on Tez
 > IMPORTANT: At the time or writing, the project represents a **_prototype_** with the goal of demonstrating 
 the validity of the approach described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
 Functionality is limited but rapidly updated. For the list of what is currently available as well as short 
-samples please refer to [Functionality](Functionality). 
+samples please refer to [Functionality](https://github.com/hortonworks/stark/wiki/Functionality). 
 
 ==
 
