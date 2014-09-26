@@ -6,6 +6,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapred.{FileInputFormat, InputFormat, JobConf}
 import org.apache.hadoop.mapreduce.{InputFormat => NewInputFormat, Job => NewHadoopJob}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => NewFileInputFormat}
+import org.apache.hadoop.mapreduce.lib.output.{FileOutputFormat => NewFileOutputFormat}
 import scala.reflect.ClassTag
 import org.apache.spark.rdd.RDD
 import org.apache.spark.broadcast.Broadcast
@@ -23,9 +24,18 @@ import org.apache.spark.SparkHadoopWriter
 import org.apache.spark.SerializableWritable
 import org.apache.spark.Logging
 import org.apache.spark.tez.io.TezRDD
+import org.apache.spark.tez.adapter.SparkToTezAdapter
+import org.apache.hadoop.io.Writable
+import org.apache.hadoop.mapreduce.OutputFormat
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
+import org.apache.hadoop.io.IntWritable
+import org.apache.hadoop.io.BytesWritable
+import org.apache.spark.tez.io.ValueWritable
+import org.apache.spark.tez.io.ValueWritable
+
 
 class TezJobExecutionContext extends JobExecutionContext with Logging {
-
+  SparkToTezAdapter.adapt
  /**
   * 
   */
@@ -78,11 +88,11 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     allowLocal: Boolean,
     resultHandler: (Int, U) => Unit)(implicit returnType:ClassTag[U]) = {
     
-    val outputMetadata = this.extractOutputMetedata(func)
+    val outputMetadata = this.extractOutputMetedata(sc.hadoopConfiguration)
     if (outputMetadata == null){
       throw new IllegalArgumentException("Failed to determine output metadata (KEY/VALUE/OutputFormat type)")
     }
-//    logInfo("Will save output as " + outputMetadata)
+    logInfo("Will save output as " + outputMetadata)
     
     
     val stage = this.caclulateStages(sc, rdd)
@@ -90,15 +100,16 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
 
     val dagTask: DAGTask = tezUtils.build(outputMetadata._1, outputMetadata._2, outputMetadata._3, outputMetadata._4)
     dagTask.execute
-    
-//    val result = if (!classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
-//      val res = ResultHandler.sampleResults(tezUtils).asInstanceOf[U];
-//      resultHandler(0, res)
-//      partitions.foreach(x => if (x > 0) resultHandler(x, Array[Tuple2[_, _]]().asInstanceOf[U]))
-//    }
 
-//    val fs = FileSystem.get(sc.hadoopConfiguration);
-//    fs.delete(new Path(sc.appName + "/KEY"), false);
+//    println("doing result")
+//    partitions.foreach { x =>
+//      println(x)
+//      /*
+//       * Call some custom function that would figure out value for second argument in 
+//       * resultHandler if return type is not Unit
+//       */
+//      resultHandler(x, 3L.asInstanceOf[U])
+//    }
   }
   
   /**
@@ -112,30 +123,19 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     stage
   }
   
-  private def extractOutputMetedata[T,U](func: (TaskContext, Iterator[T]) => U):Tuple4[Class[_], Class[_], Class[_], String] = {
-    val fields = func.getClass().getDeclaredFields()
-    var metadata:Tuple4[Class[_], Class[_], Class[_], String] = null
-    for (field <- fields){
-      if (classOf[SparkHadoopWriter].isAssignableFrom(field.getType())){
-        field.setAccessible(true)
-        val writer = field.get(func).asInstanceOf[SparkHadoopWriter]
-        val writerConfField = writer.getClass().getDeclaredField("conf")
-        writerConfField.setAccessible(true)
-        val serWritable = writerConfField.get(writer).asInstanceOf[SerializableWritable[_]]
-        val confField = serWritable.getClass().getDeclaredField("t")
-        confField.setAccessible(true)
-        val writableConfig = confField.get(serWritable).asInstanceOf[JobConf]
-        metadata = (writableConfig.getOutputKeyClass(), writableConfig.getOutputValueClass(), writableConfig.getOutputFormat().getClass(), writableConfig.get("mapred.output.dir"))
-      } else if (classOf[SerializableWritable[_]].isAssignableFrom(field.getType())){
-        field.setAccessible(true)
-        val serWritable = field.get(func).asInstanceOf[SerializableWritable[_]]
-        val confField = serWritable.getClass().getDeclaredField("t")
-        confField.setAccessible(true)
-        val writableConfig = confField.get(serWritable).asInstanceOf[JobConf]
-        
-        metadata = (writableConfig.getOutputKeyClass(), writableConfig.getOutputValueClass(), writableConfig.getOutputFormat().getClass(), writableConfig.get("mapred.output.dir"))
-      }
+  /**
+   * 
+   */
+  private def extractOutputMetedata[T,U](conf:Configuration):Tuple4[Class[_], Class[_], Class[_], String] = {  
+    val outputFormat = conf.getClass("mapreduce.job.outputformat.class", null)
+    val keyType = conf.getClass("mapreduce.job.output.key.class", null)
+    val valueType = conf.getClass("mapreduce.job.output.value.class", Class.forName("org.apache.spark.tez.io.ValueWritable"))
+    val outputPath = conf.get("mapred.output.dir", null)
+    if (outputPath == null || outputFormat == null || keyType == null){
+      null
     }
-    metadata
+    else {
+      (keyType, valueType, outputFormat, outputPath)
+    }
   }
 }

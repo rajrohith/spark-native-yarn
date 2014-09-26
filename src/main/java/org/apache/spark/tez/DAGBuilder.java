@@ -48,8 +48,6 @@ class DAGBuilder {
 
 	private final Map<String, LocalResource> localResources;
 	
-//	private final String outputPath;
-	
 	private final String applicationInstanceName;
 
 	private DAG dag;
@@ -167,9 +165,18 @@ class DAGBuilder {
 				UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());
 				String vertexName = String.valueOf(sequenceCounter++);
 				String dsName = String.valueOf(sequenceCounter++);
-				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload)).addDataSource(dsName, dataSource);	
-				vertex.addTaskLocalFiles(localResources);
+				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload))
+						.addDataSource(dsName, dataSource);	
+				// For single stage vertex we need to add data sink
+				if (counter == vertexes.size()){
+					JobConf dsConfig = new JobConf(tezConfiguration);
+					dsConfig.setOutputKeyClass(keyClass);
+					dsConfig.setOutputValueClass(valueClass);
+					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
+					vertex.addDataSink(dsName, dataSink);
+				}
 				
+				vertex.addTaskLocalFiles(localResources);			
 				dag.addVertex(vertex);
 			}
 			else {

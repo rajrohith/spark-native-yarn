@@ -18,23 +18,23 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 import scala.reflect.io.File
 
 /**
- * 
+ *
  */
 object WordCount extends BaseDemo {
 
   def main(args: Array[String]) {
     var reducers = 1
-    var inputFile = "src/test/scala/dev/demo/test.txt"
-    if (args != null && args.length > 0){
+    var inputFile = "src/main/scala/dev/demo/test.txt"
+    if (args != null && args.length > 0) {
       reducers = Integer.parseInt(args(0))
-      if (args.length > 1){
+      if (args.length > 1) {
         inputFile = args(1)
       }
     }
-    
-    println("Will execute WordCount on file: " + inputFile + 
-        " after copying it to HDFS using " + reducers + "  reducers")
-    
+
+    println("Will execute WordCount on file: " + inputFile +
+      " after copying it to HDFS using " + reducers + "  reducers")
+
     val jobName = this.getClass().getName() + "-" + System.currentTimeMillis()
     val outputPath = jobName + "_out"
     prepare(jobName, Array(inputFile))
@@ -46,36 +46,30 @@ object WordCount extends BaseDemo {
     val sc = new SparkContext(sConf)
     val source = sc.textFile(inputFile)
 
-   try {
-      val result = source
-        .flatMap(x => x.split(" "))
-        .map(x => (x, 1))
-        .reduceByKey((x, y) => x + y, reducers) 
-        .saveAsNewAPIHadoopFile(outputPath, classOf[Text], classOf[IntWritable], classOf[TextOutputFormat[_, _]])
-        /*
+    val result = source
+      .flatMap(x => x.split(" "))
+      .map(x => (x, 1))
+      .reduceByKey((x, y) => x + y, reducers)
+      .saveAsNewAPIHadoopFile(outputPath, classOf[Text], classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+    /*
          * .saveAsTextFile(outputPath)
          * Will not work at the moment since its format is NullWritable/Text which will essentially go into Tez
          * thus creating incompatibility for key/value going into reduce
          */
-        
-        /*
+
+    /*
          * .saveAsHadoopFile(outputPath, classOf[Text], classOf[IntWritable], classOf[org.apache.hadoop.mapred.TextOutputFormat[_,_]])
          * Does work 
          */
-    } catch {
-      // this is temporary. need to figure out how to avoid Spark's writer commit logic since it is the one that throws the exception 
-      // Tez already commits the outut for us so we simply need to avoid it. 
-      case e: Exception => println(e)
-    }
     sc.stop
-    
+
     this.printSampleResults(outputPath)
   }
-  
+
   /**
-   * 
+   *
    */
-  def printSampleResults(outputPath:String) {
+  def printSampleResults(outputPath: String) {
     val conf = new TezConfiguration
     val fs = FileSystem.get(conf);
     val iter = fs.listFiles(new Path(outputPath), false);
@@ -86,16 +80,15 @@ object WordCount extends BaseDemo {
       if (status.isFile()) {
         if (!status.getPath().toString().endsWith("_SUCCESS")) {
           println("Results from " + status.getPath() + " - " + fs.getLength(status.getPath()))
-          
+
           val reader = new BufferedReader(new InputStreamReader(fs.open(status.getPath())))
-          var line:String = null
+          var line: String = null
           var r = true
-          while (r && counter < 20){
+          while (r && counter < 20) {
             line = reader.readLine()
-            if (line == null){
+            if (line == null) {
               r = false
-            }
-            else {
+            } else {
               println(line)
               counter += 1
             }

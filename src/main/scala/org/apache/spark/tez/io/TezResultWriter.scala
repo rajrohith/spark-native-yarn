@@ -39,6 +39,22 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   /**
    * 
    */
+  /*
+   * TODO
+   * For cases such as count or other the iterator may not be KV. It may just be a single value
+   * so we need somethimg lieke this:
+   * for (value <- iterator) {
+        println(value)
+        if (value.isInstanceOf[Product2[K, V]]){
+          println("product")
+        }
+        else {
+          println("other")
+        }
+        
+        kvWriter.write(NullWritable.get(), value)
+      }
+   */
   private def sinkKeyValuesIterator(keyValues: Iterator[_ <: Product2[K, V]], mergeFunction:Function2[Any,Any,Any]) {
     var previousKey:Any = null
     var mergedValue: Any = null

@@ -18,8 +18,8 @@ object Join extends BaseDemo {
 
   def main(args: Array[String]) {
     val jobName = "Join-" + System.currentTimeMillis()
-    val file1 = "src/test/scala/dev/demo/file1.txt"
-    val file2 = "src/test/scala/dev/demo/file2.txt"
+    val file1 = "src/main/scala/dev/demo/file1.txt"
+    val file2 = "src/main/scala/dev/demo/file2.txt"
     val outputPath = jobName + "foo.nla_out"
     prepare(jobName, Array(file1, file2))
 
@@ -38,30 +38,25 @@ object Join extends BaseDemo {
       (key, s(1))
     }
 
-    try {
-      val result = source1.map { x =>
-        val s = x.split(" ")
-        val key: Int = Integer.parseInt(s(2))
-        val t = (key, (s(0), s(1)))
-        t
-      }.join(two).reduceByKey { (x, y) =>
-        println("REDUCING!!!!!!!!!") // good place to set a breakpoint when executing in mini-cluster to observe debug features
-        ((x._1.toString, y._1.toString), x._2)
-      }
-        .saveAsNewAPIHadoopFile(outputPath, classOf[IntWritable], classOf[Text], classOf[TextOutputFormat[_, _]])
-    } catch {
-      // this is temporary. need to figure out how to avoid Spark's writer commit logic since it is the one that throws the exception 
-      // Tez already commits the outut for us so we simply need to avoid it. 
-      case e: Exception => println(e)
+    val result = source1.map { x =>
+      val s = x.split(" ")
+      val key: Int = Integer.parseInt(s(2))
+      val t = (key, (s(0), s(1)))
+      t
+    }.join(two).reduceByKey { (x, y) =>
+      println("REDUCING!!!!!!!!!") // good place to set a breakpoint when executing in mini-cluster to observe debug features
+      ((x._1.toString, y._1.toString), x._2)
     }
+      .saveAsNewAPIHadoopFile(outputPath, classOf[IntWritable], classOf[Text], classOf[TextOutputFormat[_, _]])
+      
     sc.stop
     this.printSampleResults(outputPath)
   }
-  
+
   /**
-   * 
+   *
    */
-  def printSampleResults(outputPath:String) {
+  def printSampleResults(outputPath: String) {
     val conf = new TezConfiguration
     val fs = FileSystem.get(conf);
     val iter = fs.listFiles(new Path(outputPath), false);
@@ -72,16 +67,15 @@ object Join extends BaseDemo {
       if (status.isFile()) {
         if (!status.getPath().toString().endsWith("_SUCCESS")) {
           println("Results from " + status.getPath() + " - " + fs.getLength(status.getPath()))
-          
+
           val reader = new BufferedReader(new InputStreamReader(fs.open(status.getPath())))
-          var line:String = null
+          var line: String = null
           var r = true
-          while (r && counter < 20){
+          while (r && counter < 20) {
             line = reader.readLine()
-            if (line == null){
+            if (line == null) {
               r = false
-            }
-            else {
+            } else {
               println(line)
               counter += 1
             }
