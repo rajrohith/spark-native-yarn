@@ -1,7 +1,15 @@
 STARK - Spark on Tez
 ============
 
-This project represents a prototype demonstrating an approach for running DAGs assembled using SPARK API on [Apache Tez](http://tez.apache.org/)
+> IMPORTANT: At the time or writing, the project represents a **_prototype_** with the goal of demonstrating 
+the validity of the approach described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
+Functionality is limited but rapidly updated. For the list of what is currently available as well as short 
+samples please refer to [Functionality](https://github.com/hortonworks/stark/wiki/Functionality). 
+
+==
+
+**_STARK_** project represents an extension to [Apache Spark](https://spark.apache.org/) which enables DAGs assembled using SPARK API to run on [Apache Tez](http://tez.apache.org/),
+thus allowing one to benefit from native features of Tez, especially related to large scale Batch/ETL applications.
 
 Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache.org/), this project provides additional functionality which addresses developer productivity including but not limited to:
  * _executing your code directly from the IDE (Eclipse and/or IntelliJ)_

@@ -7,7 +7,8 @@ import org.apache.spark.SparkContext._
 import org.apache.hadoop.io.IntWritable
 
 /**
- *
+ * This demo demonstrates one of the rudimentary Hadoop use case - WordCount
+ * 
  */
 object WordCount {
 
