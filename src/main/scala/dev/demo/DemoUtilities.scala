@@ -53,7 +53,7 @@ object DemoUtilities {
             if (line == null) {
               r = false
             } else {
-              println(line)
+              println("\t" + line)
               counter += 1
             }
           }

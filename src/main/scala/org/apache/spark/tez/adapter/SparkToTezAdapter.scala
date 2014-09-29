@@ -78,6 +78,9 @@ object SparkToTezAdapter extends Logging{
       else  if (targetMethod.getName() == "saveAsHadoopDataset"){
         this.swapPairRddFunctionsMethodBody(targetMethod)
       }
+      else if (targetMethod.getName() == "groupByKey"){
+        this.swapPairRddFunctionsMethodBody(targetMethod)
+      }
     }
     val pairRddFunctionsBytes = this.pairRddFunctions.toBytecode()
     

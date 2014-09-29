@@ -6,15 +6,16 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.HashPartitioner
 import org.apache.hadoop.mapred.lib.MultipleTextOutputFormat
 import org.apache.hadoop.io.NullWritable
+import org.apache.spark.tez.TezJobExecutionContext
 
 /**
  * This demo demonstrates one of the rudimentary ETL use cases such as partitioning source data.
- * Similar to the 'reduceBy', the data will be partitioned via 'partitionBy' and then 
+ * Similar to the 'reduceBy', the data will be partitioned via 'groupBy' and then 
  * written as file-per-key into as many files as there are keys in the source file using 
  * custom implementation of MultipleTextOutputFormat.
  * 
  */
-object Partitioning {
+object GroupBy {
 
   def main(args: Array[String]) {
     var reducers = 1
@@ -32,28 +33,17 @@ object Partitioning {
     val jobName = DemoUtilities.prepareJob(Array(inputFile))
     val outputPath = jobName + "_out"
 
-    val sc = new SparkContext()
+    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+    val sc = new SparkContext(masterUrl, "foo")
     val source = sc.textFile(inputFile)
 
     val result = source
     	.map{s => val split = s.split("\\s+", 2); (split(0).replace(":", "_"), split(1))}
-    	.partitionBy(new HashPartitioner(2))
-    	.saveAsHadoopFile(outputPath, classOf[Text], classOf[Text], classOf[MyMultipleTextOutputFormat])
+        .groupByKey(2)
+    	.saveAsHadoopFile(outputPath, classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
 
     sc.stop
 
     DemoUtilities.printSampleResults(outputPath)
-  }
-}
-
-class MyMultipleTextOutputFormat extends MultipleTextOutputFormat[Any, Any] {
-  override def generateActualKey(key: Any, value: Any): Any = {
-     println("Generating Actual key for ")
-    NullWritable.get()
-  }
-
-  override def generateFileNameForKeyValue(key: Any, value: Any, name: String): String = {
-    println("Generating File Name for ")
-    key.asInstanceOf[String]
   }
 }
