@@ -28,7 +28,7 @@ object Join {
     val file1 = "src/main/scala/dev/demo/file1.txt"
     val file2 = "src/main/scala/dev/demo/file2.txt"
     val jobName = DemoUtilities.prepareJob(Array(file1, file2))
-    val outputPath = jobName + "foo.nla_out"
+    val outputPath = jobName + "_out"
 
     val sc = new SparkContext()
 
