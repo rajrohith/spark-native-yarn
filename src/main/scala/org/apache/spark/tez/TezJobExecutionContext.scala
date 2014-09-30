@@ -104,6 +104,13 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     allowLocal: Boolean,
     resultHandler: (Int, U) => Unit)(implicit returnType:ClassTag[U]) = {
     
+    val hadoopConfiguration = sc.hadoopConfiguration
+    logInfo("Default FS Address: " + hadoopConfiguration.get("fs.defaultFS"))
+    logInfo("RM Host Name: " + hadoopConfiguration.get("yarn.resourcemanager.hostname"))
+    logInfo("RM Address: " + hadoopConfiguration.get("yarn.resourcemanager.address"))
+    logInfo("RM Scheduler Address: " + hadoopConfiguration.get("yarn.resourcemanager.scheduler.address"))
+    logInfo("RM Resource Tracker Address: " + hadoopConfiguration.get("yarn.resourcemanager.resourcetracker.address"))
+    
     val outputMetadata = this.extractOutputMetedata(sc.hadoopConfiguration)
     if (outputMetadata == null){
       throw new IllegalArgumentException("Failed to determine output metadata (KEY/VALUE/OutputFormat type)")
