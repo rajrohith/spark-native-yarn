@@ -39,7 +39,7 @@ object PartitionByMulti {
   def main(args: Array[String]) {
     var reducers = 64
     var inputFile = "/user/hive/external/tpch-100/lineitem"
-    var tenants = 1
+    var tenants = 2
     if (args != null && args.length > 0) {
       reducers = Integer.parseInt(args(0))
       if (args.length > 1) {
@@ -50,7 +50,8 @@ object PartitionByMulti {
       }
     }
 
-//    System.setProperty(TezConstants.GENERATE_JAR, "true");
+    // NOTE: When executing from CLI comment this line since it is assumed the JAR file is generated
+    System.setProperty(TezConstants.GENERATE_JAR, "true");
 //    System.setProperty(TezConstants.UPDATE_CLASSPATH, "false");
     val executor = Executors.newCachedThreadPool()
     val latch = new CountDownLatch(tenants)
