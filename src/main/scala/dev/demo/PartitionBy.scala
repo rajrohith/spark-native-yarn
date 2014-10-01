@@ -23,6 +23,7 @@ import org.apache.spark.HashPartitioner
 import org.apache.hadoop.mapred.lib.MultipleTextOutputFormat
 import org.apache.hadoop.io.NullWritable
 import org.apache.spark.tez.TezJobExecutionContext
+import org.apache.spark.tez.TezConstants
 
 /**
  * This demo demonstrates one of the rudimentary ETL use cases such as partitioning source data.
@@ -50,13 +51,79 @@ object PartitionBy {
     val outputPath = jobName + "_out"
 
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-    val sc = new SparkContext(masterUrl, "foo")
+    val sc = new SparkContext(masterUrl, "PartitionBy")
     val source = sc.textFile(inputFile)
 
     val result = source
     	.map{s => val split = s.split("\\s+", 2); (split(0).replace(":", "_"), split(1))}
     	.partitionBy(new HashPartitioner(2))
     	.saveAsHadoopFile(outputPath, classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
+
+    sc.stop
+
+    DemoUtilities.printSampleResults(outputPath)
+  }
+}
+
+
+object PerfPartitionBy {
+
+  def main(args: Array[String]) {
+    System.setProperty(TezConstants.UPDATE_CLASSPATH, "true")
+    var reducers = 1
+    var inputFile = "src/main/scala/dev/demo/partitioning.txt"
+    if (args != null && args.length > 0) {
+      reducers = Integer.parseInt(args(0))
+      if (args.length > 1) {
+        inputFile = args(1)
+      }
+    }
+
+    println("Will execute Partitioning on file: " + inputFile +
+      " after copying it to HDFS")
+
+    // val jobName = DemoUtilities.prepareJob(Array(inputFile))
+    val outputPath = args(2)//jobName + "_out"
+
+    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+    val sc = new SparkContext(masterUrl, "MyPartitionBy")
+    val source = sc.textFile(inputFile)
+
+    val result = source.map(a=>(a.split('|')(10), a))
+      .partitionBy(new HashPartitioner(reducers))
+      .saveAsHadoopFile(outputPath, classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
+
+    sc.stop
+
+    DemoUtilities.printSampleResults(outputPath)
+  }
+}
+
+object SparkPartitionBy {
+
+  def main(args: Array[String]) {
+    System.setProperty(TezConstants.UPDATE_CLASSPATH, "true")
+    var reducers = 1
+    var inputFile = "src/main/scala/dev/demo/partitioning.txt"
+    if (args != null && args.length > 0) {
+      reducers = Integer.parseInt(args(0))
+      if (args.length > 1) {
+        inputFile = args(1)
+      }
+    }
+
+    println("Will execute Partitioning on file: " + inputFile +
+      " after copying it to HDFS")
+
+    // val jobName = DemoUtilities.prepareJob(Array(inputFile))
+    val outputPath = args(2)//jobName + "_out"
+
+    val sc = new SparkContext()
+    val source = sc.textFile(inputFile)
+
+    val result = source.map(a=>(a.split('|')(10), a))
+      .partitionBy(new HashPartitioner(reducers))
+      .saveAsHadoopFile(outputPath, classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
 
     sc.stop
 
