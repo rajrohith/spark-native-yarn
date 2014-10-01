@@ -33,6 +33,7 @@ import org.apache.tez.dag.api.TezConfiguration
 import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectOutputStream
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
+import java.lang.Boolean
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
@@ -48,13 +49,19 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
   private val tezConfiguration = new TezConfiguration
   
   val fs = FileSystem.get(tezConfiguration);
-  val updateClassPath = System.getProperty(TezConstants.UPDATE_CLASSPATH) != null
+  val appClassPathDir = fs.makeQualified(new Path(TezConstants.CLASSPATH_PATH))
+  logInfo("Application classpath dir is: " + appClassPathDir)
+  val ucpProp = System.getProperty(TezConstants.UPDATE_CLASSPATH)
+ 
+  val updateClassPath = ucpProp != null && Boolean.parseBoolean(ucpProp)
   if (updateClassPath){
     logInfo("Refreshing application classpath, by deleting the existing one. New one will be provisioned")
     fs.delete(new Path(TezConstants.CLASSPATH_PATH))
   }
+  else {
+    logInfo("Relying on the existing classpath: " + appClassPathDir)
+  }
   val localResources = YarnUtils.createLocalResources(this.fs, TezConstants.CLASSPATH_PATH)
-  
   val tezClient = TezClient.create(sparkContext.appName, tezConfiguration);
   this.tezClient.addAppMasterLocalFiles(this.localResources);
   tezClient.start();
