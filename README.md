@@ -22,7 +22,7 @@ This means that to use it, one must have a custom build of Spark which incorpora
 
 Below are the prerequisites and instructions on how to proceed.
 
-> NOTE: Please follow the prerequisites described below and then continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Home) guide.
+> IMPORTANT: Please follow the prerequisites described below and then continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Home) guide.
 
 #### Checkout and Build SPARK-3561
 ```
@@ -69,6 +69,9 @@ INFO] ------------------------------------------------------------------------
 $> git clone https://github.com/hortonworks/stark.git
 $> cd stark
 ```
+
+> IMPORTANT: As work continues, to ensure that reviewer has access to a stable version of code please refer to 
+`PREVIEW-0.1` tag
 
 This completes the pre-requisite required to run STARK and you can now 
 continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Home) guide.
