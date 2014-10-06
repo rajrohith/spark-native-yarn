@@ -49,6 +49,11 @@ import org.apache.hadoop.io.BytesWritable
 import org.apache.spark.tez.io.ValueWritable
 import org.apache.spark.tez.io.ValueWritable
 import org.apache.spark.tez.io.KeyWritable
+import org.apache.tez.dag.api.TezConfiguration
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.lang.Long
+import java.lang.Exception
 
 
 class TezJobExecutionContext extends JobExecutionContext with Logging {
@@ -91,7 +96,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
    * 
    */
   def broadcast[T: ClassTag](sc:SparkContext, value: T): Broadcast[T] = {
-    null
+    throw new UnsupportedOperationException("Broadcast not supported yet")
   }
 
   /**
@@ -105,6 +110,10 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     allowLocal: Boolean,
     resultHandler: (Int, U) => Unit)(implicit returnType:ClassTag[U]) = {
     
+    logDebug("RETURN TYPE for Job: " + returnType)
+    
+    val finalRdd = this.computeLastRdd(sc, rdd)
+
     val hadoopConfiguration = sc.hadoopConfiguration
     logInfo("Default FS Address: " + hadoopConfiguration.get("fs.defaultFS"))
     logInfo("RM Host Name: " + hadoopConfiguration.get("yarn.resourcemanager.hostname"))
@@ -119,21 +128,38 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     logInfo("Will save output as " + outputMetadata)
     
     
-    val stage = this.caclulateStages(sc, rdd)
+    val stage = this.caclulateStages(sc, finalRdd)
     val tezUtils = new Utils(stage, func)
 
     val dagTask: DAGTask = tezUtils.build(outputMetadata._1, outputMetadata._2, outputMetadata._3, outputMetadata._4)
     dagTask.execute
 
-//    println("doing result")
-//    partitions.foreach { x =>
-//      println(x)
-//      /*
-//       * Call some custom function that would figure out value for second argument in 
-//       * resultHandler if return type is not Unit
-//       */
-//      resultHandler(x, 3L.asInstanceOf[U])
-//    }
+    if (!classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
+      logDebug("Building non Unit result")
+      val conf = new TezConfiguration
+      val fs = FileSystem.get(conf);
+      val iter = fs.listFiles(new Path(sc.appName + "_out"), false);
+      var partitionCounter = 0
+      while (iter.hasNext()) {
+        val fStatus = iter.next()
+        if (!fStatus.getPath().toString().endsWith("_SUCCESS")) {
+          val reader = new BufferedReader(new InputStreamReader(fs.open(fStatus.getPath())))
+          val count = Long.parseLong(reader.readLine().split("\\s+")(1))
+          resultHandler(partitionCounter, count.asInstanceOf[U])
+          partitionCounter += 1
+        }
+      }
+    }
+  }
+  
+  private def computeLastRdd(sc:SparkContext, rdd:RDD[_]):RDD[_] = {
+    val lastMethodName = SparkUtils.getLastMethodName
+    if (lastMethodName == "count"){
+      rdd.map(x => ("l",1)).reduceByKey(_ + _)
+    }
+    else {
+      rdd
+    }
   }
   
   /**

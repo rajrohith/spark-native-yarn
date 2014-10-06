@@ -43,6 +43,11 @@ class VertexResultTask[T, U](
   partition:Partition,
   func: (TaskContext, Iterator[T]) => U)
   extends Task[U](stageId, 0) with Serializable {
+  
+  /*
+   * NOTE: While we are not really dependent on the Partition we need it to be non null to 
+   * comply with Spark (see ShuffleRDD)
+   */
 
   /**
    *
