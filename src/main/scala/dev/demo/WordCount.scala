@@ -31,7 +31,7 @@ object WordCount {
 
   def main(args: Array[String]) {
     var reducers = 1
-    var inputFile = "/Users/ozhurakousky/dev/data-gener/sample.txt"
+    var inputFile = "src/main/scala/dev/demo/test.txt"
     if (args != null && args.length > 0) {
       reducers = Integer.parseInt(args(0))
       if (args.length > 1) {
@@ -48,7 +48,6 @@ object WordCount {
     val outputPath = jobName + "_out"
 
     //create the SparkContext and read the file
-//    val sc = new SparkContext()
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
     val sc = new SparkContext(masterUrl, "WordCount")
     val source = sc.textFile(inputFile)
@@ -58,11 +57,9 @@ object WordCount {
       .flatMap(x => x.split(" "))
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y, reducers)
-      .count
-//      .collect
-//      .saveAsTextFile(jobName + "_out")
-//      .saveAsNewAPIHadoopFile(outputPath, classOf[Text],
-//        classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+      .saveAsNewAPIHadoopFile(outputPath, classOf[Text],
+        classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+
 
     //cleanup
     sc.stop()
