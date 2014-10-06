@@ -28,7 +28,7 @@ import org.apache.tez.dag.api.TezConfiguration
 object DemoUtilities {
 
   def prepareJob(inputFiles: Array[String]) : String = {
-    val jobName = this.getClass().getName() + "-" + System.currentTimeMillis()
+    val jobName = this.getClass().getName()
     val cl = ClassLoader.getSystemClassLoader().asInstanceOf[URLClassLoader]
     val m = classOf[URLClassLoader].getDeclaredMethod("addURL", classOf[URL]);
     m.setAccessible(true);

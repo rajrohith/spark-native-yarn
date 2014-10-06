@@ -24,13 +24,13 @@ import org.apache.hadoop.io.IntWritable
 import org.apache.spark.tez.TezJobExecutionContext
 
 /**
- * This demo demonstrates one of the rudimentary Hadoop use case - WordCount
+ * This demo demonstrates one of the rudimentary Hadoop use case - counting unique words
  * 
  */
-object WordCount {
+object UniqueWordCount {
 
   def main(args: Array[String]) {
-    var reducers = 1
+    var reducers = 2
     var inputFile = "src/main/scala/dev/demo/test.txt"
     if (args != null && args.length > 0) {
       reducers = Integer.parseInt(args(0))
@@ -39,17 +39,17 @@ object WordCount {
       }
     }
     println("Will execute WordCount on file: " + inputFile + " with reducers " + reducers)
-    wordCount(inputFile, reducers);
+    run(inputFile, reducers);
   }
 
-  def wordCount(inputFile: String, reducers: Int) {
+  def run(inputFile: String, reducers: Int) {
     //prep the job by copying the artifacts to HDFS
     val jobName = DemoUtilities.prepareJob(Array(inputFile))
     val outputPath = jobName + "_out"
 
     //create the SparkContext and read the file
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-    val sc = new SparkContext(masterUrl, "WordCount")
+    val sc = new SparkContext(masterUrl, "UniqueWordCount")
     val source = sc.textFile(inputFile)
 
     //process it
