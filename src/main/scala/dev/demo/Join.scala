@@ -21,6 +21,7 @@ import org.apache.spark.SparkContext._
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.IntWritable
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
+import org.apache.spark.tez.TezJobExecutionContext
 
 object Join {
 
@@ -30,7 +31,9 @@ object Join {
     val jobName = DemoUtilities.prepareJob(Array(file1, file2))
     val outputPath = jobName + "_out"
 
-    val sc = new SparkContext()
+//    val sc = new SparkContext()
+     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+    val sc = new SparkContext(masterUrl, "WordCount")
 
     val source1 = sc.textFile(file1)
     val source2 = sc.textFile(file2)

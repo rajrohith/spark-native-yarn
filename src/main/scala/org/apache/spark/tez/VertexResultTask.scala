@@ -40,9 +40,9 @@ import org.apache.spark.ShuffleDependency
 class VertexResultTask[T, U](
   stageId: Int,
   rdd: RDD[T],
-  partition: Partition,
+  partition:Partition,
   func: (TaskContext, Iterator[T]) => U)
-  extends Task[U](stageId, partition.index) with Serializable {
+  extends Task[U](stageId, 0) with Serializable {
 
   /**
    *
@@ -71,6 +71,8 @@ class VertexResultTask[T, U](
 //          func(context, rdd.iterator(partition, context))
 //        } else {
            collectFunction(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_,_]]])
+//           collectFunction(rdd.iterator(new DummyPartition, context).asInstanceOf[Iterator[Product2[_,_]]])
+           
 //        }
       ().asInstanceOf[U]
     } catch {
@@ -85,4 +87,11 @@ class VertexResultTask[T, U](
    *
    */
   override def toString = "ResultTask(" + stageId + ", " + partitionId + ")"
+}
+
+/**
+ * 
+ */
+private class DummyPartition extends Partition {
+  def index: Int = 0
 }

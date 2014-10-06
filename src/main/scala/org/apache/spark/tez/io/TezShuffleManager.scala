@@ -50,8 +50,11 @@ import scala.reflect.runtime.universe._
  * to Tez's readers and writers
  * 
  */
-class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Integer, LogicalOutput], shuffleStage:Boolean = true) extends ShuffleManager with Logging{
+class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Integer, LogicalOutput], 
+    shuffleStage:Boolean = true) extends ShuffleManager with Logging{
   logDebug("Creating TezMapShuffleManager")
+  
+  def this(input:Map[Integer, LogicalInput], output:Map[Integer, LogicalOutput]) = this(input, output, true)
 
   /**
    * 
@@ -66,10 +69,10 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
   /** Get a writer for a given partition. Called on executors by map tasks. */
   def getWriter[K, V](handle: ShuffleHandle, mapId: Int, context: TaskContext): ShuffleWriter[K, V] = {
     if (shuffleStage){
-      new TezShuffleWriter(output, handle.asInstanceOf[BaseShuffleHandle[K, V, _]], context, shuffleStage)
+      new TezShuffleWriter(this.output, handle.asInstanceOf[BaseShuffleHandle[K, V, _]], context, shuffleStage)
     }
     else {
-      new TezResultWriter(output, handle.asInstanceOf[BaseShuffleHandle[K, V, _]], context, shuffleStage)
+      new TezResultWriter(this.output,  handle.asInstanceOf[BaseShuffleHandle[K, V, _]])
     }
   }
 
@@ -78,7 +81,7 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
    * Called on executors by reduce tasks.
    */
   def getReader[K, C](handle: ShuffleHandle, startPartition: Int, endPartition: Int, context: TaskContext): ShuffleReader[K, C] = {
-    new TezShuffleReader(input, handle.asInstanceOf[BaseShuffleHandle[K,_,C]], context, shuffleStage)
+    new TezShuffleReader(this.input)
   }
 
   /** Remove a shuffle's metadata from the ShuffleManager. */

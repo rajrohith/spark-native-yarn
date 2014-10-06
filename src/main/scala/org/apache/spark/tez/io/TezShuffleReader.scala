@@ -28,22 +28,23 @@ import java.util.Map
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.IntWritable
 import org.apache.hadoop.io.LongWritable
+import org.apache.hadoop.conf.Configuration
+import org.apache.tez.dag.api.TezConfiguration
 
 /**
  * Implementation of Spark's ShuffleReader tailored for Tez which means its is aware of
  * two different readers provided by Tez; KeyValueReader and KeyValuesReader
  */
-class TezShuffleReader[K, C](input: Map[Integer, LogicalInput], handle: BaseShuffleHandle[K, _, C], context: TaskContext, combine: Boolean = true)
+class TezShuffleReader[K, C](input: Map[Integer, LogicalInput])
   extends ShuffleReader[K, C] {
   private val inputIndex = input.keySet().iterator().next()
-  private val reader = input.remove(inputIndex).getReader()
+  private val reader = input.remove(this.inputIndex).getReader()
 
   /**
    *
    */
   override def read(): Iterator[Product2[K, C]] = {
-    val iterator = new TezIterator(reader).asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
-    iterator
+    new TezIterator(this.reader).asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
   }
 
   /**
@@ -56,22 +57,21 @@ class TezShuffleReader[K, C](input: Map[Integer, LogicalInput], handle: BaseShuf
  */
 private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[Any, Any]] {
 
-  var kvReader: KeyValueReader = null
-  var kvsReader: KVSIterator = null
-  if (reader.isInstanceOf[KeyValueReader]) {
-    kvReader = reader.asInstanceOf[KeyValueReader]
-  } else {
-    kvsReader = new KVSIterator(reader.asInstanceOf[KeyValuesReader])
-  }
+  val (kvReader: Option[KeyValueReader], kvsReader: Option[KVSIterator]) =
+    if (reader.isInstanceOf[KeyValueReader]) {
+      (Some(reader.asInstanceOf[KeyValueReader]), None)
+    } else {
+      (None, new Some(new KVSIterator(reader.asInstanceOf[KeyValuesReader])))
+    }
 
   /**
    *
    */
   override def hasNext(): Boolean = {
-    if (kvReader != null) {
-      kvReader.next
+    if (this.kvReader.isDefined) {
+      this.kvReader.get.next
     } else {
-      kvsReader.hasNext
+      this.kvsReader.get.hasNext
     }
   }
 
@@ -79,10 +79,10 @@ private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[Any, A
    *
    */
   override def next(): Product2[Any, Any] = {
-    if (kvReader != null) {
-      (kvReader.getCurrentKey(), kvReader.getCurrentValue())
+    if (this.kvReader.isDefined) {
+      (this.kvReader.get.getCurrentKey(), this.kvReader.get.getCurrentValue())
     } else {
-      (kvsReader.getCurrentKey, kvsReader.nextValue)
+      (this.kvsReader.get.getCurrentKey, this.kvsReader.get.nextValue)
     }
   }
 }
@@ -98,52 +98,29 @@ private class KVSIterator(kvReader: KeyValuesReader) {
    * Checks if underlying reader contains more data to read.
    */
   def hasNext = {
-    var next =
-      if (vIter.hasNext()) {
+    if (vIter.hasNext()) {
+      true
+    } else {
+      if (kvReader.next()) {
+        vIter = kvReader.getCurrentValues().iterator()
         true
       } else {
-        if (kvReader.next()) {
-          vIter = kvReader.getCurrentValues().iterator()
-          true
-        } else {
-          false
-        }
+        false
       }
-    next
+    }
   }
 
   /**
    * Returns the next value in the current ValuesIterator
    */
   def nextValue() = {
-    this.getSimplType(vIter.next())
+    vIter.next().asInstanceOf[TypeAwareWritable[_]].getValue()
   }
 
   /**
-   * 
+   *
    */
   def getCurrentKey = {
-    this.getSimplType(kvReader.getCurrentKey())
-  }
-
-  /**
-   * 
-   */
-  private def getSimplType(s: Any): Any = {
-    if (s.isInstanceOf[Writable]) {
-      if (s.isInstanceOf[Text]) {
-        s.toString
-      } else if (s.isInstanceOf[IntWritable]) {
-        s.asInstanceOf[IntWritable].get
-      } else if (s.isInstanceOf[LongWritable]) {
-        s.asInstanceOf[LongWritable].get
-      } else if (s.isInstanceOf[ValueWritable]) {
-        s.asInstanceOf[ValueWritable].getValue
-      } else {
-        throw new IllegalArgumentException("Unrecognized writable: " + s)
-      }
-    } else {
-      s
-    }
+    kvReader.getCurrentKey().asInstanceOf[TypeAwareWritable[_]].getValue()
   }
 }

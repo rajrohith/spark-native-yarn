@@ -21,6 +21,7 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.hadoop.io.IntWritable
+import org.apache.spark.tez.TezJobExecutionContext
 
 /**
  * This demo demonstrates one of the rudimentary Hadoop use case - WordCount
@@ -30,7 +31,7 @@ object WordCount {
 
   def main(args: Array[String]) {
     var reducers = 1
-    var inputFile = "src/main/scala/dev/demo/test.txt"
+    var inputFile = "/Users/ozhurakousky/dev/data-gener/sample.txt"
     if (args != null && args.length > 0) {
       reducers = Integer.parseInt(args(0))
       if (args.length > 1) {
@@ -47,7 +48,9 @@ object WordCount {
     val outputPath = jobName + "_out"
 
     //create the SparkContext and read the file
-    val sc = new SparkContext()
+//    val sc = new SparkContext()
+    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+    val sc = new SparkContext(masterUrl, "WordCount")
     val source = sc.textFile(inputFile)
 
     //process it
@@ -55,8 +58,11 @@ object WordCount {
       .flatMap(x => x.split(" "))
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y, reducers)
-      .saveAsNewAPIHadoopFile(outputPath, classOf[Text],
-        classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+      .count
+//      .collect
+//      .saveAsTextFile(jobName + "_out")
+//      .saveAsNewAPIHadoopFile(outputPath, classOf[Text],
+//        classOf[IntWritable], classOf[TextOutputFormat[_, _]])
 
     //cleanup
     sc.stop()

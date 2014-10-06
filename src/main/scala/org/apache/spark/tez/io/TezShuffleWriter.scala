@@ -33,7 +33,10 @@ import org.apache.spark.Logging
 import org.apache.spark.tez.SparkUtils
 
 /**
- * 
+ * Implementation of ShuffleWriter which relies on KeyValueWriter provided by Tez
+ * to write interim output.
+ * Since the output is interim the K/V types are always represented as KeyWritable 
+ * and ValueWritable
  */
 class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], 
     handle: BaseShuffleHandle[K, V, C], 
@@ -41,18 +44,18 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
     combine:Boolean = true) extends ShuffleWriter[K, V] with Logging {
   private val kvOutput = output.values.iterator().next()
   private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
-  private var kw:Writable = null
+  private val kw:KeyWritable = new KeyWritable
   private val vw:ValueWritable = new ValueWritable
   /**
    * 
    */
   def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
-    val (keyValues, mergeFunction) = {
-      val s = this.buildCombinedIterator(records, combine)
-      (s._1, s._2)
+    val (iter, mergeFunction) = {
+      val comb = this.buildCombinedIterator(records, combine)
+      (comb._1, comb._2)
     }
 
-    this.sinkKeyValuesIterator(keyValues, mergeFunction)
+    this.sinkKeyValuesIterator(iter, mergeFunction)
   }
 
   /**
@@ -67,7 +70,7 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   }
 
   private def writeKeyValue(key: Any, value: Any) {
-    this.toKeyWritable(key)
+    this.toKeyWritable(key.asInstanceOf[Comparable[_]])
     this.toValueWritable(value)
     kvWriter.write(kw, vw)
   }
@@ -110,30 +113,8 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   /**
    * 
    */
-  private def toKeyWritable(value: Any) = {
-    if (kw == null) {
-      kw =
-        if (value.isInstanceOf[Integer]) {
-          new IntWritable(value.asInstanceOf[Integer])
-        } else if (value.isInstanceOf[Long]) {
-          new LongWritable(value.asInstanceOf[Long])
-        } else if (value.isInstanceOf[String]) {
-          new Text(value.toString)
-        } else {
-          throw new IllegalStateException("Unsupported type: " + value.getClass)
-        }
-    } 
-    else {
-      if (kw.isInstanceOf[Text]){
-        kw.asInstanceOf[Text].set(value.toString)
-      } 
-      else if (kw.isInstanceOf[IntWritable]) {
-        kw.asInstanceOf[IntWritable].set(value.asInstanceOf[Integer])
-      }
-      else if (kw.isInstanceOf[LongWritable]) {
-        kw.asInstanceOf[LongWritable].set(value.asInstanceOf[Long])
-      }
-    }
+  private def toKeyWritable(value: Comparable[_]) = {
+    this.kw.setValue(value)
   }
   
   /**

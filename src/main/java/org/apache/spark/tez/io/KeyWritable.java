@@ -40,7 +40,7 @@ import org.apache.hadoop.io.WritableComparable;
  * This class is not public nor it is meant/designed as thread-safe.
  */
 @SuppressWarnings("rawtypes") 
-class KeyWritable implements WritableComparable<KeyWritable> {
+class KeyWritable implements WritableComparable<KeyWritable>, TypeAwareWritable<Comparable> {
 	
 	private Comparable value;
 	
@@ -54,6 +54,7 @@ class KeyWritable implements WritableComparable<KeyWritable> {
 	 * 
 	 * @param value
 	 */
+	@Override
 	public void setValue(Comparable value) {
 		this.value = value;
 		this.determineValueType(value);
@@ -70,6 +71,7 @@ class KeyWritable implements WritableComparable<KeyWritable> {
 	 * 
 	 * @return
 	 */
+	@Override
 	public Comparable<?> getValue() {
 		return this.value;
 	}

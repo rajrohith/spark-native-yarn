@@ -39,7 +39,7 @@ import org.apache.hadoop.io.Writable;
  * 
  * This class is not public nor it is meant/designed as thread-safe.
  */
-class ValueWritable implements Writable {
+class ValueWritable implements Writable, TypeAwareWritable<Object> {
 	
 	private Object value;
 	
@@ -53,6 +53,7 @@ class ValueWritable implements Writable {
 	 * 
 	 * @param value
 	 */
+	@Override
 	public void setValue(Object value) {
 		this.value = value;
 		this.determineValueType(value);
@@ -69,6 +70,7 @@ class ValueWritable implements Writable {
 	 * 
 	 * @return
 	 */
+	@Override
 	public Object getValue() {
 		return this.value;
 	}

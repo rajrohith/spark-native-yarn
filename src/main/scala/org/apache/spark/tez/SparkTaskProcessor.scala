@@ -63,11 +63,9 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
     logInfo("Executing processor for task: " + this.getContext().getTaskIndex() + " for DAG " + this.getContext().getDAGName());
     val inputs = this.toIntKey(this.getInputs()).asInstanceOf[java.util.Map[Integer, LogicalInput]]
     val outputs = this.toIntKey(this.getOutputs()).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
-
-    
+  
     if (SparkTaskProcessor.task == null) {
-      val taskBytes = TezUtils.getTaskBuffer(context)
-      
+      val taskBytes = TezUtils.getTaskBuffer(context)      
       val bis = new ByteArrayInputStream(taskBytes)
       val is = new TypeAwareObjectInputStream(bis)
       SparkTaskProcessor.task = is.readObject().asInstanceOf[Task[_]]
@@ -80,10 +78,15 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
       SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
     } 
     
-    val shuffleStage = SparkTaskProcessor.task.isInstanceOf[VertexShuffleTask]
-    val shufleManager = new TezShuffleManager(inputs, outputs, shuffleStage);
-    SparkUtils.createSparkEnv(shufleManager);
+    val shufleManager = 
+      if (SparkTaskProcessor.task.isInstanceOf[VertexResultTask[_,_]]){
+        val vrt = SparkTaskProcessor.task.asInstanceOf[VertexResultTask[_,_]]
+        new TezShuffleManager(inputs, outputs, false);
+      } else {
+        new TezShuffleManager(inputs, outputs);
+      }
 
+    SparkUtils.createSparkEnv(shufleManager);
     SparkUtils.runTask(SparkTaskProcessor.task);
   }
 

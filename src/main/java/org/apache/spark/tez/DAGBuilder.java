@@ -166,8 +166,11 @@ class DAGBuilder {
 		}
 
 		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
-		        .newBuilder(keyClass.getName(), "org.apache.spark.tez.io.ValueWritable", HashPartitioner.class.getName(), null).build();
+		        .newBuilder("org.apache.spark.tez.io.KeyWritable", "org.apache.spark.tez.io.ValueWritable", HashPartitioner.class.getName(), null).build();
 
+//		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
+//		        .newBuilder(keyClass.getName(), valueClass.getName(), HashPartitioner.class.getName(), null).build();
+		
 		int sequenceCounter = 0;
 		int counter = 0;
 		for (Entry<Integer, VertexDescriptor> vertexDescriptorEntry : vertexes.entrySet()) {
@@ -186,6 +189,8 @@ class DAGBuilder {
 				// For single stage vertex we need to add data sink
 				if (counter == vertexes.size()){
 					JobConf dsConfig = new JobConf(tezConfiguration);
+					dsConfig.setOutputKeyClass(keyClass);
+					dsConfig.setOutputValueClass(valueClass);
 					dsConfig.setOutputKeyClass(keyClass);
 					dsConfig.setOutputValueClass(valueClass);
 					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();

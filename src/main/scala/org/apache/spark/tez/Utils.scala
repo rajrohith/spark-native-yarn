@@ -73,7 +73,7 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
    * 
    */
   def build(keyClass:Class[_], valueClass:Class[_], outputFormatClass:Class[_], outputPath:String):DAGTask = {
-    prepareDag(stage, null, func)
+    this.prepareDag(stage, null, func, keyClass, valueClass)
     val dagTask = dagBuilder.build(keyClass, valueClass, outputFormatClass, outputPath)
     logInfo("DAG: " + dagBuilder.toString())
     dagTask
@@ -82,23 +82,23 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
   /**
    * 
    */
-  private def prepareDag(stage: Stage, dependentStage: Stage, func: (TaskContext, Iterator[T]) => U) {
+  private def prepareDag(stage: Stage, dependentStage: Stage, func: (TaskContext, Iterator[T]) => U, keyClass:Class[_], valueClass:Class[_]) {
     if (stage.parents.size > 0) {
       val missing = stage.parents.sortBy(_.id)
       for (parent <- missing) {
-        prepareDag(parent, stage, func)
+        prepareDag(parent, stage, func, keyClass, valueClass)
       }
     }
 
     val vertexTask =
       if (stage.isShuffleMap) {
         logInfo(stage.shuffleDep.get.toString)
-        logInfo("STAGE Shuffle: " + stage + " - " + stage.rdd.partitions.length + " vertex: " + vertexId)
-        new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any,Any,Any]]]) 
+        logInfo("STAGE Shuffle: " + stage + " - " + stage.rdd.partitions.length + " vertex: " + this.vertexId)
+        new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]])
       } else {
-        logInfo("STAGE Result: " + stage + " - " + stage.rdd.partitions.length + " vertex: " + vertexId)
+        logInfo("STAGE Result: " + stage + " - " + stage.rdd.partitions.length + " vertex: " + this.vertexId)
         val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
-        new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), null) 
+        new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), null)
       }
     
     val bos = new ByteArrayOutputStream()

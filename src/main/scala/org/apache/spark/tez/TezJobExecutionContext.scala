@@ -48,6 +48,7 @@ import org.apache.hadoop.io.IntWritable
 import org.apache.hadoop.io.BytesWritable
 import org.apache.spark.tez.io.ValueWritable
 import org.apache.spark.tez.io.ValueWritable
+import org.apache.spark.tez.io.KeyWritable
 
 
 class TezJobExecutionContext extends JobExecutionContext with Logging {
@@ -111,7 +112,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     logInfo("RM Scheduler Address: " + hadoopConfiguration.get("yarn.resourcemanager.scheduler.address"))
     logInfo("RM Resource Tracker Address: " + hadoopConfiguration.get("yarn.resourcemanager.resourcetracker.address"))
     
-    val outputMetadata = this.extractOutputMetedata(sc.hadoopConfiguration)
+    val outputMetadata = this.extractOutputMetedata(sc.hadoopConfiguration, sc.appName)
     if (outputMetadata == null){
       throw new IllegalArgumentException("Failed to determine output metadata (KEY/VALUE/OutputFormat type)")
     }
@@ -149,11 +150,11 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   /**
    * 
    */
-  private def extractOutputMetedata[T,U](conf:Configuration):Tuple4[Class[_], Class[_], Class[_], String] = {  
-    val outputFormat = conf.getClass("mapreduce.job.outputformat.class", null)
-    val keyType = conf.getClass("mapreduce.job.output.key.class", null)
+  private def extractOutputMetedata[T,U](conf:Configuration, appName:String):Tuple4[Class[_], Class[_], Class[_], String] = {  
+    val outputFormat = conf.getClass("mapreduce.job.outputformat.class", classOf[TextOutputFormat[_,_]])
+    val keyType = conf.getClass("mapreduce.job.output.key.class", Class.forName("org.apache.spark.tez.io.KeyWritable"))
     val valueType = conf.getClass("mapreduce.job.output.value.class", Class.forName("org.apache.spark.tez.io.ValueWritable"))
-    val outputPath = conf.get("mapred.output.dir", null)
+    val outputPath = conf.get("mapred.output.dir", appName + "_out")
     if (outputPath == null || outputFormat == null || keyType == null){
       null
     }
