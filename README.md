@@ -71,7 +71,7 @@ $> cd stark
 ```
 
 > IMPORTANT: As work continues, to ensure that reviewer has access to a stable version of code please refer to 
-`PREVIEW-0.1` tag
+`PREVIEW-0.2` tag
 
 This completes the pre-requisite required to run STARK and you can now 
 continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Home) guide.
