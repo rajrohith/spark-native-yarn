@@ -54,7 +54,7 @@ class VertexShuffleTask(
       val sh = new BaseShuffleHandle(0, 0, dep.get)
       writer = manager.getWriter[Any, Any](sh, 1, new TaskContext(1,1,1))
       
-      writer.write(rdd.iterator(partition, null).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+      writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
 
       return writer.stop(success = true).get
     } catch {

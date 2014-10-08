@@ -42,21 +42,13 @@ class TezRDD[K, V](
   extends RDD[(K, V)](sc, Nil)
   with Logging {
 
-  private val fqPath = this.validatePath(path)
+  @transient private val fqPath = this.validatePath(path)
   this.name = path
 
   logInfo("Creating instance of TezRDD for path: " + path)
 
-  /**
-   * 
-   */
-  override def toString = {
-    this.name + " - " + this.fqPath
-  }
+  override def toString = this.name
 
-  /**
-   * 
-   */
   def getPath(): Path = {
     this.fqPath
   }
@@ -76,11 +68,10 @@ class TezRDD[K, V](
     val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, null).read.asInstanceOf[Iterator[(K, V)]]
     new InterruptibleIterator(context, iterator)
   }
-
   /**
-   * 
+   *
    */
-  private def validatePath(path: String):Path = {
+  private def validatePath(path: String): Path = {
     val fs = FileSystem.get(conf)
     val qPath = fs.makeQualified(new Path(path))
     if (!fs.exists(qPath)) {
@@ -89,3 +80,61 @@ class TezRDD[K, V](
     qPath
   }
 }
+
+//class TezRDD[K, V](
+//  path: String,
+//  sc: SparkContext,
+//  val inputFormatClass: Class[_],
+//  val keyClass: Class[K],
+//  val valueClass: Class[V],
+//  @transient conf: Configuration)
+//  extends RDD[(K, V)](sc, Nil)
+//  with Logging {
+//
+//  @transient private val fqPath = this.validatePath(path)
+//  this.name = path
+//
+//  logInfo("Creating instance of TezRDD for path: " + path)
+//
+//  /**
+//   * 
+//   */
+//  override def toString = {
+//    this.name + " - " + this.fqPath
+//  }
+//
+//  /**
+//   * 
+//   */
+//  def getPath(): Path = {
+//    this.fqPath
+//  }
+//
+//  /**
+//   *
+//   */
+//  override def getPartitions: Array[Partition] = {
+//    Array(new Partition {
+//      override def index: Int = 0
+//    })
+//  }
+//  /**
+//   *
+//   */
+//  override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
+//    val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, null).read.asInstanceOf[Iterator[(K, V)]]
+//    new InterruptibleIterator(context, iterator)
+//  }
+//
+//  /**
+//   * 
+//   */
+//  private def validatePath(path: String):Path = {
+//    val fs = FileSystem.get(conf)
+//    val qPath = fs.makeQualified(new Path(path))
+//    if (!fs.exists(qPath)) {
+//      throw new FileNotFoundException("Path: " + qPath + " does not exist")
+//    }
+//    qPath
+//  }
+//}
