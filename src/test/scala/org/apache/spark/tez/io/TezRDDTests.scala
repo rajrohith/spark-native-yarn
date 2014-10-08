@@ -36,7 +36,7 @@ class TezRDDTests extends StarkTest {
   def validateInitializationWithExistingSource() {
     val sc = mock(classOf[SparkContext])
     try {
-      init("README.md")
+      init("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt")
     } catch {
       case e: FileNotFoundException => fail
     }
@@ -45,9 +45,28 @@ class TezRDDTests extends StarkTest {
   @Test
   def validateFQPath() {
     val sc = mock(classOf[SparkContext])
-    val tezRdd = new TezRDD("README.md", sc, classOf[TextInputFormat],
+    val tezRdd = new TezRDD("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", sc, classOf[TextInputFormat],
       classOf[Text], classOf[IntWritable], new TezConfiguration)
     assertTrue(tezRdd.getPath.isAbsolute())
+  }
+  
+  @Test
+  def validateGetPartitions() = {
+    val sc = mock(classOf[SparkContext])
+    val tezRdd = new TezRDD("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", sc, classOf[TextInputFormat],
+      classOf[Text], classOf[IntWritable], new TezConfiguration)
+    val partitions = tezRdd.getPartitions;
+    assertNotNull(partitions)
+    assertTrue(partitions.size == 1)
+  }
+  
+  @Test
+  def validateToString() = {
+    val sc = mock(classOf[SparkContext])
+    val tezRdd = new TezRDD("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", sc, classOf[TextInputFormat],
+      classOf[Text], classOf[IntWritable], new TezConfiguration)
+    assertEquals("name:src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt; " + 
+        "path:file:/Users/ozhurakousky/dev/fork/stark/src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", tezRdd.toString)
   }
 
   @Test
