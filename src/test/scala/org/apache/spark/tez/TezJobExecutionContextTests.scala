@@ -35,7 +35,7 @@ class TezJobExecutionContextTests extends StarkTest {
     
     val tec = new TezJobExecutionContext
     val sc = mock(classOf[SparkContext])
-    val rdd = new TezRDD("foo", sc, classOf[TextInputFormat], 
+    val rdd = new TezRDD("src/test/scala/org/apache/spark/tez/sample.txt", sc, classOf[TextInputFormat], 
         classOf[Text], classOf[IntWritable], 
         (ReflectionUtils.getFieldValue(tec, "tezConfig").asInstanceOf[TezConfiguration]))
     
