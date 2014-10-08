@@ -177,7 +177,7 @@ class DAGBuilder {
 			VertexDescriptor vertexDescriptor = vertexDescriptorEntry.getValue();
 			
 			if (vertexDescriptor.getInput() instanceof TezRDD) {
-				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).getPath();
+				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).getPath().getName();
 				Class<?> inputFormatClass = ((TezRDD<?,?>)vertexDescriptor.getInput()).inputFormatClass();
 				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();		
 				UserPayload payload = UserPayload.create(vertexDescriptor.getSerTaskData());

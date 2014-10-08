@@ -24,6 +24,9 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.spark.Partition
 import org.apache.spark.Logging
 import org.apache.spark.SparkContext
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.Path
+import java.io.FileNotFoundException
 
 /**
  * Replacement for HadoopRDD.
@@ -39,14 +42,23 @@ class TezRDD[K, V](
   extends RDD[(K, V)](sc, Nil)
   with Logging {
 
+  private val fqPath = this.validatePath(path)
   this.name = path
 
   logInfo("Creating instance of TezRDD for path: " + path)
 
-  override def toString = this.name
-  
-  def getPath():String = {
-    this.name
+  /**
+   * 
+   */
+  override def toString = {
+    this.name + " - " + this.fqPath
+  }
+
+  /**
+   * 
+   */
+  def getPath(): Path = {
+    this.fqPath
   }
 
   /**
@@ -62,6 +74,18 @@ class TezRDD[K, V](
    */
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
     val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, null).read.asInstanceOf[Iterator[(K, V)]]
-    new InterruptibleIterator(new TaskContext(0, 1, 1, true), iterator)
+    new InterruptibleIterator(context, iterator)
+  }
+
+  /**
+   * 
+   */
+  private def validatePath(path: String):Path = {
+    val fs = FileSystem.get(conf)
+    val qPath = fs.makeQualified(new Path(path))
+    if (!fs.exists(qPath)) {
+      throw new FileNotFoundException("Path: " + qPath + " does not exist")
+    }
+    qPath
   }
 }

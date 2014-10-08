@@ -23,12 +23,11 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.TreeSet;
 
 import org.junit.Test;
-
-import scala.actors.threadpool.Arrays;
 
 public class KeyWritableTests {
 	
