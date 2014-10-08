@@ -54,10 +54,18 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.lang.Long
 import java.lang.Exception
+import org.apache.spark.storage.StorageLevel
+import scala.collection.mutable.HashSet
+import java.io.FileNotFoundException
 
 
 class TezJobExecutionContext extends JobExecutionContext with Logging {
   SparkToTezAdapter.adapt
+  
+  private val tezConfig = new TezConfiguration
+  private val fs = FileSystem.get(tezConfig)
+  
+  private val cachedRDDs = new HashSet[Path]
  /**
   * 
   */
@@ -69,8 +77,11 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     valueClass: Class[V],
     minPartitions: Int = 1): RDD[(K, V)] = {
     
-    val fs = FileSystem.get(sc.hadoopConfiguration);
-    val qualifiedPath = fs.makeQualified(new Path(path)).toString()
+    val fs = FileSystem.get(tezConfig);
+    val qualifiedPath = fs.makeQualified(new Path(path))
+    if (!fs.exists(qualifiedPath)){
+      throw new FileNotFoundException("Path: " + qualifiedPath + " does not exist")
+    }
     
     new TezRDD(path, sc, inputFormatClass, keyClass, valueClass, sc.hadoopConfiguration)
   }
@@ -86,8 +97,11 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     vClass: Class[V],
     conf: Configuration = new Configuration): RDD[(K, V)] = {
 
-    val fs = FileSystem.get(sc.hadoopConfiguration);
-    val qualifiedPath = fs.makeQualified(new Path(path)).toString()
+    val fs = FileSystem.get(tezConfig);
+    val qualifiedPath = fs.makeQualified(new Path(path))
+    if (!fs.exists(qualifiedPath)){
+      throw new FileNotFoundException("Path: " + qualifiedPath + " does not exist")
+    }
 
     new TezRDD(path, sc, fClass, kClass, vClass, conf)
   }
@@ -110,23 +124,24 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     allowLocal: Boolean,
     resultHandler: (Int, U) => Unit)(implicit returnType:ClassTag[U]) = {
     
-    logDebug("RETURN TYPE for Job: " + returnType)
-    
-    val finalRdd = this.computeLastRdd(sc, rdd)
-
-    val hadoopConfiguration = sc.hadoopConfiguration
-    logInfo("Default FS Address: " + hadoopConfiguration.get("fs.defaultFS"))
-    logInfo("RM Host Name: " + hadoopConfiguration.get("yarn.resourcemanager.hostname"))
-    logInfo("RM Address: " + hadoopConfiguration.get("yarn.resourcemanager.address"))
-    logInfo("RM Scheduler Address: " + hadoopConfiguration.get("yarn.resourcemanager.scheduler.address"))
-    logInfo("RM Resource Tracker Address: " + hadoopConfiguration.get("yarn.resourcemanager.resourcetracker.address"))
-    
     val outputMetadata = this.extractOutputMetedata(sc.hadoopConfiguration, sc.appName)
     if (outputMetadata == null){
       throw new IllegalArgumentException("Failed to determine output metadata (KEY/VALUE/OutputFormat type)")
     }
     logInfo("Will save output as " + outputMetadata)
     
+    logDebug("RETURN TYPE for Job: " + returnType)
+    
+    val (operationName, finalRdd) = this.computeLastRdd(sc, rdd)
+    
+    this.validateIfSupported(operationName)
+
+    val hadoopConfiguration = this.tezConfig
+    logInfo("Default FS Address: " + hadoopConfiguration.get("fs.defaultFS"))
+    logInfo("RM Host Name: " + hadoopConfiguration.get("yarn.resourcemanager.hostname"))
+    logInfo("RM Address: " + hadoopConfiguration.get("yarn.resourcemanager.address"))
+    logInfo("RM Scheduler Address: " + hadoopConfiguration.get("yarn.resourcemanager.scheduler.address"))
+    logInfo("RM Resource Tracker Address: " + hadoopConfiguration.get("yarn.resourcemanager.resourcetracker.address"))
     
     val stage = this.caclulateStages(sc, finalRdd)
     val tezUtils = new Utils(stage, func)
@@ -140,25 +155,38 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
       val fs = FileSystem.get(conf);
       val iter = fs.listFiles(new Path(sc.appName + "_out"), false);
       var partitionCounter = 0
-      while (iter.hasNext()) {
+      while (iter.hasNext() && partitionCounter < partitions.size) {
         val fStatus = iter.next()
         if (!fStatus.getPath().toString().endsWith("_SUCCESS")) {
-          val reader = new BufferedReader(new InputStreamReader(fs.open(fStatus.getPath())))
-          val count = Long.parseLong(reader.readLine().split("\\s+")(1))
-          resultHandler(partitionCounter, count.asInstanceOf[U])
+          if (operationName == "count") {
+            val reader = new BufferedReader(new InputStreamReader(fs.open(fStatus.getPath())))
+            val count = Long.parseLong(reader.readLine().split("\\s+")(1))
+            resultHandler(partitionCounter, count.asInstanceOf[U])
+            reader.close
+          } 
+
           partitionCounter += 1
         }
       }
     }
   }
   
-  private def computeLastRdd(sc:SparkContext, rdd:RDD[_]):RDD[_] = {
-    val lastMethodName = SparkUtils.getLastMethodName
-    if (lastMethodName == "count"){
-      rdd.map(x => ("l",1)).reduceByKey(_ + _)
+  private def validateIfSupported(operationName:String) {
+    if (operationName == "collect"){
+      throw new UnsupportedOperationException("'collect' is not supported yet")
+    }
+  }
+  
+  /**
+   * 
+   */
+  private def computeLastRdd(sc:SparkContext, rdd:RDD[_]):Tuple2[String, RDD[_]] = {
+    val operationName = SparkUtils.getLastMethodName
+    if (operationName == "count"){
+      (operationName, rdd.map(x => ("l",1)).reduceByKey(_ + _))
     }
     else {
-      rdd
+      (operationName, rdd)
     }
   }
   
@@ -169,7 +197,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     val ds = sc.dagScheduler
     val method = ds.getClass.getDeclaredMethod("newStage", classOf[RDD[_]], classOf[Int], classOf[Option[ShuffleDependency[_, _, _]]], classOf[Int], classOf[CallSite])
     method.setAccessible(true)
-    val stage = method.invoke(ds, rdd, new Integer(1), None, new Integer(0), org.apache.spark.util.Utils.getCallSite).asInstanceOf[Stage]
+    val stage = method.invoke(ds, rdd, new Integer(1), None, new Integer(0), sc.getCallSite).asInstanceOf[Stage]
     stage
   }
   
@@ -181,11 +209,47 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     val keyType = conf.getClass("mapreduce.job.output.key.class", Class.forName("org.apache.spark.tez.io.KeyWritable"))
     val valueType = conf.getClass("mapreduce.job.output.value.class", Class.forName("org.apache.spark.tez.io.ValueWritable"))
     val outputPath = conf.get("mapred.output.dir", appName + "_out")
+    conf.clear()
     if (outputPath == null || outputFormat == null || keyType == null){
       null
     }
     else {
       (keyType, valueType, outputFormat, outputPath)
     }
+    
+  }
+  
+  def persist(sc:SparkContext, rdd:RDD[_], newLevel: StorageLevel):RDD[_] = {
+    logDebug("Caching " + rdd)
+    val cachePath = rdd.name
+    if (cachePath != null && this.cachedRDDs.contains(this.fs.makeQualified(new Path(cachePath)))) {
+      logInfo("Skipping caching as the RDD is already cached")
+      val cachedRdd = sc.textFile(cachePath)
+      cachedRdd
+    } else {
+      val outputDirectory = sc.appName + "_cache_" + System.nanoTime()
+      val outputPath = this.fs.makeQualified(new Path(outputDirectory))
+      rdd.saveAsTextFile(outputDirectory)
+      logDebug("Cached RDD in " + outputPath)
+      val cachedRdd = sc.textFile(outputDirectory)
+      logInfo("Cached RDD: " + cachedRdd)
+      cachedRDDs += outputPath
+      cachedRdd
+    }
+  }
+
+  def unpersist(sc: SparkContext, rdd: RDD[_], blocking: Boolean = true): RDD[_] = {
+    val cachePath = rdd.name
+    if (cachePath != null) {
+      val path = fs.makeQualified(new Path(cachePath))
+      if (this.cachedRDDs.contains(path)) {
+        fs.delete(path, true)
+        logInfo("Un-Cached RDD: " + rdd + " from " + path)
+        cachedRDDs -= path
+      } else {
+        logInfo("Skipping un-caching as the RDD is not cached")
+      }
+    }
+    rdd
   }
 }

@@ -65,7 +65,7 @@ class DAGBuilder {
 	private final Map<String, LocalResource> localResources;
 	
 	private final String applicationInstanceName;
-
+	
 	private DAG dag;
 	
 	/**
@@ -165,12 +165,11 @@ class DAGBuilder {
 			logger.debug("Building Tez DAG");
 		}
 
+		// This is for the interim edge which means that the intermediary data will always be written in universal form Key/ValueWritable
+		// while the final data will be written as specified by the method (e.g., saveAsTex...)
 		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
 		        .newBuilder("org.apache.spark.tez.io.KeyWritable", "org.apache.spark.tez.io.ValueWritable", HashPartitioner.class.getName(), null).build();
 
-//		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
-//		        .newBuilder(keyClass.getName(), valueClass.getName(), HashPartitioner.class.getName(), null).build();
-		
 		int sequenceCounter = 0;
 		int counter = 0;
 		for (Entry<Integer, VertexDescriptor> vertexDescriptorEntry : vertexes.entrySet()) {

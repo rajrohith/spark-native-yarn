@@ -34,6 +34,8 @@ import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectOutputStream
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.lang.Boolean
+import org.apache.spark.tez.io.TezRDD
+import java.io.FileNotFoundException
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
@@ -112,6 +114,12 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
 
     val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
     val deps = (if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0))
+    if (deps.isInstanceOf[TezRDD[_,_]]){
+      val qPath = fs.makeQualified(new Path(deps.asInstanceOf[TezRDD[_,_]].getPath))
+      if (!fs.exists(qPath)){
+        throw new FileNotFoundException("Path: " + qPath + " does not exist")
+      }
+    }
     val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTaskBuffer)
     vd.setNumPartitions(stage.numPartitions)
     dagBuilder.addVertex(vd)

@@ -31,6 +31,8 @@ import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.io.Text
 import org.apache.spark.Logging
 import org.apache.spark.tez.SparkUtils
+import org.apache.spark.storage.BlockManagerId
+import org.apache.spark.scheduler.CompressedMapStatus
 
 /**
  * Implementation of ShuffleWriter which relies on KeyValueWriter provided by Tez
@@ -79,7 +81,7 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
    * 
    */
   def stop(success: Boolean): Option[MapStatus] = {
-    Some(SparkUtils.createUnsafeInstance(classOf[MapStatus]))
+    Some(SparkUtils.createUnsafeInstance(classOf[CompressedMapStatus]))
   }
   
   /**
