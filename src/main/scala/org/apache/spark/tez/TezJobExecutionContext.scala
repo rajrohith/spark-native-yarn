@@ -227,7 +227,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
       val cachedRdd = sc.textFile(cachePath)
       cachedRdd
     } else {
-      val outputDirectory = sc.appName + "_cache_" + System.nanoTime()
+      val outputDirectory = sc.appName + "_cache_" + rdd.id
       val outputPath = this.fs.makeQualified(new Path(outputDirectory))
       rdd.saveAsTextFile(outputDirectory)
       logDebug("Cached RDD in " + outputPath)
