@@ -97,8 +97,6 @@ class DAGBuilder {
 			public void execute() {
 				try {
 					DAGBuilder.this.run();
-				} catch (Exception e) {
-					e.printStackTrace();
 				} finally {
 					try {
 						tezClient.stop();

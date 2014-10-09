@@ -46,9 +46,12 @@ class TezJobExecutionContextTests extends StarkTest {
         classOf[Text], classOf[IntWritable], 
         (ReflectionUtils.getFieldValue(tec, "tezConfig").asInstanceOf[TezConfiguration]))
 
-    val persistedRddName = "validatePersist_cache_" + rdd.id;
-    val sRdd = MockRddUtils.stubSaveAsTexFile(rdd, persistedRddName)
-    val persistedRdd = tec.persist(sc, sRdd, StorageLevel.NONE)
+    val persistedRddName = "validatePersist_cache_" + rdd.id
+    val file = new File(persistedRddName)
+    file.createNewFile()
+    file.deleteOnExit()
+
+    val persistedRdd = tec.persist(sc, rdd, StorageLevel.NONE)
     val set = ReflectionUtils.getFieldValue(tec, "cachedRDDs").asInstanceOf[Set[Path]]
     assertEquals(1, set.size)
     assertEquals(new File(persistedRddName).toURI().toString(), set.iterator.next.toUri().toString())
@@ -65,9 +68,13 @@ class TezJobExecutionContextTests extends StarkTest {
         classOf[Text], classOf[IntWritable], 
         (ReflectionUtils.getFieldValue(tec, "tezConfig").asInstanceOf[TezConfiguration]))
 
-    val persistedRddName = "validatePersist_cache_" + rdd.id;
-    val sRdd = MockRddUtils.stubSaveAsTexFile(rdd, persistedRddName)
-    val persistedRdd = tec.persist(sc, sRdd, StorageLevel.NONE)
+    val persistedRddName = "validatePersist_cache_" + rdd.id
+    val file = new File(persistedRddName)
+    file.createNewFile()
+    file.deleteOnExit()
+
+//    val sRdd = MockRddUtils.stubSaveAsTexFile(rdd, persistedRddName)
+    val persistedRdd = tec.persist(sc, rdd, StorageLevel.NONE)
     tec.persist(sc, persistedRdd, StorageLevel.NONE)
     assertNotNull(persistedRdd)
     assertTrue(new File(persistedRddName).exists())
