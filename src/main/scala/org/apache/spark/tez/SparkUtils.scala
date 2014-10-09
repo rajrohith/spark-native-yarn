@@ -66,15 +66,6 @@ object SparkUtils {
     val se = new SparkEnv("0", null, closueSerializer, closueSerializer, null, null, shuffleManager, null, null, blockManager, null, null, null, null, memoryManager, sparkConf)
     SparkEnv.set(se)
   }
-
-  /**
-   * 
-   */
-  def deserializeSparkTask(taskBytes: Array[Byte], partitionId:Int): Task[_] = {
-    val taskBytesBuffer = ByteBuffer.wrap(taskBytes)
-    val task = closureSerializerInstance.deserialize[Task[_]](taskBytesBuffer)
-    task
-  }
   
   /**
    * 
