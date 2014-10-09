@@ -25,19 +25,65 @@ import java.util.Map
 import org.apache.spark.tez.test.utils.TestLogicalOutput
 import org.junit.Assert._
 
+/**
+ * 
+ */
 class TezShuffleManagerTests extends StarkTest {
+  
+  @Test
+  def validateReaderReturned() {
+    val (inMap, outMap) = this.createInOutInputMaps
+  
+    val sm = new TezShuffleManager(inMap, outMap, false);
+    assertTrue(sm.getReader(null, 0, 0, null).isInstanceOf[TezShuffleReader[_,_]])
+  }
 
   @Test
   def validateAppropriateWriterReturned() {
-    val inMap = new java.util.HashMap[Integer, LogicalInput]()
-    inMap.put(0, mock(classOf[LogicalInput]))
-    val outMap = new java.util.HashMap[Integer, LogicalOutput]()
-    outMap.put(1, new TestLogicalOutput)
+    val (inMap, outMap) = this.createInOutInputMaps
     
     val smForResultTask = new TezShuffleManager(inMap, outMap, false);
     assertTrue(smForResultTask.getWriter(null, 0, null).isInstanceOf[TezResultWriter[_,_,_]])
     
-    val smForShuffleTask = new TezShuffleManager(inMap, outMap, true);
+    val smForShuffleTask = new TezShuffleManager(inMap, outMap);
     assertTrue(smForShuffleTask.getWriter(null, 0, null).isInstanceOf[TezShuffleWriter[_,_,_]])
   }
+  
+  @Test
+  def validateRegisterShuffleReturnsNull() {
+    val (inMap, outMap) = this.createInOutInputMaps
+    val sm = new TezShuffleManager(inMap, outMap, false);
+    assertNull(sm.registerShuffle(0,0,null))
+  }
+  
+  @Test
+  def validateUnregisterShuffleReturnsTrue() {
+    val (inMap, outMap) = this.createInOutInputMaps
+    val sm = new TezShuffleManager(inMap, outMap, false);
+    assertTrue(sm.unregisterShuffle(0))
+  }
+  
+  @Test
+  def validateShuffleBlockManagerReturnsNull() {
+    val (inMap, outMap) = this.createInOutInputMaps
+    val sm = new TezShuffleManager(inMap, outMap, false);
+    assertNull(sm.shuffleBlockManager)
+  }
+  
+  @Test
+  def validateStop() {
+    val (inMap, outMap) = this.createInOutInputMaps
+    val sm = new TezShuffleManager(inMap, outMap, false);
+    // asserting that completes successfully even though nothing is done
+    sm.stop
+  }
+  
+  private def createInOutInputMaps():Tuple2[java.util.HashMap[Integer, LogicalInput], java.util.HashMap[Integer, LogicalOutput]] = {
+    val inMap = new java.util.HashMap[Integer, LogicalInput]()
+    inMap.put(0, mock(classOf[LogicalInput]))
+    val outMap = new java.util.HashMap[Integer, LogicalOutput]()
+    outMap.put(1, new TestLogicalOutput)
+    (inMap, outMap)
+  }
+  
 }

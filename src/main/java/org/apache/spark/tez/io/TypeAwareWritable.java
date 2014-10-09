@@ -22,7 +22,7 @@ public abstract class TypeAwareWritable<T> implements Writable {
 
 	private final ValueEncoder valueEncoder = new ValueEncoder();
 
-	void setValue(T value) {
+	public void setValue(T value) {
 		this.value = value;
 		this.determineValueType(value);
 		if (this.valueType == 0){
@@ -34,7 +34,7 @@ public abstract class TypeAwareWritable<T> implements Writable {
 		}
 	}
 	
-	T getValue() {
+	public T getValue() {
 		return this.value;
 	}
 	

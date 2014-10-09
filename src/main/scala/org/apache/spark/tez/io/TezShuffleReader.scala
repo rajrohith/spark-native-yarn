@@ -92,13 +92,13 @@ private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[Any, A
  * while giving you access to "current key" and "next value" contained in KeyValuesReader's ValuesIterator.
  */
 private class KVSIterator(kvReader: KeyValuesReader) {
-  var vIter = kvReader.getCurrentValues().iterator()
+  var vIter:java.util.Iterator[_] = null
 
   /**
    * Checks if underlying reader contains more data to read.
    */
   def hasNext = {
-    if (vIter.hasNext()) {
+    if (vIter != null && vIter.hasNext()) {
       true
     } else {
       if (kvReader.next()) {
@@ -118,7 +118,9 @@ private class KVSIterator(kvReader: KeyValuesReader) {
   }
 
   /**
-   *
+   * For this case 'ket' will always be represented by TypeAwareWritable (KeyWritable)
+   * since its source is the result of YARN shuffle and the preceeding writer will
+   * write all intermediate outputs as TypeAwareWritable for both keys and values.
    */
   def getCurrentKey = {
     kvReader.getCurrentKey().asInstanceOf[TypeAwareWritable[_]].getValue()
