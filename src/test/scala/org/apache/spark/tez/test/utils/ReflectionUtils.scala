@@ -5,14 +5,34 @@ import scala.reflect.runtime.universe
 import org.apache.spark.JobExecutionContext
 import scala.reflect.ClassTag
 
+/**
+ * 
+ */
 object ReflectionUtils {
-  
-  val typeMirror = runtimeMirror(this.getClass.getClassLoader)
 
-  def getFieldValue[T:TypeTag:ClassTag](instance:T, fieldName:String):Any = {
-    val instanceMirror = typeMirror.reflect(instance)
-    val fieldX = typeOf[T].declaration(newTermName(fieldName)).asTerm.accessed.asTerm
-    val fmX = instanceMirror.reflectField(fieldX)
-    fmX.get
+  def getFieldValue(instance:Any, fieldName:String):Any = {
+    val fields = fieldName.split("\\.")
+    var result:Any = instance
+    for (field <- fields) {
+      result = this.doGetFieldValue(result, field)
+    }
+    result
+  }
+  
+  def setFieldValue(instance:Any, fieldName:String, newValue:Any) = {
+    val fields = fieldName.split("\\.")
+    var result:Any = instance
+    for (i <- 0 until fields.length-1){
+      result = this.doGetFieldValue(result, fields(i))
+    }
+    val field = result.getClass.getDeclaredField(fields.last)
+    field.setAccessible(true)
+    field.set(result, newValue)
+  }
+  
+  private def doGetFieldValue(instance:Any, fieldName:String):Any = {
+    val field = instance.getClass.getDeclaredField(fieldName)
+    field.setAccessible(true)
+    field.get(instance)
   }
 }

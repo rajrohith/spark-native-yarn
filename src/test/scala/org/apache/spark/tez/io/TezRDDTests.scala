@@ -25,7 +25,6 @@ import org.apache.hadoop.io.IntWritable
 import org.apache.tez.dag.api.TezConfiguration
 import java.io.FileNotFoundException
 import org.junit.Assert._
-import org.apache.spark.tez.test.utils.StarkTest
 import org.apache.spark.Partition
 import org.apache.spark.TaskContext
 import org.apache.spark.tez.SparkUtils
@@ -35,10 +34,20 @@ import org.apache.tez.runtime.api.LogicalOutput
 import java.io.File
 import org.apache.spark.tez.test.utils.TestLogicalInput
 import org.apache.spark.tez.TezJobExecutionContext
-/**
+import org.junit.runner.RunWith
+import org.junit.runner.notification.RunNotifier
+import junit.framework.TestCase
+import java.net.URLClassLoader
+import java.util.concurrent.CountDownLatch
+import org.apache.hadoop.conf.Configuration
+import org.apache.spark.tez.test.utils.ReflectionUtils
+import org.apache.spark.tez.test.utils.TezClientMocker
+import org.apache.spark.tez.test.utils.Instrumentable
+import org.apache.spark.tez.test.utils.TestUtils
+/** 
  * 
  */
-class TezRDDTests extends StarkTest {
+class TezRDDTests extends Instrumentable {
 
   @Test
   def failInitializationWithNonExistingSource() {
@@ -88,20 +97,23 @@ class TezRDDTests extends StarkTest {
     assertEquals("name:src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt; " + 
         "path:file:/Users/ozhurakousky/dev/fork/stark/src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", tezRdd.toString)
   }
-  
+
   @Test
   def validatePersistAndUnpersist() = {
+    val appName = "validatePersistAndUnpersist"
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-    val sc = new SparkContext(masterUrl, "validatePersist")
+    val sc = new SparkContext(masterUrl, appName)
+    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TezClientMocker.noOpTezClientWithSuccessfullSubmit(sc.appName)))
+    println(ReflectionUtils.getFieldValue(sc, "executionContext.tezDelegate.tezClient"))
     val tezRdd = new TezRDD("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", sc, classOf[TextInputFormat],
       classOf[Text], classOf[IntWritable], new TezConfiguration)
-    
-    val persistedRddName = "validatePersist_cache_" + tezRdd.id
-    this.stubPersistentFile(persistedRddName)
+
+    val persistedRddName =  TestUtils.stubPersistentFile(appName, tezRdd)
     val persistedRdd = tezRdd.cache
-    assertTrue(new File(persistedRddName).exists())
+    assertTrue(new File(appName + "/" + persistedRddName).exists())
     persistedRdd.unpersist()
-    assertFalse(new File(persistedRddName).exists())
+    assertFalse(new File(appName + "/" + persistedRddName).exists())
+    TestUtils.cleanup(appName)
   }
 
   @Test
@@ -129,11 +141,6 @@ class TezRDDTests extends StarkTest {
     val sc = mock(classOf[SparkContext])
     new TezRDD(path, sc, classOf[TextInputFormat],
       classOf[Text], classOf[IntWritable], new TezConfiguration)
-  }
-  
-  private def stubPersistentFile(persistedRddName:String) {
-    val file = new File(persistedRddName)
-    file.createNewFile()
-    file.deleteOnExit()
-  }
+  }  
 }
+ 

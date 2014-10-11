@@ -64,25 +64,22 @@ import org.apache.spark.rdd.CoGroupedRDD
  */
 object SparkToTezAdapter extends Logging {
 
-  private val unsafe = this.createUnsafe
-
-  var instrumented = false;
+  private var klass:Class[_] = null
   /**
    *
    */
   def adapt = {
     this.synchronized {
-      if (!instrumented) {
-        instrumented = true
+      if (klass == null) {
         this.doAdapt
       }
     }
   }
 
   private def doAdapt {
+    val systemClassLoader = Thread.currentThread().getContextClassLoader()
     val pool = ClassPool.getDefault();
-
-    val systemClassLoader = ClassLoader.getSystemClassLoader()
+    
 
     val pairRddFunctionsAdapter = pool.get("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter")
     val pairRddFunctions = pool.get("org.apache.spark.rdd.PairRDDFunctions")
@@ -109,9 +106,7 @@ object SparkToTezAdapter extends Logging {
       }
     }
 
-    val pairRddFunctionsBytes = pairRddFunctions.toBytecode()
-
-    unsafe.defineClass(null, pairRddFunctionsBytes, 0, pairRddFunctionsBytes.length, systemClassLoader, systemClassLoader.getClass.getProtectionDomain())
+    this.klass = pool.toClass(pairRddFunctions, Thread.currentThread().getContextClassLoader())
   }
 
   /**
@@ -129,14 +124,5 @@ object SparkToTezAdapter extends Logging {
       // ignore since methods that are not found based on CtMethod 
       // definitions are not going to be replaced
     }
-  }
-
-  /**
-   *
-   */
-  private def createUnsafe = {
-    val field = classOf[Unsafe].getDeclaredField("theUnsafe");
-    field.setAccessible(true);
-    field.get(null).asInstanceOf[Unsafe]
   }
 }

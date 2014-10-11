@@ -16,7 +16,6 @@
  */
 package org.apache.spark.tez.io
 
-import org.apache.spark.tez.test.utils.StarkTest
 import org.junit.Test
 import org.mockito.Mockito._
 import org.apache.tez.runtime.api.LogicalOutput
@@ -24,11 +23,12 @@ import org.apache.tez.runtime.api.LogicalInput
 import java.util.Map
 import org.apache.spark.tez.test.utils.TestLogicalOutput
 import org.junit.Assert._
+import org.junit.runner.RunWith
 
 /**
  * 
  */
-class TezShuffleManagerTests extends StarkTest {
+class TezShuffleManagerTests {
   
   @Test
   def validateReaderReturned() {

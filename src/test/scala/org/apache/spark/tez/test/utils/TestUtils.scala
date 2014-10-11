@@ -14,34 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.tez.test.utils;
+package org.apache.spark.tez.test.utils
 
-import java.io.IOException;
-
-import org.apache.tez.runtime.api.LogicalOutput;
-import org.apache.tez.runtime.api.Writer;
-import org.apache.tez.runtime.library.api.KeyValueWriter;
+import org.apache.spark.rdd.RDD
+import java.io.File
+import org.apache.commons.io.FileUtils
 /**
- * Stub for LogicalOutput used in tests
- *
+ * 
  */
-public class TestLogicalOutput implements LogicalOutput {
+object TestUtils {
 
-	@Override
-	public void start() throws Exception {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public Writer getWriter() throws Exception {
-		return new KeyValueWriter() {
-			
-			@Override
-			public void write(Object key, Object value) throws IOException {
-
-			}
-		};
-	}
-
+  /**
+   * 
+   */
+  def stubPersistentFile(appName:String, rdd:RDD[_]):String = {
+    val root = new File(appName)
+    root.mkdirs()
+    val cache = new File(root, "/_cache_" + rdd.id)
+    cache.createNewFile()
+    cache.getName()
+  }
+  
+  /**
+   * 
+   */
+  def cleanup(testName:String) {
+    val cpDir = new File(System.getProperty("user.dir") + "/" + testName)
+    FileUtils.deleteDirectory(cpDir)
+  }
 }

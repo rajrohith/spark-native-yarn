@@ -34,73 +34,95 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat
 import org.apache.hadoop.io.IntWritable
 import org.apache.hadoop.io.Text
 import org.apache.spark.tez.test.utils.ReflectionUtils
-import org.apache.spark.tez.test.utils.StarkTest
 import org.mockito.Mockito
 import org.mockito.internal.matchers.Any
 import org.mockito.Mock
 import org.mockito.stubbing.Answer
 import org.mockito.invocation.InvocationOnMock
 import java.io.File
+import org.junit.runner.RunWith
+import org.apache.spark.tez.test.utils.Instrumentable
+import java.util.concurrent.atomic.AtomicInteger
+import org.apache.spark.tez.test.utils.TezClientMocker
+import org.apache.tez.client.TezClient
+import org.mockito.Matchers
+import org.apache.tez.dag.api.DAG
+import org.apache.commons.io.FileUtils
+import org.apache.spark.tez.test.utils.TestUtils
+
 /**
- * 
+ *
  */
-class TezJobExecutionContextTests extends StarkTest {
-  
+class TezJobExecutionContextTests extends Instrumentable {
+
   @Test
-  def validateInitialization(){
+  def validateInitialization() {
     val tec = new TezJobExecutionContext
-    assertTrue(ReflectionUtils.getFieldValue(tec, "tezConfig").isInstanceOf[TezConfiguration])
-    assertTrue(ReflectionUtils.getFieldValue(tec, "fs").isInstanceOf[FileSystem])
     assertTrue(ReflectionUtils.getFieldValue(tec, "cachedRDDs").isInstanceOf[Set[_]])
+    assertTrue(ReflectionUtils.getFieldValue(tec, "runJobInvocationCounter").isInstanceOf[AtomicInteger])
+    assertTrue(ReflectionUtils.getFieldValue(tec, "tezDelegate").isInstanceOf[TezDelegate])
+    assertTrue(ReflectionUtils.getFieldValue(tec, "fs").isInstanceOf[FileSystem])
   }
-  
+
   @Test
-  def validateInitialPersist(){
-    val (sc, rdd, tec, persistedRddName) = this.doPersist
+  def validateInitialPersist() {
+    val appName = "validateInitialPersist"
+    val (sc, rdd, tec, persistedRddName) = this.doPersist(appName)
     val persistedRdd = tec.persist(sc, rdd, StorageLevel.NONE)
     val set = ReflectionUtils.getFieldValue(tec, "cachedRDDs").asInstanceOf[Set[Path]]
     assertEquals(1, set.size)
-    assertEquals(new File(persistedRddName).toURI().toString(), set.iterator.next.toUri().toString())
+    
+    assertEquals(persistedRddName, new File(set.iterator.next.toUri()).getName())
     assertNotNull(persistedRdd)
-    assertTrue(new File(persistedRddName).exists())
+    assertTrue(new File(appName + "/" + persistedRddName).exists())
+    TestUtils.cleanup(appName)
   }
-  
+
   @Test
-  def validateSubsequentPersist(){
-    val (sc, rdd, tec, persistedRddName) = this.doPersist
+  def validateSubsequentPersist() {
+    val appName = "validateSubsequentPersist"
+    val (sc, rdd, tec, persistedRddName) = this.doPersist(appName)
     val persistedRdd = tec.persist(sc, rdd, StorageLevel.NONE)
     tec.persist(sc, persistedRdd, StorageLevel.NONE)
     assertNotNull(persistedRdd)
-    assertTrue(new File(persistedRddName).exists())
+    assertTrue(new File(appName + "/" + persistedRddName).exists())
+    TestUtils.cleanup(appName)
   }
-  
-   @Test
-  def validateUnpersist(){
-    val (sc, rdd, tec, persistedRddName) = this.doPersist
+
+  @Test
+  def validateUnpersist() {
+    val appName = "validateUnpersist"
+    val (sc, rdd, tec, persistedRddName) = this.doPersist(appName)
     val persistedRdd = tec.persist(sc, rdd, StorageLevel.NONE)
-    assertTrue(new File(persistedRddName).exists())
+    assertTrue(new File(appName + "/" + persistedRddName).exists())
     tec.unpersist(sc, persistedRdd)
-    assertFalse(new File(persistedRddName).exists())
+    assertFalse(new File(appName + "/" + persistedRddName).exists())
     // just to ensure that subsequent un-persist will not result in exception
     tec.unpersist(sc, persistedRdd)
+    TestUtils.cleanup(appName)
   }
-  
-  private def doPersist():Tuple4[SparkContext, RDD[_], TezJobExecutionContext, String] = {
-    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-    val sc = new SparkContext(masterUrl, "validatePersist")
-    val tec = ReflectionUtils.getFieldValue(sc, "executionContext").asInstanceOf[TezJobExecutionContext]
-    val rdd = new TezRDD("src/test/scala/org/apache/spark/tez/sample.txt", sc, classOf[TextInputFormat], 
-        classOf[Text], classOf[IntWritable], 
-        (ReflectionUtils.getFieldValue(tec, "tezConfig").asInstanceOf[TezConfiguration]))
 
-    val persistedRddName = "validatePersist_cache_" + rdd.id
-    this.stubPersistentFile(persistedRddName)
+  /**
+   * 
+   */
+  private def doPersist(appName:String): Tuple4[SparkContext, RDD[_], TezJobExecutionContext, String] = {
+    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+    val sc = new SparkContext(masterUrl, appName)
+    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TezClientMocker.noOpTezClientWithSuccessfullSubmit(sc.appName)))
+    val tec = ReflectionUtils.getFieldValue(sc, "executionContext").asInstanceOf[TezJobExecutionContext]
+    val rdd = new TezRDD("src/test/scala/org/apache/spark/tez/sample.txt", sc, classOf[TextInputFormat],
+      classOf[Text], classOf[IntWritable],
+      (ReflectionUtils.getFieldValue(tec, "tezDelegate.tezConfiguration").asInstanceOf[TezConfiguration]))
+
+    val persistedRddName = TestUtils.stubPersistentFile(appName, rdd)
+    tec.persist(sc, rdd, StorageLevel.NONE)
+
+    val tezClient = ReflectionUtils.getFieldValue(sc, "executionContext.tezDelegate.tezClient").asInstanceOf[Option[TezClient]].get
+    val inOrder = Mockito.inOrder(tezClient)
+    inOrder.verify(tezClient, Mockito.times(1)).waitTillReady()
+    inOrder.verify(tezClient, Mockito.times(1)).submitDAG(Matchers.any[DAG])
     (sc, rdd, tec, persistedRddName)
   }
-
-  private def stubPersistentFile(persistedRddName:String) {
-    val file = new File(persistedRddName)
-    file.createNewFile()
-    file.deleteOnExit()
-  }
+  
+  
 }

@@ -40,7 +40,7 @@ import java.io.FileNotFoundException
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
  */
-class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U) extends Logging {
+class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContext, Iterator[T]) => U) extends Logging {
 
   private var vertexId = 0;
   
@@ -51,26 +51,24 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
   private val tezConfiguration = new TezConfiguration
   
   val fs = FileSystem.get(tezConfiguration);
-  val appClassPathDir = fs.makeQualified(new Path(TezConstants.CLASSPATH_PATH))
+  val classpathDir = new Path(tezClient.getClientName() + "/" + TezConstants.CLASSPATH_PATH)
+  val appClassPathDir = fs.makeQualified(classpathDir)
   logInfo("Application classpath dir is: " + appClassPathDir)
   val ucpProp = System.getProperty(TezConstants.UPDATE_CLASSPATH)
  
   val updateClassPath = ucpProp != null && Boolean.parseBoolean(ucpProp)
   if (updateClassPath){
     logInfo("Refreshing application classpath, by deleting the existing one. New one will be provisioned")
-    fs.delete(new Path(TezConstants.CLASSPATH_PATH))
+    fs.delete(appClassPathDir)
   }
-  else {
-    logInfo("Relying on the existing classpath: " + appClassPathDir)
-  }
-  val localResources = YarnUtils.createLocalResources(this.fs, TezConstants.CLASSPATH_PATH)
-  val tezClient = TezClient.create(sparkContext.appName, tezConfiguration);
+  
+  val localResources = YarnUtils.createLocalResources(this.fs, appClassPathDir.toString())
   this.tezClient.addAppMasterLocalFiles(this.localResources);
   tezClient.start();
   
   val dagBuilder = new DAGBuilder(this.tezClient, this.localResources, tezConfiguration)
   
-  def getConfiguration = tezConfiguration
+//  def getConfiguration = tezConfiguration
   /**
    * 
    */

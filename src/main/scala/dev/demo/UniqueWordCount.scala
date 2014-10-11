@@ -22,6 +22,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.hadoop.io.IntWritable
 import org.apache.spark.tez.TezJobExecutionContext
+import org.apache.spark.scheduler.SparkListener
 
 /**
  * This demo demonstrates one of the rudimentary Hadoop use case - counting unique words
@@ -62,6 +63,7 @@ object UniqueWordCount {
 
 
     //cleanup
+        
     sc.stop()
 
     DemoUtilities.printSampleResults(outputPath)

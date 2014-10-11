@@ -45,8 +45,6 @@ class TezRDD[K, V](
   @transient private val fqPath = this.validatePath(path)
   this.name = path
 
-  logInfo("Creating instance of TezRDD for path: " + path)
-
   override def toString = "name:" + this.name + "; path:" + this.fqPath
 
   def getPath(): Path = {
@@ -74,6 +72,7 @@ class TezRDD[K, V](
   private def validatePath(path: String): Path = {
     val fs = FileSystem.get(conf)
     val qPath = fs.makeQualified(new Path(path))
+    logInfo("Creating instance of TezRDD for path: " + qPath)
     if (!fs.exists(qPath)) {
       throw new FileNotFoundException("Path: " + qPath + " does not exist")
     }
