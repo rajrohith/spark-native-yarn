@@ -82,7 +82,6 @@ dependencies {
 	compile ("org.apache.spark:spark-core_2.10:$sparkVersion") {
 		exclude group: 'org.apache.hadoop'
 	}
-	compile ("org.apache.spark:spark-repl_2.10:1.1.0") 
 	compile "org.apache.tez:tez-common:$tezVersion"
 	compile "org.apache.tez:tez-dag:$tezVersion"
 	compile "org.apache.tez:tez-mapreduce:$tezVersion"
@@ -92,7 +91,6 @@ dependencies {
 	
 	testCompile "junit:junit-dep:$junitVersion"
 	testCompile "org.mockito:mockito-all:$mockitoVersion"
-	
 }
 
 compileScala {
