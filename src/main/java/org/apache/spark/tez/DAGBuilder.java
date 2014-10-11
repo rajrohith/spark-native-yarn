@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.spark.tez.io.TezRDD;
@@ -42,6 +43,8 @@ import org.apache.tez.mapreduce.input.MRInput;
 import org.apache.tez.mapreduce.output.MROutput;
 import org.apache.tez.runtime.library.conf.OrderedPartitionedKVEdgeConfig;
 import org.apache.tez.runtime.library.partitioner.HashPartitioner;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Builder which builds Tez DAG based on the collection of {@link VertexDescriptor}
@@ -76,6 +79,10 @@ class DAGBuilder {
 	 * @param outputPath
 	 */
 	public DAGBuilder(TezClient tezClient, Map<String, LocalResource> localResources, Configuration tezConfiguration) {
+		Preconditions.checkState(tezClient != null, "'tezClient' must not be null");
+		Preconditions.checkState(localResources != null, "'localResources' must not be null");
+		Preconditions.checkState(tezConfiguration != null, "'tezConfiguration' must not be null");
+		
 		this.tezClient = tezClient;
 		this.tezConfiguration = tezConfiguration;
 		this.applicationInstanceName = tezClient.getClientName() + "_" + System.currentTimeMillis();
@@ -86,7 +93,7 @@ class DAGBuilder {
 	 * 
 	 * @return
 	 */
-	public DAGTask build(Class<?> keyClass, Class<?> valueClass, Class<?> outputFormatClass, String outputPath){
+	public DAGTask build(Class<? extends Writable> keyClass, Class<? extends Writable> valueClass, Class<?> outputFormatClass, String outputPath){
 		try {
 			this.doBuild(keyClass, valueClass, outputFormatClass, outputPath);
 		} catch (Exception e) {
@@ -158,7 +165,14 @@ class DAGBuilder {
 	 * 
 	 * @throws Exception
 	 */
-	private void doBuild(Class<?> keyClass, Class<?> valueClass, Class<?> outputFormatClass, String outputPath) throws Exception {
+	private void doBuild(Class<? extends Writable> keyClass, Class<? extends Writable> valueClass, 
+			Class<?> outputFormatClass, String outputPath) throws Exception {
+		Preconditions.checkState(keyClass != null, "'keyClass' must not be null");
+		Preconditions.checkState(valueClass != null, "'valueClass' must not be null");
+		Preconditions.checkState(outputFormatClass != null, "'outputFormatClass' must not be null");
+		Preconditions.checkState(outputPath != null, "'outputPath' must not be null");
+		Preconditions.checkState(this.vertexes.size() > 0, "VertexDescriptor definitions are missing. "
+				+ "Can't build DAG. Use addVertex(..) method to add VertexDescriptors");
 		if (logger.isDebugEnabled()){
 			logger.debug("Building Tez DAG");
 		}
@@ -170,7 +184,7 @@ class DAGBuilder {
 
 		int sequenceCounter = 0;
 		int counter = 0;
-		for (Entry<Integer, VertexDescriptor> vertexDescriptorEntry : vertexes.entrySet()) {
+		for (Entry<Integer, VertexDescriptor> vertexDescriptorEntry : this.vertexes.entrySet()) {
 			counter++;
 			VertexDescriptor vertexDescriptor = vertexDescriptorEntry.getValue();
 			

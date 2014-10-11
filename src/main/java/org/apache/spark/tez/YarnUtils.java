@@ -49,9 +49,9 @@ public class YarnUtils {
 	 * @param appName
 	 * @return
 	 */
-	public static Map<String, LocalResource> createLocalResources(FileSystem fs, String appName) {
-		Map<String, LocalResource> localResources = provisionAndLocalizeCurrentClasspath(fs, appName);
-		provisionAndLocalizeScalaLib(fs, appName, localResources);
+	public static Map<String, LocalResource> createLocalResources(FileSystem fs, String classPathDir) {
+		Map<String, LocalResource> localResources = provisionAndLocalizeCurrentClasspath(fs, classPathDir);
+		provisionAndLocalizeScalaLib(fs, classPathDir, localResources);
 		return localResources;
 	}
 	

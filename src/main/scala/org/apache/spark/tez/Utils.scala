@@ -36,6 +36,7 @@ import java.nio.ByteBuffer
 import java.lang.Boolean
 import org.apache.spark.tez.io.TezRDD
 import java.io.FileNotFoundException
+import org.apache.hadoop.io.Writable
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
@@ -62,7 +63,7 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
     fs.delete(appClassPathDir)
   }
   
-  val localResources = YarnUtils.createLocalResources(this.fs, appClassPathDir.toString())
+  val localResources = YarnUtils.createLocalResources(this.fs, sparkContext.appName + "/" + TezConstants.CLASSPATH_PATH)
   this.tezClient.addAppMasterLocalFiles(this.localResources);
   tezClient.start();
   
@@ -72,7 +73,7 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
   /**
    * 
    */
-  def build(keyClass:Class[_], valueClass:Class[_], outputFormatClass:Class[_], outputPath:String):DAGTask = {
+  def build(keyClass:Class[_ <:Writable], valueClass:Class[_ <:Writable], outputFormatClass:Class[_], outputPath:String):DAGTask = {
     this.prepareDag(stage, null, func, keyClass, valueClass)
     val dagTask = dagBuilder.build(keyClass, valueClass, outputFormatClass, outputPath)
     logInfo("DAG: " + dagBuilder.toString())

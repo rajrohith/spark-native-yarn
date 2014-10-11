@@ -30,6 +30,6 @@ package org.apache.spark.tez.io;
  * 
  * This class is not public nor it is meant/designed as thread-safe.
  */
-class ValueWritable extends TypeAwareWritable<Object>  {
+public class ValueWritable extends TypeAwareWritable<Object>  {
 
 }

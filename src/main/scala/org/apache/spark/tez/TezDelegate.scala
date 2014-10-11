@@ -17,7 +17,6 @@
 package org.apache.spark.tez
 
 import org.apache.spark.TaskContext
-
 import org.apache.spark.scheduler.SparkListener
 import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.scheduler.Stage
@@ -27,6 +26,9 @@ import scala.reflect.ClassTag
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 import org.apache.spark.Logging
+import org.apache.hadoop.io.Writable
+import org.apache.spark.tez.io.KeyWritable
+import org.apache.spark.tez.io.ValueWritable
 
 /**
  * 
@@ -65,10 +67,10 @@ class TezDelegate extends SparkListener with Logging {
   /**
    *
    */
-  private def extractOutputMetedata[T, U](conf: Configuration, appName: String): Tuple4[Class[_], Class[_], Class[_], String] = {
+  private def extractOutputMetedata[T, U](conf: Configuration, appName: String): Tuple4[Class[_ <:Writable], Class[_ <:Writable], Class[_], String] = {
     val outputFormat = conf.getClass("mapreduce.job.outputformat.class", classOf[TextOutputFormat[_, _]])
-    val keyType = conf.getClass("mapreduce.job.output.key.class", Class.forName("org.apache.spark.tez.io.KeyWritable"))
-    val valueType = conf.getClass("mapreduce.job.output.value.class", Class.forName("org.apache.spark.tez.io.ValueWritable"))
+    val keyType = conf.getClass("mapreduce.job.output.key.class", classOf[KeyWritable], classOf[Writable])
+    val valueType = conf.getClass("mapreduce.job.output.value.class", classOf[ValueWritable], classOf[Writable])
     val outputPath = conf.get("mapred.output.dir", appName + "_out")
     conf.clear()
     if (outputPath == null || outputFormat == null || keyType == null) {
