@@ -10,6 +10,9 @@ import scala.reflect.ClassTag
  */
 object ReflectionUtils {
 
+  /**
+   * 
+   */
   def getFieldValue(instance:Any, fieldName:String):Any = {
     val fields = fieldName.split("\\.")
     var result:Any = instance
@@ -19,6 +22,9 @@ object ReflectionUtils {
     result
   }
   
+  /**
+   * 
+   */
   def setFieldValue(instance:Any, fieldName:String, newValue:Any) = {
     val fields = fieldName.split("\\.")
     var result:Any = instance

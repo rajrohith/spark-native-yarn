@@ -101,7 +101,8 @@ public class YarnUtils {
 	 * @return
 	 */
 	private static Path[] provisionClassPath(FileSystem fs, String applicationName, String[] classPathExclusions){
-		boolean generateJar = System.getProperty(TezConstants.GENERATE_JAR) != null;
+		String genJarProperty = System.getProperty(TezConstants.GENERATE_JAR);
+		boolean generateJar = genJarProperty != null && Boolean.parseBoolean(genJarProperty);
 		List<Path> provisionedPaths = new ArrayList<Path>();
 		List<File> generatedJars = new ArrayList<File>();
 		URL[] classpath = ((URLClassLoader) ClassLoader.getSystemClassLoader()).getURLs();
@@ -109,7 +110,7 @@ public class YarnUtils {
 			File f = new File(classpathUrl.getFile());
 			if (f.isDirectory()) {
 				if (generateJar){
-					String jarFileName = ClassPathUtils.generateJarFileName(applicationName);
+					String jarFileName = ClassPathUtils.generateJarFileName("application");
 					if (logger.isDebugEnabled()){
 						logger.debug("Generating application JAR: " + jarFileName);
 					}
@@ -118,7 +119,7 @@ public class YarnUtils {
 					f = jarFile;
 				} 
 				else if (f.getName().equals("conf")){
-					String jarFileName = ClassPathUtils.generateJarFileName(applicationName + "_conf");
+					String jarFileName = ClassPathUtils.generateJarFileName("conf_application");
 					if (logger.isDebugEnabled()){
 						logger.debug("Generating application JAR: " + jarFileName);
 					}

@@ -16,31 +16,18 @@
  */
 package dev.demo
 
-import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import org.apache.hadoop.io.IntWritable
 import org.apache.spark.tez.TezJobExecutionContext
-import org.apache.spark.scheduler.SparkListener
 
 /**
  * This demo demonstrates one of the rudimentary Hadoop use case - counting unique words
  * 
  */
-object UniqueWordCount {
+object UniqueWordCountWithCollect {
 
   def main(args: Array[String]) {
-    var reducers = 2
-    var inputFile = "src/main/scala/dev/demo/test.txt"
-    if (args != null && args.length > 0) {
-      reducers = Integer.parseInt(args(0))
-      if (args.length > 1) {
-        inputFile = args(1)
-      }
-    }
-    println("Will execute WordCount on file: " + inputFile + " with reducers " + reducers)
-    run(inputFile, reducers);
+   
   }
 
   def run(inputFile: String, reducers: Int) {
@@ -58,12 +45,16 @@ object UniqueWordCount {
       .flatMap(x => x.split(" "))
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y, reducers)
-      .saveAsNewAPIHadoopFile(outputPath, classOf[Text],
-        classOf[IntWritable], classOf[TextOutputFormat[_, _]])
-
+      .persist
+    
+//    result
+//      .flatMap(x => x.split(" "))
+//      .map(x => (x, 1))
+//      .reduceByKey((x, y) => x + y, reducers)
+      
+//    result.count
 
     //cleanup
-        
     sc.stop()
 
     DemoUtilities.printSampleResults(outputPath)
