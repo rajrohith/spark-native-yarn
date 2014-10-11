@@ -50,7 +50,6 @@ class VertexShuffleTask(
     var writer: ShuffleWriter[Any, Any] = null
     try {
       val manager = SparkEnv.get.shuffleManager
-//      val partition = null
       val sh = new BaseShuffleHandle(0, 0, dep.get)
       writer = manager.getWriter[Any, Any](sh, 1, new TaskContext(1,1,1))
       
