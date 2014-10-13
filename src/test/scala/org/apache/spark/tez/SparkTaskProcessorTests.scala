@@ -20,7 +20,7 @@ import org.junit.Test
 import org.junit.Assert
 import org.mockito.Mockito
 import org.apache.tez.runtime.api.ProcessorContext
-import org.apache.spark.tez.test.utils.ReflectionUtils
+import org.apache.spark.tez.utils.ReflectionUtils
 import org.apache.tez.runtime.api.LogicalInput
 import org.apache.tez.runtime.api.LogicalOutput
 import org.apache.spark.tez.test.utils.TestLogicalInput

@@ -33,7 +33,7 @@ import org.apache.spark.tez.io.TezRDD
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat
 import org.apache.hadoop.io.IntWritable
 import org.apache.hadoop.io.Text
-import org.apache.spark.tez.test.utils.ReflectionUtils
+import org.apache.spark.tez.utils.ReflectionUtils
 import org.mockito.Mockito
 import org.mockito.internal.matchers.Any
 import org.mockito.Mock

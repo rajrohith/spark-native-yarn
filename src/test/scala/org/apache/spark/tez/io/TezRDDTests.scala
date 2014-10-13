@@ -40,7 +40,7 @@ import junit.framework.TestCase
 import java.net.URLClassLoader
 import java.util.concurrent.CountDownLatch
 import org.apache.hadoop.conf.Configuration
-import org.apache.spark.tez.test.utils.ReflectionUtils
+import org.apache.spark.tez.utils.ReflectionUtils
 import org.apache.spark.tez.test.utils.TezClientMocker
 import org.apache.spark.tez.test.utils.Instrumentable
 import org.apache.spark.tez.test.utils.TestUtils

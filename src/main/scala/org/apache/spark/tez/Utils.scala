@@ -37,6 +37,9 @@ import java.lang.Boolean
 import org.apache.spark.tez.io.TezRDD
 import java.io.FileNotFoundException
 import org.apache.hadoop.io.Writable
+import org.apache.spark.rdd.ShuffledRDD
+import org.apache.spark.tez.utils.ReflectionUtils
+import org.apache.spark.Partitioner
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
@@ -65,8 +68,7 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
   
   val localResources = YarnUtils.createLocalResources(this.fs, sparkContext.appName + "/" + TezConstants.CLASSPATH_PATH)
   this.tezClient.addAppMasterLocalFiles(this.localResources);
-//  tezClient.start();
-  
+
   val dagBuilder = new DAGBuilder(this.tezClient, this.localResources, tezConfiguration)
 
   /**
@@ -90,6 +92,15 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
       }
     }
 
+    val partitioner = ReflectionUtils.getFieldValue(stage.rdd, "partitioner")
+    if (partitioner != null && partitioner.isInstanceOf[Option[_]] && partitioner.asInstanceOf[Option[_]].isDefined) {
+      val p = partitioner.asInstanceOf[Option[_]].get
+      val bos = new ByteArrayOutputStream()
+      val os = new TypeAwareObjectOutputStream(bos)
+      os.writeObject(p)
+      this.dagBuilder.setSparkPartitionerBytes(bos.toByteArray())
+    }
+      
     val vertexTask =
       if (stage.isShuffleMap) {
         logInfo(stage.shuffleDep.get.toString)

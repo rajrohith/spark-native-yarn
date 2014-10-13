@@ -28,6 +28,9 @@ import org.apache.spark.scheduler.Task
 import java.io.ByteArrayInputStream
 import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectInputStream
 import com.google.common.base.Preconditions
+import org.apache.spark.HashPartitioner
+import org.apache.spark.Partitioner
+import java.nio.ByteBuffer
 
 /**
  * 
@@ -68,18 +71,22 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
     val inputs = this.toIntKey(this.getInputs()).asInstanceOf[java.util.Map[Integer, LogicalInput]]
     val outputs = this.toIntKey(this.getOutputs()).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
   
+    
+    
     if (SparkTaskProcessor.task == null) {
-      val taskBytes = TezUtils.getTaskBuffer(context)      
-      val bis = new ByteArrayInputStream(taskBytes)
-      val is = new TypeAwareObjectInputStream(bis)
-      SparkTaskProcessor.task = is.readObject().asInstanceOf[Task[_]]
+      val deserializedPayload = TezUtils.deserializePayload(context)
+      SparkTaskProcessor.task = deserializedPayload._1.asInstanceOf[Task[_]]
       SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
+      if (deserializedPayload._2 != null){
+        SparkDelegatingPartitioner.setSparkPartitioner(deserializedPayload._2.asInstanceOf[Partitioner])
+      }
     } else if (context.getTaskVertexName() != SparkTaskProcessor.vertexIndex){
-      val taskBytes = TezUtils.getTaskBuffer(context)
-      val bis = new ByteArrayInputStream(taskBytes)
-      val is = new TypeAwareObjectInputStream(bis)
-      SparkTaskProcessor.task = is.readObject().asInstanceOf[Task[_]]
+      val deserializedPayload = TezUtils.deserializePayload(context)
+      SparkTaskProcessor.task = deserializedPayload._1.asInstanceOf[Task[_]]
       SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
+      if (deserializedPayload._2 != null){
+        SparkDelegatingPartitioner.setSparkPartitioner(deserializedPayload._2.asInstanceOf[Partitioner])
+      }
     } 
     
     val shufleManager = 
@@ -93,6 +100,7 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
     SparkUtils.createSparkEnv(shufleManager);
     SparkUtils.runTask(SparkTaskProcessor.task);
   }
+  
 
   /**
    * 

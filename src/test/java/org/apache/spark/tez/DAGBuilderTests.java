@@ -30,7 +30,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.spark.tez.test.utils.Instrumentable;
-import org.apache.spark.tez.test.utils.ReflectionUtils;
+import org.apache.spark.tez.utils.ReflectionUtils;
 import org.apache.spark.tez.test.utils.TezClientMocker;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.TezConfiguration;
