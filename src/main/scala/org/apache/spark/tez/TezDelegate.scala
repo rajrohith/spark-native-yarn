@@ -47,6 +47,7 @@ class TezDelegate extends SparkListener with Logging {
     this.logYARNConfiguration(this.tezConfiguration)
     if (this.tezClient.isEmpty) {
        this.tezClient = new Some(TezClient.create(appName, new TezConfiguration))
+       this.tezClient.get.start()
     }
     val tezUtils = new Utils(this.tezClient.get, stage, func)
     val outputMetadata = this.extractOutputMetedata(configuration, appName)
@@ -60,7 +61,8 @@ class TezDelegate extends SparkListener with Logging {
   override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd) {
     if (this.tezClient.isDefined) {
       logInfo("Stopping TezClient")
-      this.tezClient.get.stop()
+      val tezClient = this.tezClient.get
+      tezClient.stop()
     }
   }
 

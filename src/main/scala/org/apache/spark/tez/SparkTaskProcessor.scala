@@ -27,6 +27,7 @@ import org.apache.spark.tez.io.TezShuffleManager
 import org.apache.spark.scheduler.Task
 import java.io.ByteArrayInputStream
 import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectInputStream
+import com.google.common.base.Preconditions
 
 /**
  * 
@@ -42,6 +43,9 @@ object SparkTaskProcessor {
  * essentially providing a delegation model from Tez to Spark native tasks.
  */
 class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcessor(context) with Logging {
+  if (context == null){
+    throw new IllegalArgumentException("'context' must not be null")
+  }
   
   /**
    * 

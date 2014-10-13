@@ -93,10 +93,3 @@ class VertexResultTask[T, U](
    */
   override def toString = "ResultTask(" + stageId + ", " + partitionId + ")"
 }
-
-/**
- * 
- */
-private class DummyPartition extends Partition {
-  def index: Int = 0
-}

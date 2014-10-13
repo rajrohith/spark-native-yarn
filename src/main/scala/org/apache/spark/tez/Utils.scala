@@ -65,11 +65,10 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
   
   val localResources = YarnUtils.createLocalResources(this.fs, sparkContext.appName + "/" + TezConstants.CLASSPATH_PATH)
   this.tezClient.addAppMasterLocalFiles(this.localResources);
-  tezClient.start();
+//  tezClient.start();
   
   val dagBuilder = new DAGBuilder(this.tezClient, this.localResources, tezConfiguration)
-  
-//  def getConfiguration = tezConfiguration
+
   /**
    * 
    */

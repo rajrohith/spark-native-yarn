@@ -19,15 +19,27 @@ package dev.demo
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.tez.TezJobExecutionContext
+import org.apache.hadoop.io.Text
+import org.apache.hadoop.io.IntWritable
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 
 /**
  * This demo demonstrates one of the rudimentary Hadoop use case - counting unique words
- * 
+ *
  */
 object UniqueWordCountWithCollect {
 
   def main(args: Array[String]) {
-   
+    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+    val sc = new SparkContext(masterUrl, "UniqueWordCount")
+    val source = sc.textFile("/Users/ozhurakousky/dev/fork/stark/src/demo/scala/dev/demo/test.txt")
+    val result = source
+      .flatMap(x => x.split(" "))
+      .map(x => (x, 1))
+      .reduceByKey((x, y) => x + y, 2)
+      .saveAsNewAPIHadoopFile("out", classOf[Text],
+        classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+    sc.stop
   }
 
   def run(inputFile: String, reducers: Int) {
@@ -46,13 +58,13 @@ object UniqueWordCountWithCollect {
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y, reducers)
       .persist
-    
-//    result
-//      .flatMap(x => x.split(" "))
-//      .map(x => (x, 1))
-//      .reduceByKey((x, y) => x + y, reducers)
-      
-//    result.count
+
+    //    result
+    //      .flatMap(x => x.split(" "))
+    //      .map(x => (x, 1))
+    //      .reduceByKey((x, y) => x + y, reducers)
+
+    //    result.count
 
     //cleanup
     sc.stop()

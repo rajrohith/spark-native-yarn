@@ -76,31 +76,7 @@ public class VertexDescriptor {
 	public ByteBuffer getSerTaskData() {
 		return serTaskData;
 	}
-
-	/**
-	 * 
-	 * @return
-	 */
-	public Class<?> getInputFormatClass() {
-		return inputFormatClass;
-	}
-
-	/**
-	 * 
-	 * @return
-	 */
-	public Class<?> getKey() {
-		return key;
-	}
-
-	/**
-	 * 
-	 * @return
-	 */
-	public Class<?> getValue() {
-		return value;
-	}
-
+	
 	/**
 	 * 
 	 * @return

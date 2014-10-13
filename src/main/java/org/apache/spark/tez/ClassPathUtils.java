@@ -47,29 +47,7 @@ public class ClassPathUtils {
 	private final static Log logger = LogFactory.getLog(ClassPathUtils.class);
 	
 	/**
-	 * 
-	 * @param source
-	 * @return
-	 */
-	public static byte[] toJarBytes(File source) {
-		if (!source.isAbsolute()) {
-			throw new IllegalArgumentException("Source must be expressed through absolute path");
-		}
-		Manifest manifest = new Manifest();
-		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-		try {
-			JarOutputStream target = new JarOutputStream(bos, manifest);
-			add(source, source.getAbsolutePath().length(), target);
-			target.close();
-		}
-		catch (Exception e) {
-			throw new IllegalStateException("Failed to generate JAR bytes from " + source.getAbsolutePath(), e);
-		}
-		return bos.toByteArray();
-	}
-	/**
-	 * Will create a JAR file frombase dir
+	 * Will create a JAR file from base dir
 	 *
 	 * @param source
 	 * @param jarName
@@ -196,23 +174,5 @@ public class ClassPathUtils {
 			logger.warn("Failed to build the list of classpath exclusion. ", e);
 		}
 		return classpathExclusions;
-	}
-	
-	/**
-	 * 
-	 * @param path
-	 * @param classPathExclusions
-	 * @return
-	 */
-	public static boolean useClassPathEntry(String path, String[] classPathExclusions){
-		for (String exclusion : classPathExclusions) {
-			if (path.contains(exclusion) || !path.endsWith(".jar")){
-				if (logger.isDebugEnabled()){
-					logger.debug("Excluding resource: " + path);
-				}
-				return false;
-			}
-		}
-		return true;
 	}
 }

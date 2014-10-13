@@ -14,43 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.tez.test.utils;
+package org.apache.spark.tez
 
-import java.io.File;
-import java.io.IOException;
+import org.junit.Test
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
+import org.apache.hadoop.io.Text
+import org.apache.hadoop.io.IntWritable
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 
-import org.apache.tez.runtime.api.LogicalOutput;
-import org.apache.tez.runtime.api.Writer;
-import org.apache.tez.runtime.library.api.KeyValueWriter;
 /**
- * Stub for LogicalOutput used in tests
- *
+ * Will run in Tez local mode
  */
-public class TestLogicalOutput implements LogicalOutput {
-	
-	public TestLogicalOutput() {
-		
-	}
-	
-    public TestLogicalOutput(File file) {
-		
-	}
+class APITests {
 
-	@Override
-	public void start() throws Exception {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public Writer getWriter() throws Exception {
-		return new KeyValueWriter() {
-			
-			@Override
-			public void write(Object key, Object value) throws IOException {
-
-			}
-		};
-	}
-
+  @Test
+  def count() {
+   
+    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+    val sc = new SparkContext(masterUrl, "reduceByKey")
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+    val result = source
+      .flatMap(x => x.split(" "))
+      .map(x => (x, 1))
+      .reduceByKey((x, y) => x + y)
+      .count
+    sc.stop
+  }
 }

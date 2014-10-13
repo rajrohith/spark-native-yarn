@@ -111,18 +111,4 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
       (records, null)
     }
   }
-  
-//  /**
-//   * 
-//   */
-//  private def toKeyWritable(value: Comparable[_]) = {
-//    this.kw.setValue(value)
-//  }
-  
-//  /**
-//   * 
-//   */
-//  private def toValueWritable(value: Any) = {
-//    this.vw.setValue(value)
-//  }
 }
