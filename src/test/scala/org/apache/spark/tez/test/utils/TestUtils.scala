@@ -19,6 +19,11 @@ package org.apache.spark.tez.test.utils
 import org.apache.spark.rdd.RDD
 import java.io.File
 import org.apache.commons.io.FileUtils
+import org.apache.tez.dag.api.TezConfiguration
+import org.apache.hadoop.fs.FileSystem
+import java.io.BufferedReader
+import org.apache.hadoop.fs.Path
+import java.io.InputStreamReader
 /**
  * 
  */
@@ -41,5 +46,37 @@ object TestUtils {
   def cleanup(testName:String) {
     val cpDir = new File(System.getProperty("user.dir") + "/" + testName)
     FileUtils.deleteDirectory(cpDir)
+  }
+  
+  /**
+   *
+   */
+  def printSampleResults(outputPath: String) {
+    val conf = new TezConfiguration
+    val fs = FileSystem.get(conf);
+    val iter = fs.listFiles(new Path(outputPath), false);
+    var counter = 0;
+    var run = true
+    while (iter.hasNext() && run) {
+      val status = iter.next();
+      if (status.isFile()) {
+        if (!status.getPath().toString().endsWith("_SUCCESS")) {
+          println("Results from " + status.getPath() + " - " + fs.getLength(status.getPath()))
+
+          val reader = new BufferedReader(new InputStreamReader(fs.open(status.getPath())))
+          var line: String = null
+          var r = true
+          while (r && counter < 20) {
+            line = reader.readLine()
+            if (line == null) {
+              r = false
+            } else {
+              println("\t" + line)
+              counter += 1
+            }
+          }
+        }
+      }
+    }
   }
 }

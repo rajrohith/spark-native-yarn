@@ -300,7 +300,7 @@ class DAGBuilder {
 		// int length of first segment 
 		// first segment
 		// int length of second segment
-		// secon segment 
+		// second segment 
 		int segmentCount = this.sparkPartitionerBytes == null ? 1 : 2;
 		int capacity = this.sparkPartitionerBytes == null ? 1 + 4 + vertexDescriptor.getSerTaskData().capacity() :
 			1 + 4 + 4 + vertexDescriptor.getSerTaskData().capacity() + this.sparkPartitionerBytes.length;
@@ -309,8 +309,10 @@ class DAGBuilder {
 		payloadBuffer.put((byte) segmentCount);
 		payloadBuffer.putInt(vertexDescriptor.getSerTaskData().capacity());
 		payloadBuffer.put(vertexDescriptor.getSerTaskData());
-		payloadBuffer.putInt(this.sparkPartitionerBytes.length);
-		payloadBuffer.put(this.sparkPartitionerBytes);
+		if (this.sparkPartitionerBytes != null){
+			payloadBuffer.putInt(this.sparkPartitionerBytes.length);
+			payloadBuffer.put(this.sparkPartitionerBytes);
+		}
 		payloadBuffer.flip();
 		return payloadBuffer;
 	}

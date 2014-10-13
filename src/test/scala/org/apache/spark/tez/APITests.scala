@@ -22,6 +22,11 @@ import org.apache.spark.SparkContext._
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.IntWritable
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
+import org.apache.spark.SparkConf
+import org.junit.Assert
+import org.apache.commons.io.FileUtils
+import java.io.File
+import org.apache.spark.tez.test.utils.TestUtils
 
 /**
  * Will run in Tez local mode
@@ -29,16 +34,83 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 class APITests {
 
   @Test
+  def reduceByKey() {
+    val applicationName = "reduceByKey"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+    val result = source
+      .flatMap(x => x.split(" "))
+      .map(x => (x, 1))
+      .reduceByKey((x, y) => x + y)
+      .saveAsNewAPIHadoopFile(applicationName + "_out", classOf[Text],
+        classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+    TestUtils.printSampleResults(applicationName + "_out")
+    sc.stop
+    this.cleanUp(applicationName)
+  }
+
+  @Test
   def count() {
-   
-    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-    val sc = new SparkContext(masterUrl, "reduceByKey")
+    val applicationName = "count"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
     val result = source
       .flatMap(x => x.split(" "))
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y)
       .count
+    Assert.assertEquals(51, result)
     sc.stop
+    this.cleanUp(applicationName)
+  }
+
+  @Test
+  def join() {
+    val file1 = "src/test/scala/org/apache/spark/tez/file1.txt"
+    val file2 = "src/test/scala/org/apache/spark/tez/file2.txt"
+    val applicationName = "join"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source1 = sc.textFile(file1)
+    val source2 = sc.textFile(file2)
+
+    val two = source2.map { x =>
+      val s = x.split(" ")
+      val key: Int = Integer.parseInt(s(0))
+      (key, s(1))
+    }
+
+    val result = source1.map { x =>
+      val s = x.split(" ")
+      val key: Int = Integer.parseInt(s(2))
+      val t = (key, (s(0), s(1)))
+      t
+    }.join(two).reduceByKey { (x, y) =>
+      println("REDUCING!!!!!!!!!") // good place to set a breakpoint when executing in mini-cluster to observe debug features
+      ((x._1.toString, y._1.toString), x._2)
+    }.saveAsNewAPIHadoopFile(applicationName + "_out", classOf[IntWritable], classOf[Text], classOf[TextOutputFormat[_, _]])
+    sc.stop
+    TestUtils.printSampleResults(applicationName + "_out")
+    this.cleanUp(applicationName)
+  }
+
+  def cleanUp(applicationname: String) {
+    FileUtils.deleteDirectory(new File(applicationname + "_out"))
+  }
+
+  /**
+   *
+   */
+  def buildSparkConf(): SparkConf = {
+    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+    val sparkConf = new SparkConf
+    sparkConf.set("spark.ui.enabled", "false")
+    sparkConf.setMaster(masterUrl)
+    sparkConf
   }
 }
