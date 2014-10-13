@@ -35,7 +35,7 @@ import org.apache.spark.tez.SparkUtils
 /**
  * 
  */
-class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], handle: BaseShuffleHandle[K, V, C]) extends ShuffleWriter[K, V] with Logging {
+class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], handle: BaseShuffleHandle[K, V, C], context: TaskContext) extends ShuffleWriter[K, V] with Logging {
   
   private val kvOutput = output.values.iterator().next()
   private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]

@@ -92,6 +92,8 @@ class APITests {
       t
     }.join(two).reduceByKey { (x, y) =>
       println("REDUCING!!!!!!!!!") // good place to set a breakpoint when executing in mini-cluster to observe debug features
+      println(x._1)
+      println(x._2)
       ((x._1.toString, y._1.toString), x._2)
     }.saveAsNewAPIHadoopFile(applicationName + "_out", classOf[IntWritable], classOf[Text], classOf[TextOutputFormat[_, _]])
     sc.stop

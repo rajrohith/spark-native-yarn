@@ -30,6 +30,7 @@ import org.apache.hadoop.io.IntWritable
 import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.conf.Configuration
 import org.apache.tez.dag.api.TezConfiguration
+import org.apache.spark.InterruptibleIterator
 
 /**
  * Implementation of Spark's ShuffleReader tailored for Tez which means its is aware of

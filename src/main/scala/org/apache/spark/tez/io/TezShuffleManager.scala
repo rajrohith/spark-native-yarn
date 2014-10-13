@@ -72,7 +72,7 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
       new TezShuffleWriter(this.output, handle.asInstanceOf[BaseShuffleHandle[K, V, _]], context, shuffleStage)
     }
     else {
-      new TezResultWriter(this.output,  handle.asInstanceOf[BaseShuffleHandle[K, V, _]])
+      new TezResultWriter(this.output,  handle.asInstanceOf[BaseShuffleHandle[K, V, _]], context)
     }
   }
 

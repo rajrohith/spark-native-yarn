@@ -63,7 +63,7 @@ class TezRDD[K, V](
    *
    */
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
-    val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, null).read.asInstanceOf[Iterator[(K, V)]]
+    val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, context).read.asInstanceOf[Iterator[(K, V)]]
     new InterruptibleIterator(context, iterator)
   }
   /**

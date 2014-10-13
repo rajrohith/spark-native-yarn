@@ -28,6 +28,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.scheduler.Task
 import org.apache.spark.shuffle.ShuffleMemoryManager
 import org.apache.spark.tez.io.TezShuffleManager
+import org.apache.spark.executor.TaskMetrics
 
 /**
  * Utility functions related to Spark functionality.
@@ -61,6 +62,8 @@ object SparkUtils {
    * 
    */
   def createSparkEnv(shuffleManager:TezShuffleManager) {
+    val tm = new TaskMetrics
+    TaskContext.setTaskContext(new TaskContext(1, 1, 1, true, tm))
     val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];   
     val memoryManager = new ShuffleMemoryManager(20793262)
     val se = new SparkEnv("0", null, closueSerializer, closueSerializer, null, null, shuffleManager, null, null, blockManager, null, null, null, null, memoryManager, sparkConf)

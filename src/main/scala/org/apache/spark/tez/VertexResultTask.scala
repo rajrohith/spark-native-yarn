@@ -55,9 +55,6 @@ class VertexResultTask[T, U](
   override def runTask(context: TaskContext): U = {
     val manager = SparkEnv.get.shuffleManager
 
-//    val m = func.getClass().getDeclaredMethods().filter(m => classOf[TaskContext].isAssignableFrom(m.getParameterTypes()(0)))
-//    val unit = m(0).getReturnType().getCanonicalName() == "void"
-//
     val collectFunction = (iter: Iterator[Product2[_,_]]) => {
       val dependency = rdd.dependencies.head
       val handle =
@@ -71,14 +68,7 @@ class VertexResultTask[T, U](
     }
       
     try {
-      val result =
-//        if (unit) {
-//          func(context, rdd.iterator(partition, context))
-//        } else {
-           collectFunction(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_,_]]])
-//           collectFunction(rdd.iterator(new DummyPartition, context).asInstanceOf[Iterator[Product2[_,_]]])
-           
-//        }
+      val result = collectFunction(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_,_]]])
       ().asInstanceOf[U]
     } catch {
       case e:Exception => e.printStackTrace();throw new IllegalStateException(e)
