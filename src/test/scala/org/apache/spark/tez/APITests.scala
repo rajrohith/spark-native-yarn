@@ -30,6 +30,9 @@ import org.apache.spark.tez.test.utils.TestUtils
 import org.apache.spark.HashPartitioner
 import org.apache.hadoop.mapred.lib.MultipleTextOutputFormat
 import org.apache.hadoop.io.NullWritable
+import org.mockito.Mockito
+import org.mockito.Matchers
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Will run in Tez local mode
@@ -43,7 +46,7 @@ class APITests {
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
-    
+
     // ===
     val result = source
       .flatMap(x => x.split(" "))
@@ -52,7 +55,7 @@ class APITests {
       .saveAsNewAPIHadoopFile(applicationName + "_out", classOf[Text],
         classOf[IntWritable], classOf[TextOutputFormat[_, _]])
     // ===
-        
+
     TestUtils.printSampleResults(applicationName + "_out")
     sc.stop
     this.cleanUp(applicationName)
@@ -65,7 +68,7 @@ class APITests {
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
-    
+
     // ===
     val result = source
       .flatMap(x => x.split(" "))
@@ -73,7 +76,7 @@ class APITests {
       .reduceByKey((x, y) => x + y)
       .count
     // ===  
-    
+
     Assert.assertEquals(51, result)
     sc.stop
     this.cleanUp(applicationName)
@@ -104,12 +107,12 @@ class APITests {
     }.join(two).reduceByKey { (x, y) => ((x._1.toString, y._1.toString), x._2)
     }.saveAsNewAPIHadoopFile(applicationName + "_out", classOf[IntWritable], classOf[Text], classOf[TextOutputFormat[_, _]])
     // ===
-    
-    sc.stop   
+
+    sc.stop
     TestUtils.printSampleResults(applicationName + "_out")
     this.cleanUp(applicationName)
   }
-  
+
   @Test
   def partitionBy() {
     val applicationName = "partitionBy"
@@ -117,19 +120,31 @@ class APITests {
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/partitioning.txt")
+
+    // since partitioner will be serialized even in Tez local mode
+    // file is created as an evidence that the method was invoked
+    val partitioner = new HashPartitioner(2) {
+      override def getPartition(key:Any):Int = {
+        val f = new File(applicationName + "_executed")
+        f.createNewFile()
+        f.deleteOnExit()
+        super.getPartition(key)
+      }
+    }
     
     // ===
     val result = source
-    	.map{s => val split = s.split("\\s+", 2); (split(0).replace(":", "_"), split(1))}
-    	.partitionBy(new HashPartitioner(2))
-    	.saveAsHadoopFile(applicationName + "_out", classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
+      .map { s => val split = s.split("\\s+", 2); (split(0).replace(":", "_"), split(1)) }
+      .partitionBy(partitioner)
+      .saveAsHadoopFile(applicationName + "_out", classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
     // ===
-        
+      
+    Assert.assertTrue(new File(applicationName + "_executed").exists())
     TestUtils.printSampleResults(applicationName + "_out")
     sc.stop
     this.cleanUp(applicationName)
   }
-  
+
   @Test
   def cache() {
     val applicationName = "cache"
@@ -137,23 +152,24 @@ class APITests {
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
-    
+
     // ===
     val result = source
       .flatMap(x => x.split(" "))
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y)
       .cache
-     
     // ===
-        
-    TestUtils.printSampleResults(result.name)
+    Assert.assertTrue(new File(result.name).exists())
+    Assert.assertEquals(51, result.count)
+
     sc.stop
     this.cleanUp(applicationName)
+    FileUtils.deleteDirectory(new File(applicationName + "_cache_4"))
   }
 
   /**
-   * 
+   *
    */
   def cleanUp(applicationname: String) {
     FileUtils.deleteDirectory(new File(applicationname + "_out"))
@@ -172,7 +188,7 @@ class APITests {
 }
 
 /**
- * 
+ *
  */
 class KeyPerPartitionOutputFormat extends MultipleTextOutputFormat[Any, Any] {
   override def generateActualKey(key: Any, value: Any): Any = {
