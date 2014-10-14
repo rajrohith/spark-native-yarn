@@ -29,6 +29,10 @@ import org.apache.spark.Logging
 import org.apache.hadoop.io.Writable
 import org.apache.spark.tez.io.KeyWritable
 import org.apache.spark.tez.io.ValueWritable
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.FileSystem
+import java.lang.Boolean
+import org.apache.hadoop.yarn.api.records.LocalResource
 
 /**
  * 
@@ -38,6 +42,8 @@ class TezDelegate extends SparkListener with Logging {
   private[tez] val tezConfiguration = new TezConfiguration
 
   private var tezClient: Option[TezClient] = None
+  
+  private var localResources:java.util.Map[String, LocalResource] = null
 
   /**
    *
@@ -46,10 +52,9 @@ class TezDelegate extends SparkListener with Logging {
     logInfo("Job: " + appName + " will be submitted to the following YARN cluster: ")
     this.logYARNConfiguration(this.tezConfiguration)
     if (this.tezClient.isEmpty) {
-       this.tezClient = new Some(TezClient.create(appName, new TezConfiguration))
-       this.tezClient.get.start()
+      this.initializeAndStartTezClient(appName)
     }
-    val tezUtils = new Utils(this.tezClient.get, stage, func)
+    val tezUtils = new Utils(this.tezClient.get, stage, func, localResources)
     val outputMetadata = this.extractOutputMetedata(configuration, appName)
     val dagTask: DAGTask = tezUtils.build(outputMetadata._1, outputMetadata._2, outputMetadata._3, outputMetadata._4)
     dagTask.execute
@@ -64,6 +69,29 @@ class TezDelegate extends SparkListener with Logging {
       val tezClient = this.tezClient.get
       tezClient.stop()
     }
+  }
+
+  /**
+   * Will create, initialize and start TezClient while also creating a map of LocalResources
+   * to be used in application classpath management
+   */
+  private[tez] def initializeAndStartTezClient(appName: String) {
+    val fs = FileSystem.get(tezConfiguration);
+    this.tezClient = new Some(TezClient.create(appName, new TezConfiguration))
+    val classpathDir = new Path(this.tezClient.get.getClientName() + "/" + TezConstants.CLASSPATH_PATH)
+    val appClassPathDir = fs.makeQualified(classpathDir)
+    logInfo("Application classpath dir is: " + appClassPathDir)
+    val ucpProp = System.getProperty(TezConstants.UPDATE_CLASSPATH)
+
+    val updateClassPath = ucpProp != null && Boolean.parseBoolean(ucpProp)
+    if (updateClassPath) {
+      logInfo("Refreshing application classpath, by deleting the existing one. New one will be provisioned")
+      fs.delete(appClassPathDir)
+    }
+    localResources = YarnUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH)
+    this.tezClient.get.addAppMasterLocalFiles(localResources);
+
+    this.tezClient.get.start()
   }
 
   /**

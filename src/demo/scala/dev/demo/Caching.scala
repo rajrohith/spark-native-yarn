@@ -30,8 +30,8 @@ import org.apache.spark.tez.TezJobExecutionContext
 object Caching {
 
   def main(args: Array[String]) {
-    var reducers = 2
-    var inputFile = "src/main/scala/dev/demo/test.txt"
+    var reducers = 1
+    var inputFile = "src/demo/scala/dev/demo/test.txt"
     if (args != null && args.length > 0) {
       reducers = Integer.parseInt(args(0))
       if (args.length > 1) {
@@ -58,13 +58,10 @@ object Caching {
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y, reducers)
       .cache
-      
-    result.cache
-      
-    result.unpersist()
-    
+//    println(result.name)
+//    DemoUtilities.printSampleResults(result.name)
     val cachedRddResult = result.count
-//    println("RESULT: " + cachedRddResult)
+    println("RESULT: " + cachedRddResult)
 
     //cleanup
     sc.stop()

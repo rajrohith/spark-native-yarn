@@ -44,6 +44,9 @@ import org.apache.spark.tez.utils.ReflectionUtils
 import org.apache.spark.tez.test.utils.TezClientMocker
 import org.apache.spark.tez.test.utils.Instrumentable
 import org.apache.spark.tez.test.utils.TestUtils
+import org.apache.tez.client.TezClient
+import org.apache.spark.tez.TezDelegate
+import org.mockito.Mockito
 /** 
  * 
  */
@@ -103,16 +106,16 @@ class TezRDDTests extends Instrumentable {
     val appName = "validatePersistAndUnpersist"
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
     val sc = new SparkContext(masterUrl, appName)
-    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TezClientMocker.noOpTezClientWithSuccessfullSubmit(sc.appName)))
+    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TestUtils.instrumentTezClient(sc)))
     println(ReflectionUtils.getFieldValue(sc, "executionContext.tezDelegate.tezClient"))
     val tezRdd = new TezRDD("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", sc, classOf[TextInputFormat],
       classOf[Text], classOf[IntWritable], new TezConfiguration)
 
     val persistedRddName =  TestUtils.stubPersistentFile(appName, tezRdd)
     val persistedRdd = tezRdd.cache
-    assertTrue(new File(appName + "/" + persistedRddName).exists())
+    assertTrue(new File(persistedRddName).exists())
     persistedRdd.unpersist()
-    assertFalse(new File(appName + "/" + persistedRddName).exists())
+    assertFalse(new File(persistedRddName).exists())
     TestUtils.cleanup(appName)
   }
 

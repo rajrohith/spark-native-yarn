@@ -24,30 +24,43 @@ import org.apache.hadoop.fs.FileSystem
 import java.io.BufferedReader
 import org.apache.hadoop.fs.Path
 import java.io.InputStreamReader
+import org.apache.spark.SparkContext
+import org.apache.tez.client.TezClient
+import org.apache.spark.tez.TezDelegate
+import org.apache.spark.tez.utils.ReflectionUtils
+import org.mockito.Mockito
 /**
- * 
+ *
  */
 object TestUtils {
 
   /**
-   * 
+   *
    */
-  def stubPersistentFile(appName:String, rdd:RDD[_]):String = {
-    val root = new File(appName)
-    root.mkdirs()
-    val cache = new File(root, "/_cache_" + rdd.id)
+  def stubPersistentFile(appName: String, rdd: RDD[_]): String = {
+    val cache = new File(appName + "_cache_" + rdd.id)
     cache.createNewFile()
     cache.getName()
   }
-  
+
   /**
-   * 
+   *
    */
-  def cleanup(testName:String) {
+  def cleanup(testName: String) {
     val cpDir = new File(System.getProperty("user.dir") + "/" + testName)
     FileUtils.deleteDirectory(cpDir)
   }
-  
+
+  def instrumentTezClient(sc: SparkContext): TezClient = {
+    val tezDelegate = ReflectionUtils.getFieldValue(sc, "executionContext.tezDelegate").asInstanceOf[TezDelegate]
+    tezDelegate.initializeAndStartTezClient(sc.appName)
+    val tezClient = TezClient.create(sc.appName, new TezConfiguration)
+    tezClient.start()
+    val watchedTezClient = Mockito.spy(tezClient)
+    ReflectionUtils.setFieldValue(tezDelegate, "tezClient", new Some(watchedTezClient))
+    watchedTezClient
+  }
+
   /**
    *
    */

@@ -40,35 +40,19 @@ import org.apache.hadoop.io.Writable
 import org.apache.spark.rdd.ShuffledRDD
 import org.apache.spark.tez.utils.ReflectionUtils
 import org.apache.spark.Partitioner
+import org.apache.hadoop.yarn.api.records.LocalResource
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
  */
-class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContext, Iterator[T]) => U) extends Logging {
+class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContext, Iterator[T]) => U, localResources:java.util.Map[String, LocalResource]) extends Logging {
 
   private var vertexId = 0;
-  
-  private val serializer = SparkEnv.get.serializer.newInstance
   
   private val sparkContext = stage.rdd.context
   
   private val tezConfiguration = new TezConfiguration
   
-  val fs = FileSystem.get(tezConfiguration);
-  val classpathDir = new Path(tezClient.getClientName() + "/" + TezConstants.CLASSPATH_PATH)
-  val appClassPathDir = fs.makeQualified(classpathDir)
-  logInfo("Application classpath dir is: " + appClassPathDir)
-  val ucpProp = System.getProperty(TezConstants.UPDATE_CLASSPATH)
- 
-  val updateClassPath = ucpProp != null && Boolean.parseBoolean(ucpProp)
-  if (updateClassPath){
-    logInfo("Refreshing application classpath, by deleting the existing one. New one will be provisioned")
-    fs.delete(appClassPathDir)
-  }
-  
-  val localResources = YarnUtils.createLocalResources(this.fs, sparkContext.appName + "/" + TezConstants.CLASSPATH_PATH)
-  this.tezClient.addAppMasterLocalFiles(this.localResources);
-
   val dagBuilder = new DAGBuilder(this.tezClient, this.localResources, tezConfiguration)
 
   /**
@@ -134,15 +118,15 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
    * 
    */
   private def serializePartitions(partitions:Array[Partition]){
-    if (partitions.size > 0 && partitions(0).isInstanceOf[ParallelCollectionPartition[_]]){
-      var partitionCounter = 0
-      for (partition <- partitions) {
-        val partitionPath = new Path(this.sparkContext.appName + "_p_" + partitionCounter)
-        val os = fs.create(partitionPath)
-        logDebug("serializing: " + partitionPath)
-        partitionCounter += 1
-        serializer.serializeStream(os).writeObject(partition).close
-      }
-    }
+//    if (partitions.size > 0 && partitions(0).isInstanceOf[ParallelCollectionPartition[_]]){
+//      var partitionCounter = 0
+//      for (partition <- partitions) {
+//        val partitionPath = new Path(this.sparkContext.appName + "_p_" + partitionCounter)
+//        val os = fs.create(partitionPath)
+//        logDebug("serializing: " + partitionPath)
+//        partitionCounter += 1
+//        serializer.serializeStream(os).writeObject(partition).close
+//      }
+//    }
   }
 }

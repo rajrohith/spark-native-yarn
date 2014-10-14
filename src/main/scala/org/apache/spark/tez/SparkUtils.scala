@@ -48,7 +48,8 @@ object SparkUtils {
   
   def getLastMethodName():String = {
     val ex = new Exception
-    ex.getStackTrace().filter(_.toString().contains("org.apache.spark")).last.getMethodName()
+//    ex.printStackTrace()
+    ex.getStackTrace().filter(_.toString().contains("org.apache.spark.rdd")).last.getMethodName()
   }
 
   /**

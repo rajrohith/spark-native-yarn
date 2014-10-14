@@ -60,6 +60,8 @@ import java.io.FileNotFoundException
 import org.apache.spark.rdd.PairRDDFunctions
 import org.apache.tez.client.TezClient
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.ArrayList
+import java.util.Arrays
 
 /**
  *
@@ -150,7 +152,11 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
         if (!fStatus.getPath().toString().endsWith("_SUCCESS")) {
           if (operationName == "count") {
             val reader = new BufferedReader(new InputStreamReader(fs.open(fStatus.getPath())))
-            val count = Long.parseLong(reader.readLine().split("\\s+")(1))
+            val line = reader.readLine()
+            if (line == null){
+              throw new IllegalStateException("Failed to read the 'count' result from " + fStatus.getPath())
+            }
+            val count = Long.parseLong(line.split("\\s+")(1))
             resultHandler(partitionCounter, count.asInstanceOf[U])
             reader.close
           }
@@ -206,8 +212,19 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
       val cachedRdd = sc.textFile(cachePath)
       cachedRdd
     } else {
-      val outputDirectory = sc.appName + "/_cache_" + rdd.id
+      val outputDirectory = sc.appName + "_cache_" + rdd.id
       rdd.saveAsTextFile(outputDirectory)
+//      val iter = fs.listFiles(new Path(outputDirectory), false)
+//      val list = new ArrayList[String]()
+//      while (iter.hasNext()){
+//        val path = iter.next().getPath()
+//        if (path.getName().startsWith("part-")){
+//          list.add(path.toUri().getPath())
+//        }
+//      }
+//      val s = list.toString();
+//      val path = s.substring(1, s.length()-1)
+      
       val cachedRdd = new TezRDD(outputDirectory, sc, classOf[TextInputFormat],
         classOf[Text], classOf[IntWritable], new TezConfiguration)
       logInfo("Cached RDD: " + cachedRdd)

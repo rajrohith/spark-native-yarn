@@ -34,6 +34,7 @@ object DemoUtilities {
     m.setAccessible(true);
     val file = new File("src/test/resources/mini/").toURI().toURL()
     m.invoke(cl, file)
+ 
 
     if (jobName != null && inputFiles != null) {
       System.setProperty(TezConstants.GENERATE_JAR, "true");

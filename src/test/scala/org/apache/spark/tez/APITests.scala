@@ -27,6 +27,9 @@ import org.junit.Assert
 import org.apache.commons.io.FileUtils
 import java.io.File
 import org.apache.spark.tez.test.utils.TestUtils
+import org.apache.spark.HashPartitioner
+import org.apache.hadoop.mapred.lib.MultipleTextOutputFormat
+import org.apache.hadoop.io.NullWritable
 
 /**
  * Will run in Tez local mode
@@ -40,12 +43,16 @@ class APITests {
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+    
+    // ===
     val result = source
       .flatMap(x => x.split(" "))
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y)
       .saveAsNewAPIHadoopFile(applicationName + "_out", classOf[Text],
         classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+    // ===
+        
     TestUtils.printSampleResults(applicationName + "_out")
     sc.stop
     this.cleanUp(applicationName)
@@ -58,11 +65,15 @@ class APITests {
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+    
+    // ===
     val result = source
       .flatMap(x => x.split(" "))
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y)
       .count
+    // ===  
+    
     Assert.assertEquals(51, result)
     sc.stop
     this.cleanUp(applicationName)
@@ -79,28 +90,71 @@ class APITests {
     val source1 = sc.textFile(file1)
     val source2 = sc.textFile(file2)
 
+    // ===
     val two = source2.map { x =>
       val s = x.split(" ")
       val key: Int = Integer.parseInt(s(0))
       (key, s(1))
     }
-
     val result = source1.map { x =>
       val s = x.split(" ")
       val key: Int = Integer.parseInt(s(2))
       val t = (key, (s(0), s(1)))
       t
-    }.join(two).reduceByKey { (x, y) =>
-      println("REDUCING!!!!!!!!!") // good place to set a breakpoint when executing in mini-cluster to observe debug features
-      println(x._1)
-      println(x._2)
-      ((x._1.toString, y._1.toString), x._2)
+    }.join(two).reduceByKey { (x, y) => ((x._1.toString, y._1.toString), x._2)
     }.saveAsNewAPIHadoopFile(applicationName + "_out", classOf[IntWritable], classOf[Text], classOf[TextOutputFormat[_, _]])
-    sc.stop
+    // ===
+    
+    sc.stop   
     TestUtils.printSampleResults(applicationName + "_out")
     this.cleanUp(applicationName)
   }
+  
+  @Test
+  def partitionBy() {
+    val applicationName = "partitionBy"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/partitioning.txt")
+    
+    // ===
+    val result = source
+    	.map{s => val split = s.split("\\s+", 2); (split(0).replace(":", "_"), split(1))}
+    	.partitionBy(new HashPartitioner(2))
+    	.saveAsHadoopFile(applicationName + "_out", classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
+    // ===
+        
+    TestUtils.printSampleResults(applicationName + "_out")
+    sc.stop
+    this.cleanUp(applicationName)
+  }
+  
+  @Test
+  def cache() {
+    val applicationName = "cache"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+    
+    // ===
+    val result = source
+      .flatMap(x => x.split(" "))
+      .map(x => (x, 1))
+      .reduceByKey((x, y) => x + y)
+      .cache
+     
+    // ===
+        
+    TestUtils.printSampleResults(result.name)
+    sc.stop
+    this.cleanUp(applicationName)
+  }
 
+  /**
+   * 
+   */
   def cleanUp(applicationname: String) {
     FileUtils.deleteDirectory(new File(applicationname + "_out"))
   }
@@ -114,5 +168,18 @@ class APITests {
     sparkConf.set("spark.ui.enabled", "false")
     sparkConf.setMaster(masterUrl)
     sparkConf
+  }
+}
+
+/**
+ * 
+ */
+class KeyPerPartitionOutputFormat extends MultipleTextOutputFormat[Any, Any] {
+  override def generateActualKey(key: Any, value: Any): Any = {
+    NullWritable.get()
+  }
+
+  override def generateFileNameForKeyValue(key: Any, value: Any, name: String): String = {
+    key.asInstanceOf[String]
   }
 }

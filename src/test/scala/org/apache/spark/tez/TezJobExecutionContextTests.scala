@@ -71,10 +71,10 @@ class TezJobExecutionContextTests extends Instrumentable {
     val persistedRdd = tec.persist(sc, rdd, StorageLevel.NONE)
     val set = ReflectionUtils.getFieldValue(tec, "cachedRDDs").asInstanceOf[Set[Path]]
     assertEquals(1, set.size)
-    
+
     assertEquals(persistedRddName, new File(set.iterator.next.toUri()).getName())
     assertNotNull(persistedRdd)
-    assertTrue(new File(appName + "/" + persistedRddName).exists())
+    assertTrue(new File(persistedRddName).exists())
     TestUtils.cleanup(appName)
   }
 
@@ -85,7 +85,7 @@ class TezJobExecutionContextTests extends Instrumentable {
     val persistedRdd = tec.persist(sc, rdd, StorageLevel.NONE)
     tec.persist(sc, persistedRdd, StorageLevel.NONE)
     assertNotNull(persistedRdd)
-    assertTrue(new File(appName + "/" + persistedRddName).exists())
+    assertTrue(new File(persistedRddName).exists())
     TestUtils.cleanup(appName)
   }
 
@@ -94,9 +94,9 @@ class TezJobExecutionContextTests extends Instrumentable {
     val appName = "validateUnpersist"
     val (sc, rdd, tec, persistedRddName) = this.doPersist(appName)
     val persistedRdd = tec.persist(sc, rdd, StorageLevel.NONE)
-    assertTrue(new File(appName + "/" + persistedRddName).exists())
+    assertTrue(new File(persistedRddName).exists())
     tec.unpersist(sc, persistedRdd)
-    assertFalse(new File(appName + "/" + persistedRddName).exists())
+    assertFalse(new File(persistedRddName).exists())
     // just to ensure that subsequent un-persist will not result in exception
     tec.unpersist(sc, persistedRdd)
     TestUtils.cleanup(appName)
@@ -108,7 +108,7 @@ class TezJobExecutionContextTests extends Instrumentable {
   private def doPersist(appName:String): Tuple4[SparkContext, RDD[_], TezJobExecutionContext, String] = {
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
     val sc = new SparkContext(masterUrl, appName)
-    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TezClientMocker.noOpTezClientWithSuccessfullSubmit(sc.appName)))
+    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TestUtils.instrumentTezClient(sc)))
     val tec = ReflectionUtils.getFieldValue(sc, "executionContext").asInstanceOf[TezJobExecutionContext]
     val rdd = new TezRDD("src/test/scala/org/apache/spark/tez/sample.txt", sc, classOf[TextInputFormat],
       classOf[Text], classOf[IntWritable],

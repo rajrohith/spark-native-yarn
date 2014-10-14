@@ -70,9 +70,7 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
     logInfo("Executing processor for task: " + this.getContext().getTaskIndex() + " for DAG " + this.getContext().getDAGName());
     val inputs = this.toIntKey(this.getInputs()).asInstanceOf[java.util.Map[Integer, LogicalInput]]
     val outputs = this.toIntKey(this.getOutputs()).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
-  
-    
-    
+
     if (SparkTaskProcessor.task == null) {
       val deserializedPayload = TezUtils.deserializePayload(context)
       SparkTaskProcessor.task = deserializedPayload._1.asInstanceOf[Task[_]]

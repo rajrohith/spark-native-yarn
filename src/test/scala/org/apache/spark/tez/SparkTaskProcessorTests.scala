@@ -38,6 +38,7 @@ import org.apache.tez.dag.api.TezConfiguration
 import org.mockito.Matchers
 import org.apache.tez.dag.api.DAG
 import org.apache.hadoop.yarn.api.records.LocalResource
+import org.apache.spark.tez.test.utils.TestUtils
 
 /**
  *
@@ -66,7 +67,7 @@ class SparkTaskProcessorTests {
     sparkConf.setMaster(masterUrl)
     val sc = new SparkContext(sparkConf)
 
-    val tezClient = this.instrumentTezClient(sc, applicationName)
+    val tezClient = TestUtils.instrumentTezClient(sc)
 
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
     val result = source
@@ -78,18 +79,8 @@ class SparkTaskProcessorTests {
     sc.stop
     
     val inOrder = Mockito.inOrder(tezClient)
-    inOrder.verify(tezClient, Mockito.times(1)).addAppMasterLocalFiles(Matchers.any[java.util.Map[String, LocalResource]])
     inOrder.verify(tezClient, Mockito.times(1)).waitTillReady()
     inOrder.verify(tezClient, Mockito.times(1)).submitDAG(Matchers.any[DAG])
     inOrder.verify(tezClient, Mockito.times(1)).stop
-  }
-
-  private def instrumentTezClient(sc: SparkContext, applicationName: String):TezClient = {
-    val tezDelegate = ReflectionUtils.getFieldValue(sc, "executionContext.tezDelegate").asInstanceOf[TezDelegate]
-    val tezClient = TezClient.create(applicationName, new TezConfiguration)
-    tezClient.start()
-    val watchedTezClient = Mockito.spy(tezClient)
-    ReflectionUtils.setFieldValue(tezDelegate, "tezClient", new Some(watchedTezClient))
-    watchedTezClient
   }
 }
