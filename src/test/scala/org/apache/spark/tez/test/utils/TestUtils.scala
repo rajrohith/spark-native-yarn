@@ -47,10 +47,12 @@ object TestUtils {
    *
    */
   def cleanup(testName: String) {
-    val cpDir = new File(System.getProperty("user.dir") + "/" + testName)
-    FileUtils.deleteDirectory(cpDir)
+    FileUtils.deleteQuietly(new File(testName))
   }
 
+  /**
+   * 
+   */
   def instrumentTezClient(sc: SparkContext): TezClient = {
     val tezDelegate = ReflectionUtils.getFieldValue(sc, "executionContext.tezDelegate").asInstanceOf[TezDelegate]
     tezDelegate.initializeAndStartTezClient(sc.appName)

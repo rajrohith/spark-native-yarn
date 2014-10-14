@@ -75,7 +75,7 @@ class TezJobExecutionContextTests extends Instrumentable {
     assertEquals(persistedRddName, new File(set.iterator.next.toUri()).getName())
     assertNotNull(persistedRdd)
     assertTrue(new File(persistedRddName).exists())
-    TestUtils.cleanup(appName)
+    TestUtils.cleanup(persistedRddName)
   }
 
   @Test
@@ -86,7 +86,7 @@ class TezJobExecutionContextTests extends Instrumentable {
     tec.persist(sc, persistedRdd, StorageLevel.NONE)
     assertNotNull(persistedRdd)
     assertTrue(new File(persistedRddName).exists())
-    TestUtils.cleanup(appName)
+    TestUtils.cleanup(persistedRddName)
   }
 
   @Test
@@ -99,7 +99,7 @@ class TezJobExecutionContextTests extends Instrumentable {
     assertFalse(new File(persistedRddName).exists())
     // just to ensure that subsequent un-persist will not result in exception
     tec.unpersist(sc, persistedRdd)
-    TestUtils.cleanup(appName)
+    TestUtils.cleanup(persistedRddName)
   }
 
   /**
@@ -123,6 +123,4 @@ class TezJobExecutionContextTests extends Instrumentable {
     inOrder.verify(tezClient, Mockito.times(1)).submitDAG(Matchers.any[DAG])
     (sc, rdd, tec, persistedRddName)
   }
-  
-  
 }
