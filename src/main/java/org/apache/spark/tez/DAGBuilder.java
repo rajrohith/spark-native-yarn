@@ -29,7 +29,6 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.spark.tez.io.SparkDelegatingPartitioner;
 import org.apache.spark.tez.io.TezRDD;
-//import org.apache.spark.tez.io.ValueWritable;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.DataSinkDescriptor;

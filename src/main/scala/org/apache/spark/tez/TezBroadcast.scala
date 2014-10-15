@@ -14,32 +14,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.tez.io
-import org.apache.tez.runtime.library.partitioner.HashPartitioner
+package org.apache.spark.tez
+
+import java.io.Serializable
+import scala.reflect.ClassTag
+import org.apache.spark.broadcast.Broadcast
 /**
  * 
  */
-object SparkDelegatingPartitioner {
-  private var sparkPartitioner:org.apache.spark.Partitioner = null
-  
-  def setSparkPartitioner(sparkPartitioner:org.apache.spark.Partitioner) {
-    this.sparkPartitioner = sparkPartitioner
+class TezBroadcast[T: ClassTag](val broadcastedValue: T) extends Broadcast[T](0L) {
+
+  override protected def getValue() = {
+    this.broadcastedValue
   }
-  
-  def getPartitioner:org.apache.spark.Partitioner = {
-    sparkPartitioner
-  }
-}
-/**
- * 
- */
-class SparkDelegatingPartitioner extends HashPartitioner {
-  override def getPartition(key:Object, value:Object, numPartitions:Int):Int = {
-//    if (SparkDelegatingPartitioner.getPartitioner != null){
-      SparkDelegatingPartitioner.getPartitioner.getPartition(value)
-//    }
-//    else {
-//      super.getPartition(key, value, numPartitions)
-//    }
-  }
+
+  override protected def doUnpersist(blocking: Boolean) {/*noop*/}
+
+  override protected def doDestroy(blocking: Boolean) {/*noop*/}
 }

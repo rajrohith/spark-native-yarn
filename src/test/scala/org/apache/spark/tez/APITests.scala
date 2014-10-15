@@ -177,6 +177,20 @@ class APITests {
     val source = sc.parallelize(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 0), 4)
     Assert.assertEquals(5, source.filter(_ % 2 == 0).count)
   }
+  
+   @Test
+  def broadcast() {
+    val applicationName = "broadcast"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    
+    val list = List(1, 3, 5)
+    val bList = sc.broadcast[List[Int]](list)
+    
+    val source = sc.parallelize(List(1, 2, 4, 5, 6, 7, 8, 9, 0), 1)
+    Assert.assertEquals(2, source.filter(bList.value.contains(_)).count)
+  }
 
   /**
    *

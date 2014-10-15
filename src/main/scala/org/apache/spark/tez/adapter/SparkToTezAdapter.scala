@@ -85,7 +85,7 @@ object SparkToTezAdapter extends Logging {
    
     val pairRddFunctionsAdapter = pool.get("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter")
     val pairRddFunctions = pool.get("org.apache.spark.rdd.PairRDDFunctions")
-
+    
     pairRddFunctions.getDeclaredMethods.collect{x =>
       x.getName() match {
         case "saveAsNewAPIHadoopDataset" => this.swapPairRddFunctionsMethodBody(x, pairRddFunctionsAdapter)

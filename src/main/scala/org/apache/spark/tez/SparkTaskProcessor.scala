@@ -73,12 +73,6 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
     val outputs = this.toIntKey(this.getOutputs()).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
     
     val shufleManager = new TezShuffleManager(inputs, outputs);
-//      if (SparkTaskProcessor.task.isInstanceOf[VertexResultTask[_,_]]){
-////        val vrt = SparkTaskProcessor.task.asInstanceOf[VertexResultTask[_,_]]
-//        new TezShuffleManager(inputs, outputs);
-//      } else {
-//        new TezShuffleManager(inputs, outputs);
-//      }
 
     SparkUtils.createSparkEnv(shufleManager);
 

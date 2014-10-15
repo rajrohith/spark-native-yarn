@@ -109,7 +109,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
    *
    */
   def broadcast[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
-    throw new UnsupportedOperationException("Broadcast not supported yet")
+    new TezBroadcast(value)
   }
 
   /**

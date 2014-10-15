@@ -75,17 +75,17 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   }
 
   private def writeKeyValue(key: Any, value: Any) {
-    if (key.isInstanceOf[NullWritable]){
-      this.kw.setValue(EMPTY_STRING)
-    } else {
+//    if (key.isInstanceOf[NullWritable]){
+//      this.kw.setValue(EMPTY_STRING)
+//    } else {
       this.kw.setValue(key.asInstanceOf[Comparable[_]])
-    }
+//    }
     
-    if (value.isInstanceOf[Text]){
-      this.vw.setValue(value.asInstanceOf[Text].toString())
-    } else {
+//    if (value.isInstanceOf[Text]){
+//      this.vw.setValue(value.asInstanceOf[Text].toString())
+//    } else {
       this.vw.setValue(value.asInstanceOf[Object])
-    }
+//    }
     kvWriter.write(kw, vw)
   }
 
