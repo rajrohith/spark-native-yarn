@@ -41,11 +41,14 @@ import org.apache.spark.rdd.ShuffledRDD
 import org.apache.spark.tez.utils.ReflectionUtils
 import org.apache.spark.Partitioner
 import org.apache.hadoop.yarn.api.records.LocalResource
+import org.apache.spark.rdd.ParallelCollectionRDD
+import java.util.HashMap
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
  */
-class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContext, Iterator[T]) => U, localResources:java.util.Map[String, LocalResource]) extends Logging {
+class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContext, Iterator[T]) => U, 
+    localResources:java.util.Map[String, LocalResource] = new java.util.HashMap[String, LocalResource]) extends Logging {
 
   private var vertexId = 0;
   
@@ -89,10 +92,14 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
       if (stage.isShuffleMap) {
         logInfo(stage.shuffleDep.get.toString)
         logInfo("STAGE Shuffle: " + stage + " vertex: " + this.vertexId)
-        new VertexShuffleTask(stage.id, stage.rdd, stage.rdd.partitions(0), stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]])
+        val initialRdd = stage.rdd.getNarrowAncestors.sortBy(_.id).head
+        if (initialRdd.isInstanceOf[ParallelCollectionRDD[_]]){
+          new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]], stage.rdd.partitions)
+        } else {
+          new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]], Array(stage.rdd.partitions(0)))
+        }
       } else {
         logInfo("STAGE Result: " + stage + " vertex: " + this.vertexId)
-        val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
         new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), null)
       }
     
@@ -102,9 +109,6 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
     
     val vertexTaskBuffer = ByteBuffer.wrap(bos.toByteArray())
     
-    // will serialize only ParallelCollectionPartition instances. The rest are ignored
-    this.serializePartitions(stage.rdd.partitions)
-
     val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
     val deps = (if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0))
     val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTaskBuffer)
@@ -112,21 +116,5 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
     dagBuilder.addVertex(vd)
 
     vertexId += 1
-  }
-  
-  /**
-   * 
-   */
-  private def serializePartitions(partitions:Array[Partition]){
-//    if (partitions.size > 0 && partitions(0).isInstanceOf[ParallelCollectionPartition[_]]){
-//      var partitionCounter = 0
-//      for (partition <- partitions) {
-//        val partitionPath = new Path(this.sparkContext.appName + "_p_" + partitionCounter)
-//        val os = fs.create(partitionPath)
-//        logDebug("serializing: " + partitionPath)
-//        partitionCounter += 1
-//        serializer.serializeStream(os).writeObject(partition).close
-//      }
-//    }
   }
 }

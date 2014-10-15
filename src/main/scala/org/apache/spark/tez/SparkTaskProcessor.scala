@@ -31,6 +31,7 @@ import com.google.common.base.Preconditions
 import org.apache.spark.HashPartitioner
 import org.apache.spark.Partitioner
 import java.nio.ByteBuffer
+import org.apache.spark.tez.io.SparkDelegatingPartitioner
 
 /**
  * 
@@ -70,6 +71,16 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
     logInfo("Executing processor for task: " + this.getContext().getTaskIndex() + " for DAG " + this.getContext().getDAGName());
     val inputs = this.toIntKey(this.getInputs()).asInstanceOf[java.util.Map[Integer, LogicalInput]]
     val outputs = this.toIntKey(this.getOutputs()).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
+    
+    val shufleManager = new TezShuffleManager(inputs, outputs);
+//      if (SparkTaskProcessor.task.isInstanceOf[VertexResultTask[_,_]]){
+////        val vrt = SparkTaskProcessor.task.asInstanceOf[VertexResultTask[_,_]]
+//        new TezShuffleManager(inputs, outputs);
+//      } else {
+//        new TezShuffleManager(inputs, outputs);
+//      }
+
+    SparkUtils.createSparkEnv(shufleManager);
 
     if (SparkTaskProcessor.task == null) {
       val deserializedPayload = TezUtils.deserializePayload(context)
@@ -86,17 +97,10 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
         SparkDelegatingPartitioner.setSparkPartitioner(deserializedPayload._2.asInstanceOf[Partitioner])
       }
     } 
-    
-    val shufleManager = 
-      if (SparkTaskProcessor.task.isInstanceOf[VertexResultTask[_,_]]){
-        val vrt = SparkTaskProcessor.task.asInstanceOf[VertexResultTask[_,_]]
-        new TezShuffleManager(inputs, outputs, false);
-      } else {
-        new TezShuffleManager(inputs, outputs);
-      }
-
-    SparkUtils.createSparkEnv(shufleManager);
-    SparkUtils.runTask(SparkTaskProcessor.task);
+    if (SparkTaskProcessor.task.isInstanceOf[VertexResultTask[_,_]]){
+      shufleManager.shuffleStage = false
+    }
+    SparkUtils.runTask(SparkTaskProcessor.task, this.context.getTaskIndex());
   }
   
 

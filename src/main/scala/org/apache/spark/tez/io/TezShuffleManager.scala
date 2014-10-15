@@ -50,11 +50,12 @@ import scala.reflect.runtime.universe._
  * to Tez's readers and writers
  * 
  */
-class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Integer, LogicalOutput], 
-    shuffleStage:Boolean = true) extends ShuffleManager with Logging{
+class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Integer, LogicalOutput]) extends ShuffleManager with Logging{
   logDebug("Creating TezMapShuffleManager")
   
-  def this(input:Map[Integer, LogicalInput], output:Map[Integer, LogicalOutput]) = this(input, output, true)
+  private[tez] var shuffleStage = true
+  
+//  def this(input:Map[Integer, LogicalInput], output:Map[Integer, LogicalOutput]) = this(input, output, true)
 
   /**
    * 

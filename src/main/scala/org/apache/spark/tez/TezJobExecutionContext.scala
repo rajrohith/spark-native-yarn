@@ -153,12 +153,11 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
           if (operationName == "count") {
             val reader = new BufferedReader(new InputStreamReader(fs.open(fStatus.getPath())))
             val line = reader.readLine()
-            if (line == null){
-              throw new IllegalStateException("Failed to read the 'count' result from " + fStatus.getPath())
+            if (line != null) {
+              val count = Long.parseLong(line.split("\\s+")(1))
+              resultHandler(partitionCounter, count.asInstanceOf[U])
+              reader.close
             }
-            val count = Long.parseLong(line.split("\\s+")(1))
-            resultHandler(partitionCounter, count.asInstanceOf[U])
-            reader.close
           }
           partitionCounter += 1
         }

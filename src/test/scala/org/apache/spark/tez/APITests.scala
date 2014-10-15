@@ -167,6 +167,16 @@ class APITests {
     this.cleanUp(applicationName)
     FileUtils.deleteDirectory(new File(applicationName + "_cache_4"))
   }
+  
+  @Test
+  def parallelize() {
+    val applicationName = "parallelize"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.parallelize(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 0), 4)
+    Assert.assertEquals(5, source.filter(_ % 2 == 0).count)
+  }
 
   /**
    *

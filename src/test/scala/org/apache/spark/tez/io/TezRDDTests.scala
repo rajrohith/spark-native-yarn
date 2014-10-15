@@ -106,16 +106,18 @@ class TezRDDTests extends Instrumentable {
     val appName = "validatePersistAndUnpersist"
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
     val sc = new SparkContext(masterUrl, appName)
-    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TestUtils.instrumentTezClient(sc)))
+    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TezClientMocker.noOpTezClientWithSuccessfullSubmit(appName)))
     println(ReflectionUtils.getFieldValue(sc, "executionContext.tezDelegate.tezClient"))
     val tezRdd = new TezRDD("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", sc, classOf[TextInputFormat],
       classOf[Text], classOf[IntWritable], new TezConfiguration)
 
-    val persistedRddName =  TestUtils.stubPersistentFile(appName, tezRdd)
+    val file = new File( appName + "_cache_" + tezRdd.id)
+    file.mkdir()
+    
     val persistedRdd = tezRdd.cache
-    assertTrue(new File(persistedRddName).exists())
+    assertTrue(file.exists())
     persistedRdd.unpersist()
-    assertFalse(new File(persistedRddName).exists())
+    assertFalse(file.exists())
     TestUtils.cleanup(appName)
   }
 
@@ -130,7 +132,8 @@ class TezRDDTests extends Instrumentable {
     inMap.put(0, new TestLogicalInput(file.toURI()))
     val outMap = mock(classOf[Map[Integer, LogicalOutput]])
     outMap.put(1, mock(classOf[LogicalOutput]))
-    val sm = new TezShuffleManager(inMap, outMap, false);
+    val sm = new TezShuffleManager(inMap, outMap);
+    sm.shuffleStage = false
     SparkUtils.createSparkEnv(sm)
     val partition = mock(classOf[Partition])
     val tc = mock(classOf[TaskContext])

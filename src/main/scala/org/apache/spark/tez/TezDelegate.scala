@@ -54,7 +54,11 @@ class TezDelegate extends SparkListener with Logging {
     if (this.tezClient.isEmpty) {
       this.initializeAndStartTezClient(appName)
     }
-    val tezUtils = new Utils(this.tezClient.get, stage, func, localResources)
+    val tezUtils = if (this.localResources == null) {
+      new Utils(this.tezClient.get, stage, func)
+    } else {
+      new Utils(this.tezClient.get, stage, func, localResources)
+    }
     val outputMetadata = this.extractOutputMetedata(configuration, appName)
     val dagTask: DAGTask = tezUtils.build(outputMetadata._1, outputMetadata._2, outputMetadata._3, outputMetadata._4)
     dagTask.execute
@@ -88,7 +92,7 @@ class TezDelegate extends SparkListener with Logging {
       logInfo("Refreshing application classpath, by deleting the existing one. New one will be provisioned")
       fs.delete(appClassPathDir)
     }
-    localResources = YarnUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH)
+    this.localResources = YarnUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH)
     this.tezClient.get.addAppMasterLocalFiles(localResources);
 
     this.tezClient.get.start()

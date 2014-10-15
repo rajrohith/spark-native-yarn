@@ -27,7 +27,9 @@ public abstract class TypeAwareWritable<T> implements Writable {
 		this.determineValueType(value);
 		if (this.valueType == 0){
 			this.valueType = this.valueEncoder.valueType;
-			this.valueTypeClass = value.getClass();
+			if (this.valueType != NULL){
+				this.valueTypeClass = value.getClass();
+			}
 		} else if (this.valueEncoder.valueType != this.valueType) {
 			throw new IllegalArgumentException("This instance of KeyWritable can not support " 
 					+ value.getClass() + " since it is already setup for " + this.valueTypeClass);
@@ -53,8 +55,10 @@ public abstract class TypeAwareWritable<T> implements Writable {
 		else if (value instanceof Long) {
 			this.valueEncoder.valueType = LONG;
 			this.valueEncoder.valueBytes = ByteBuffer.allocate(8).putLong((Long)value).array();
-		} 
-		
+		}
+		else if (value == null){
+			this.valueEncoder.valueType = NULL;
+		}
 		else {
 			ObjectOutputStream oos = null;
 			try {
@@ -81,8 +85,10 @@ public abstract class TypeAwareWritable<T> implements Writable {
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
-		out.writeByte(this.valueType);
-		out.write(this.valueEncoder.valueBytes);
+		if (this.valueEncoder.valueType != NULL){
+			out.writeByte(this.valueType);
+			out.write(this.valueEncoder.valueBytes);
+		}
 	}
 
 	/**
@@ -90,38 +96,49 @@ public abstract class TypeAwareWritable<T> implements Writable {
 	 */
 	@Override
 	public void readFields(DataInput in) throws IOException {
-		this.valueType = in.readByte();
-		switch (this.valueType) {
-		case INTEGER:
-			this.value = (T) Integer.valueOf(in.readInt());
-			break;
-		case LONG:
-			this.value = (T) Long.valueOf(in.readLong());
-			break;
-		case OBJECT:
-			try {
-				ObjectInputStream ois = new ObjectInputStream((DataInputStream)in);
-				T value =  (T) ois.readObject();
-				this.value = (T) value;
-			} catch (Exception e) {
-				throw new IllegalStateException("Failed to deserialize value", e);
+		if (this.valueEncoder.valueType != NULL) {
+			this.valueType = in.readByte();
+			switch (this.valueType) {
+			case INTEGER:
+				this.value = (T) Integer.valueOf(in.readInt());
+				break;
+			case LONG:
+				this.value = (T) Long.valueOf(in.readLong());
+				break;
+			case OBJECT:
+				try {
+					ObjectInputStream ois = new ObjectInputStream(
+							(DataInputStream) in);
+					T value = (T) ois.readObject();
+					this.value = (T) value;
+				} catch (Exception e) {
+					throw new IllegalStateException(
+							"Failed to deserialize value", e);
+				}
+
+				break;
+			default:
+				throw new IllegalStateException(
+						"Unsupported or unrecognized value type: "
+								+ this.valueType);
 			}
-			
-			break;
-		default:
-			throw new IllegalStateException("Unsupported or unrecognized value type: " + this.valueType);
 		}
 	}
 	
 	@Override
 	public String toString(){
-		return this.value.toString();
+		if (this.value == null){
+			return null;
+		} else {
+			return this.value.toString();
+		}
 	}
 	
 	private final static byte INTEGER = -128;
 	private final static byte STRING = -127;
 	private final static byte LONG = -126;
 	private final static byte OBJECT = -125;
+	private final static byte NULL = -124;
 	
 	/**
 	 */

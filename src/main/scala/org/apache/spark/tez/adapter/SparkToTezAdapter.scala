@@ -76,36 +76,32 @@ object SparkToTezAdapter extends Logging {
     }
   }
 
+  /**
+   * 
+   */
   private def doAdapt {
-    val systemClassLoader = Thread.currentThread().getContextClassLoader()
+    val cl = Thread.currentThread().getContextClassLoader()
     val pool = ClassPool.getDefault();
-    
-
+   
     val pairRddFunctionsAdapter = pool.get("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter")
     val pairRddFunctions = pool.get("org.apache.spark.rdd.PairRDDFunctions")
 
+    pairRddFunctions.getDeclaredMethods.collect{x =>
+      x.getName() match {
+        case "saveAsNewAPIHadoopDataset" => this.swapPairRddFunctionsMethodBody(x, pairRddFunctionsAdapter)
+        case "saveAsHadoopDataset" => this.swapPairRddFunctionsMethodBody(x, pairRddFunctionsAdapter)
+        case "groupByKey" => this.swapPairRddFunctionsMethodBody(x, pairRddFunctionsAdapter)
+      }
+    }
+    
     // This block will finally replace all references to 'org.apache.spark.tez.TezContext' with 'org.apache.spark.SparkContext'
     // to finalize SparkContext instrumentation
     // java.lang.NoSuchMethodError: org.apache.spark.tez.TezContext$$anonfun$textFile$1.<init>(Lorg/apache/spark/SparkContext;)V  
-    pairRddFunctionsAdapter.getNestedClasses().foreach {
-      x =>
+    pairRddFunctionsAdapter.getNestedClasses.foreach{x =>
         x.replaceClassName("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter", "org.apache.spark.rdd.PairRDDFunctions");
-        x.toClass(systemClassLoader)
+        x.toClass(cl)
     }
-    val pairRddTargetMethods = pairRddFunctions.getDeclaredMethods
-    for (targetMethod <- pairRddTargetMethods) {
-      if (targetMethod.getName() == "saveAsNewAPIHadoopDataset") {
-        logDebug("Adapting PairRDDFunctions.saveAsNewAPIHadoopDataset for Tez")
-        this.swapPairRddFunctionsMethodBody(targetMethod, pairRddFunctionsAdapter)
-      } else if (targetMethod.getName() == "saveAsHadoopDataset") {
-        logDebug("Adapting PairRDDFunctions.saveAsHadoopDataset for Tez")
-        this.swapPairRddFunctionsMethodBody(targetMethod, pairRddFunctionsAdapter)
-      } else if (targetMethod.getName() == "groupByKey") {
-        logDebug("Adapting PairRDDFunctions.groupByKey for Tez")
-        this.swapPairRddFunctionsMethodBody(targetMethod, pairRddFunctionsAdapter)
-      }
-    }
-
+    
     this.klass = pool.toClass(pairRddFunctions, Thread.currentThread().getContextClassLoader())
   }
 
@@ -117,10 +113,10 @@ object SparkToTezAdapter extends Logging {
     try {
       val sourceMethod = sourceClass.getMethod(targetMethod.getName(), desc)
       targetMethod.setBody(sourceMethod, null)
-      logDebug("Instrumented" + targetMethod.getMethodInfo.getDescriptor)
+      logDebug("Adopted: " + targetMethod.getMethodInfo())
     } catch {
       case e: Throwable =>
-        logDebug("skipping instrumentatoin of the " + targetMethod.getMethodInfo.getDescriptor)
+        logTrace("skipping instrumentatoin of the " + targetMethod.getMethodInfo.getDescriptor)
       // ignore since methods that are not found based on CtMethod 
       // definitions are not going to be replaced
     }

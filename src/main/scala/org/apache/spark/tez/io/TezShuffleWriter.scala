@@ -33,6 +33,7 @@ import org.apache.spark.Logging
 import org.apache.spark.tez.SparkUtils
 import org.apache.spark.storage.BlockManagerId
 import org.apache.spark.scheduler.CompressedMapStatus
+import org.apache.hadoop.io.NullWritable
 
 /**
  * Implementation of ShuffleWriter which relies on KeyValueWriter provided by Tez
@@ -44,6 +45,8 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
     handle: BaseShuffleHandle[K, V, C], 
     context: TaskContext, 
     combine:Boolean = true) extends ShuffleWriter[K, V] with Logging {
+  
+  private val EMPTY_STRING = ""
   private val kvOutput = output.values.iterator().next()
   private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
   private val kw:KeyWritable = new KeyWritable
@@ -66,14 +69,23 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   private def sinkKeyValuesIterator(keyValues: Iterator[_ <: Product2[K, V]], mergeFunction: Function2[Any, Any, Any]) {
     var previousKey: Any = null
     var mergedValue: Any = null
-    for (keyValue <- keyValues) {
+    for (keyValue <- keyValues) {    
       this.writeKeyValue(keyValue._1, keyValue._2)
     }
   }
 
   private def writeKeyValue(key: Any, value: Any) {
-    this.kw.setValue(key.asInstanceOf[Comparable[_]])
-    this.vw.setValue(value.asInstanceOf[Object])
+    if (key.isInstanceOf[NullWritable]){
+      this.kw.setValue(EMPTY_STRING)
+    } else {
+      this.kw.setValue(key.asInstanceOf[Comparable[_]])
+    }
+    
+    if (value.isInstanceOf[Text]){
+      this.vw.setValue(value.asInstanceOf[Text].toString())
+    } else {
+      this.vw.setValue(value.asInstanceOf[Object])
+    }
     kvWriter.write(kw, vw)
   }
 

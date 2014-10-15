@@ -44,7 +44,7 @@ object SparkUtils {
   unsafeConstructor.setAccessible(true);
   val unsafe = unsafeConstructor.newInstance();
   
-  val taskContext = new TaskContext(1,1,1)
+//  val taskContext = new TaskContext(1,1,1)
   
   def getLastMethodName():String = {
     val ex = new Exception
@@ -74,7 +74,8 @@ object SparkUtils {
   /**
    * 
    */
-  def runTask(task: Task[_]) = { 
+  def runTask(task: Task[_], taskIndex:Int) = { 
+    val taskContext = new TaskContext(0, taskIndex, 0)
     task.runTask(taskContext)
   }
 }

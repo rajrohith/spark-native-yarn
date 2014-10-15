@@ -4,12 +4,12 @@
 		<value>true</value>
 		<description>ignore tez libs</description>
 	</property>
-	<property>
-		<name>tez.am.mode.session</name>
-		<value>true</value>
-	</property>
-	<property>
-		<name>tez.am.session.min.held-containers</name>
-		<value>2</value>
-	</property>
+<!-- 	<property> -->
+<!-- 		<name>tez.am.mode.session</name> -->
+<!-- 		<value>true</value> -->
+<!-- 	</property> -->
+<!-- 	<property> -->
+<!-- 		<name>tez.am.session.min.held-containers</name> -->
+<!-- 		<value>2</value> -->
+<!-- 	</property> -->
 </configuration>

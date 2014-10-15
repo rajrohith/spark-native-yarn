@@ -38,8 +38,8 @@ import org.apache.spark.TaskContext
 class VertexShuffleTask(
     stageId: Int,
     rdd:RDD[_], 
-    partition:Partition,
-    val dep: Option[ShuffleDependency[Any, Any, Any]]) extends Task[MapStatus](stageId, 0) with Logging {
+    val dep: Option[ShuffleDependency[Any, Any, Any]],
+    partitions:Array[Partition]) extends Task[MapStatus](stageId, 0) with Logging {
   
   /*
    * NOTE: While we are not really dependent on the Partition we need it to be non null to 
@@ -51,10 +51,13 @@ class VertexShuffleTask(
     try {
       val manager = SparkEnv.get.shuffleManager
       val sh = new BaseShuffleHandle(0, 0, dep.get)
-      writer = manager.getWriter[Any, Any](sh, 1, new TaskContext(1,1,1))
+      writer = manager.getWriter[Any, Any](sh, 1, context)
       
-      writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
-
+      if (partitions.length == 1){
+        writer.write(rdd.iterator(partitions(0), context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+      } else {
+        writer.write(rdd.iterator(partitions(context.getPartitionId()), context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+      }
       return writer.stop(success = true).get
     } catch {
       case e: Exception =>

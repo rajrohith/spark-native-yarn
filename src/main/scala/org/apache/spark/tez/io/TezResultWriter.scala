@@ -31,6 +31,7 @@ import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.io.Text
 import org.apache.spark.Logging
 import org.apache.spark.tez.SparkUtils
+import org.apache.spark.scheduler.CompressedMapStatus
 
 /**
  * 
@@ -103,6 +104,6 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
    * 
    */
   def stop(success: Boolean): Option[MapStatus] = {
-    Some(SparkUtils.createUnsafeInstance(classOf[MapStatus]))
+    Some(SparkUtils.createUnsafeInstance(classOf[CompressedMapStatus]))
   }
 }

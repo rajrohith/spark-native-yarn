@@ -35,32 +35,16 @@ import org.apache.spark.tez.TezConstants
 object PartitionBy {
 
   def main(args: Array[String]) {
-    var reducers = 1
-    var inputFile = "src/main/scala/dev/demo/partitioning.txt"
-    if (args != null && args.length > 0) {
-      reducers = Integer.parseInt(args(0))
-      if (args.length > 1) {
-        inputFile = args(1)
-      }
-    }
-
-    println("Will execute Partitioning on file: " + inputFile +
-      " after copying it to HDFS")
-
-    val jobName = DemoUtilities.prepareJob(Array(inputFile))
-    val outputPath = jobName + "_out"
-
+    val jobName = DemoUtilities.prepareJob(Array())
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-    val sc = new SparkContext(masterUrl, "PartitionBy")
-    val source = sc.textFile(inputFile)
+    val sc = new SparkContext(masterUrl, "jobName")
+    val source = sc.parallelize(List("A", "B", "B", "A", "B", "A", "A", "A", "A", "A", "B", "A"), 4)
 
     val result = source
-    	.map{s => val split = s.split("\\s+", 2); (split(0).replace(":", "_"), split(1))}
-    	.partitionBy(new HashPartitioner(2))
-    	.saveAsHadoopFile(outputPath, classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
+    	.filter(_ == "A")
+    	.count
 
+    println(result)
     sc.stop
-
-    DemoUtilities.printSampleResults(outputPath)
   }
 }

@@ -49,6 +49,7 @@ import org.mockito.Matchers
 import org.apache.tez.dag.api.DAG
 import org.apache.commons.io.FileUtils
 import org.apache.spark.tez.test.utils.TestUtils
+import org.apache.spark.SparkConf
 
 /**
  *
@@ -76,6 +77,7 @@ class TezJobExecutionContextTests extends Instrumentable {
     assertNotNull(persistedRdd)
     assertTrue(new File(persistedRddName).exists())
     TestUtils.cleanup(persistedRddName)
+    sc.stop
   }
 
   @Test
@@ -87,6 +89,7 @@ class TezJobExecutionContextTests extends Instrumentable {
     assertNotNull(persistedRdd)
     assertTrue(new File(persistedRddName).exists())
     TestUtils.cleanup(persistedRddName)
+    sc.stop
   }
 
   @Test
@@ -100,6 +103,7 @@ class TezJobExecutionContextTests extends Instrumentable {
     // just to ensure that subsequent un-persist will not result in exception
     tec.unpersist(sc, persistedRdd)
     TestUtils.cleanup(persistedRddName)
+    sc.stop
   }
 
   /**
@@ -107,8 +111,12 @@ class TezJobExecutionContextTests extends Instrumentable {
    */
   private def doPersist(appName:String): Tuple4[SparkContext, RDD[_], TezJobExecutionContext, String] = {
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-    val sc = new SparkContext(masterUrl, appName)
-    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TestUtils.instrumentTezClient(sc)))
+    val sparkConf = new SparkConf
+    sparkConf.setAppName(appName)
+    sparkConf.setMaster(masterUrl)
+    sparkConf.set("spark.ui.enabled", "false")
+    val sc = new SparkContext(sparkConf)
+    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TezClientMocker.noOpTezClientWithSuccessfullSubmit(appName)))
     val tec = ReflectionUtils.getFieldValue(sc, "executionContext").asInstanceOf[TezJobExecutionContext]
     val rdd = new TezRDD("src/test/scala/org/apache/spark/tez/sample.txt", sc, classOf[TextInputFormat],
       classOf[Text], classOf[IntWritable],

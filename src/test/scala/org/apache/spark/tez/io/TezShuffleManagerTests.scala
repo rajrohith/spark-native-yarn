@@ -34,7 +34,8 @@ class TezShuffleManagerTests {
   def validateReaderReturned() {
     val (inMap, outMap) = this.createInOutInputMaps
   
-    val sm = new TezShuffleManager(inMap, outMap, false);
+    val sm = new TezShuffleManager(inMap, outMap);
+    sm.shuffleStage = false
     assertTrue(sm.getReader(null, 0, 0, null).isInstanceOf[TezShuffleReader[_,_]])
   }
 
@@ -42,7 +43,8 @@ class TezShuffleManagerTests {
   def validateAppropriateWriterReturned() {
     val (inMap, outMap) = this.createInOutInputMaps
     
-    val smForResultTask = new TezShuffleManager(inMap, outMap, false);
+    val smForResultTask = new TezShuffleManager(inMap, outMap);
+    smForResultTask.shuffleStage = false
     assertTrue(smForResultTask.getWriter(null, 0, null).isInstanceOf[TezResultWriter[_,_,_]])
     
     val smForShuffleTask = new TezShuffleManager(inMap, outMap);
@@ -52,28 +54,32 @@ class TezShuffleManagerTests {
   @Test
   def validateRegisterShuffleReturnsNull() {
     val (inMap, outMap) = this.createInOutInputMaps
-    val sm = new TezShuffleManager(inMap, outMap, false);
+    val sm = new TezShuffleManager(inMap, outMap);
+    sm.shuffleStage = false
     assertNull(sm.registerShuffle(0,0,null))
   }
   
   @Test
   def validateUnregisterShuffleReturnsTrue() {
     val (inMap, outMap) = this.createInOutInputMaps
-    val sm = new TezShuffleManager(inMap, outMap, false);
+    val sm = new TezShuffleManager(inMap, outMap)
+    sm.shuffleStage = false
     assertTrue(sm.unregisterShuffle(0))
   }
   
   @Test
   def validateShuffleBlockManagerReturnsNull() {
     val (inMap, outMap) = this.createInOutInputMaps
-    val sm = new TezShuffleManager(inMap, outMap, false);
+    val sm = new TezShuffleManager(inMap, outMap)
+    sm.shuffleStage = false
     assertNull(sm.shuffleBlockManager)
   }
   
   @Test
   def validateStop() {
     val (inMap, outMap) = this.createInOutInputMaps
-    val sm = new TezShuffleManager(inMap, outMap, false);
+    val sm = new TezShuffleManager(inMap, outMap)
+    sm.shuffleStage = false
     // asserting that completes successfully even though nothing is done
     sm.stop
   }

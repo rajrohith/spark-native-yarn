@@ -27,6 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.spark.tez.io.SparkDelegatingPartitioner;
 import org.apache.spark.tez.io.TezRDD;
 //import org.apache.spark.tez.io.ValueWritable;
 import org.apache.tez.client.TezClient;
@@ -154,6 +155,7 @@ class DAGBuilder {
 	          logger.error("DAG diagnostics: " + dagStatus.getDiagnostics());
 	        }
 	    } catch (Exception e) {
+	    	e.printStackTrace();
 	    	throw new IllegalStateException("Failed to execute DAG", e);
 	    } 
 	}
@@ -209,11 +211,9 @@ class DAGBuilder {
 				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).getPath().toString();
 				Class<?> inputFormatClass = ((TezRDD<?,?>)vertexDescriptor.getInput()).inputFormatClass();
 				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();	
-				
-				
+						
 				ByteBuffer payloadBuffer = this.buildPayloadBuffer(vertexDescriptor);
-				
-				
+							
 				UserPayload payload = UserPayload.create(payloadBuffer);
 				String vertexName = String.valueOf(sequenceCounter++);
 				String dsName = String.valueOf(sequenceCounter++);
