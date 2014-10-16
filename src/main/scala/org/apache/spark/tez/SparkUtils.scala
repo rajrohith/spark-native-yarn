@@ -49,8 +49,6 @@ object SparkUtils {
   unsafeConstructor.setAccessible(true);
   val unsafe = unsafeConstructor.newInstance();
   
-//  val taskContext = new TaskContext(1,1,1)
-  
   def getLastMethodName():String = {
     val ex = new Exception
     ex.getStackTrace().filter(_.toString().contains("org.apache.spark.rdd")).last.getMethodName()

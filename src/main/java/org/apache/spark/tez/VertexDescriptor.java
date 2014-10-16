@@ -105,30 +105,6 @@ public class VertexDescriptor {
 		return "(stage: " + this.stageId + "; vertex:" + this.vertexId + "; input:" + input + ")";
 	}
 	
-//	/**
-//	 * 
-//	 * @param inputFormatClass
-//	 */
-//	public void setInputFormatClass(Class<?> inputFormatClass) {
-//		this.inputFormatClass = inputFormatClass;
-//	}
-//
-//	/**
-//	 * 
-//	 * @param key
-//	 */
-//	public void setKey(Class<?> key) {
-//		this.key = key;
-//	}
-//
-//	/**
-//	 * 
-//	 * @param value
-//	 */
-//	public void setValue(Class<?> value) {
-//		this.value = value;
-//	}
-	
 	/**
 	 * 
 	 * @param numPartitions
