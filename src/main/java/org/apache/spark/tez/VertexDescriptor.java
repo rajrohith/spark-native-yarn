@@ -16,7 +16,6 @@
  */
 package org.apache.spark.tez;
 
-import java.nio.ByteBuffer;
 
 /**
  * Collector class which contains contains data required to build Tez Vertex

@@ -124,21 +124,21 @@ class APITests {
     // since partitioner will be serialized even in Tez local mode
     // file is created as an evidence that the method was invoked
     val partitioner = new HashPartitioner(2) {
-      override def getPartition(key:Any):Int = {
+      override def getPartition(key: Any): Int = {
         val f = new File(applicationName + "_executed")
         f.createNewFile()
         f.deleteOnExit()
         super.getPartition(key)
       }
     }
-    
+
     // ===
     val result = source
       .map { s => val split = s.split("\\s+", 2); (split(0).replace(":", "_"), split(1)) }
       .partitionBy(partitioner)
       .saveAsHadoopFile(applicationName + "_out", classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
     // ===
-      
+
     Assert.assertTrue(new File(applicationName + "_executed").exists())
     TestUtils.printSampleResults(applicationName + "_out")
     sc.stop
@@ -167,7 +167,7 @@ class APITests {
     this.cleanUp(applicationName)
     FileUtils.deleteDirectory(new File(applicationName + "_cache_4"))
   }
-  
+
   @Test
   def parallelize() {
     val applicationName = "parallelize"
@@ -176,20 +176,22 @@ class APITests {
     val sc = new SparkContext(sparkConf)
     val source = sc.parallelize(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 0), 4)
     Assert.assertEquals(5, source.filter(_ % 2 == 0).count)
+    this.cleanUp(applicationName)
   }
-  
-   @Test
+
+  @Test
   def broadcast() {
     val applicationName = "broadcast"
     val sparkConf = this.buildSparkConf
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
-    
+
     val list = List(1, 3, 5)
     val bList = sc.broadcast[List[Int]](list)
-    
+
     val source = sc.parallelize(List(1, 2, 4, 5, 6, 7, 8, 9, 0), 1)
     Assert.assertEquals(2, source.filter(bList.value.contains(_)).count)
+    this.cleanUp(applicationName)
   }
 
   /**

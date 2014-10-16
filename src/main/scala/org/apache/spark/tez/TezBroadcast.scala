@@ -19,13 +19,38 @@ package org.apache.spark.tez
 import java.io.Serializable
 import scala.reflect.ClassTag
 import org.apache.spark.broadcast.Broadcast
+import java.util.UUID
+import org.apache.tez.dag.api.TezConfiguration
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.Path
+import java.net.URL
 /**
  * 
  */
-class TezBroadcast[T: ClassTag](val broadcastedValue: T) extends Broadcast[T](0L) {
+class TezBroadcast[T: ClassTag](@transient var broadcastedValue: T, applicationName:String) extends Broadcast[T](0L) {
+  
+  val bid = UUID.randomUUID().toString()
+  
+  var path:String = null;
+  
+  this.saveToHdfs
 
   override protected def getValue() = {
+    if (this.broadcastedValue == null){
+      val bValis = new URL(path).openStream()
+      this.broadcastedValue = SparkUtils.deserialize(bValis).asInstanceOf[T]
+    }
     this.broadcastedValue
+  }
+  
+  def saveToHdfs(){
+    val config = new TezConfiguration
+    val fs = FileSystem.get(config)
+    val serValueBuffer = SparkUtils.serialize(broadcastedValue);
+    val file = ClassPathUtils.ser(serValueBuffer, applicationName + "_broadcast_" + bid + ".ser");
+    file.deleteOnExit()
+    path = YarnUtils.provisionResource(file, fs, applicationName).toString()
+    println(path)
   }
 
   override protected def doUnpersist(blocking: Boolean) {/*noop*/}

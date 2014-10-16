@@ -77,7 +77,7 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
     SparkUtils.createSparkEnv(shufleManager);
     val t = SparkTaskProcessor.task
     if (SparkTaskProcessor.task == null || this.vertexName != SparkTaskProcessor.vertexNameIndex) {
-      SparkTaskProcessor.task = this.deserializeTask
+      SparkTaskProcessor.task = TezUtils.deserializeTask(context)
       val d = SparkTaskProcessor.task
 //      if (SparkTaskProcessor.task.partitioner != null){
         SparkDelegatingPartitioner.setSparkPartitioner(SparkTaskProcessor.task.partitioner)
@@ -107,16 +107,5 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
       }
     }
     resultMap
-  }
-  
-  /**
-   * 
-   */
-  private def deserializeTask():TezTask[_] = {
-    val cl = Thread.currentThread().getContextClassLoader().asInstanceOf[URLClassLoader]
-    val resourceName = "/" + this.vertexName + ".ser"
-    val resource = cl.getURLs().filter(_.getPath().endsWith(resourceName))(0)
-    val is = resource.openStream()
-    SparkUtils.deserializeTask(is).asInstanceOf[TezTask[_]]
   }
 }

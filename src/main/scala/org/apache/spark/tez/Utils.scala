@@ -69,17 +69,17 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
     val dagTask = dagBuilder.build(keyClass, valueClass, outputFormatClass, outputPath)
     val vertexDescriptors = dagBuilder.getVertexDescriptors().entrySet().asScala
     
-    for (vertexDescriptor <- vertexDescriptors) {
-      val vertexTask = vertexDescriptor.getValue().getTask()
-      vertexTask.partitioner = this.dagBuilder.getNextPartitioner()
-      val vertexTaskBuffer = SparkUtils.serializeTask(vertexTask)
-      val serTask = ClassPathUtils.ser(vertexTaskBuffer, vertexDescriptor.getValue().getVertexNameIndex() + ".ser")
-      ClassPathUtils.addResourceToClassPath(serTask)
-      val path = YarnUtils.provisionResource(serTask, fs, sparkContext.appName + "/" + TezConstants.CLASSPATH_PATH)
-      val lr = YarnUtils.createLocalResource(fs, path) 
-      localResources.put(serTask.getName(), lr)
-      println(serTask.getName() + " - " + serTask.length())
-    }
+//    for (vertexDescriptor <- vertexDescriptors) {
+//      val vertexTask = vertexDescriptor.getValue().getTask()
+//      vertexTask.partitioner = this.dagBuilder.getNextPartitioner()
+//      val vertexTaskBuffer = SparkUtils.serializeTask(vertexTask)
+//      val serTask = ClassPathUtils.ser(vertexTaskBuffer, vertexDescriptor.getValue().getVertexNameIndex() + ".ser")
+//      ClassPathUtils.addResourceToClassPath(serTask)
+//      val path = YarnUtils.provisionResource(serTask, fs, sparkContext.appName + "/" + TezConstants.CLASSPATH_PATH)
+//      val lr = YarnUtils.createLocalResource(fs, path) 
+//      localResources.put(serTask.getName(), lr)
+//      println(serTask.getName() + " - " + serTask.length())
+//    }
     
     logInfo("DAG: " + dagBuilder.toString())
     dagTask

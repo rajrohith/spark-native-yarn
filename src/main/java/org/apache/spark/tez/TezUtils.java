@@ -16,13 +16,11 @@
  */
 package org.apache.spark.tez;
 
-import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.URL;
 import java.nio.ByteBuffer;
 
-import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectInputStream;
 import org.apache.tez.runtime.api.ProcessorContext;
-
-import scala.Tuple2;
 
 /**
  * 
@@ -48,27 +46,14 @@ public class TezUtils {
 	 * @return
 	 * @throws Exception
 	 */
-	public static Tuple2<Object, Object> deserializePayload(ProcessorContext context) throws Exception {
-
-		ByteBuffer payloadBuffer = ByteBuffer.wrap(getPayloadBytes(context));
-		byte segmentCount = payloadBuffer.get();
-		int taskLength = payloadBuffer.getInt();
-		byte[] objectBytes = new byte[taskLength];
-		payloadBuffer.get(objectBytes);
-		ByteArrayInputStream bis = new ByteArrayInputStream(objectBytes);
-		TypeAwareObjectInputStream is = new TypeAwareObjectInputStream(bis);
-	    Object task = is.readObject();
-	    Object partitioner = null;
-	    is.close();
-	    if (segmentCount == 2){
-	    	objectBytes = new byte[payloadBuffer.getInt()];
-	    	payloadBuffer.get(objectBytes);	
-	    	bis = new ByteArrayInputStream(objectBytes);
-	    	is = new TypeAwareObjectInputStream(bis);
-	    	partitioner = is.readObject();
-	    	is.close();
-	    }
-	    
-		return new Tuple2<Object, Object>(task, partitioner);
+	public static TezTask<?> deserializeTask(ProcessorContext context) throws Exception {
+		ByteBuffer payloadBuffer = context.getUserPayload().getPayload();
+		byte[] payloadBytes = new byte[payloadBuffer.capacity()];
+		payloadBuffer.get(payloadBytes);
+		String taskPath = new String(payloadBytes);
+		URL taskUrl = new URL(taskPath);
+		InputStream is = taskUrl.openStream();
+		TezTask<?> task = (TezTask<?>) SparkUtils.deserialize(is);
+		return task;
 	}
 }

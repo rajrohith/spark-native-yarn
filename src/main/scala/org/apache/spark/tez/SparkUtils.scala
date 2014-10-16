@@ -59,20 +59,19 @@ object SparkUtils {
   /**
    * 
    */
-  def serializeTask(vertexTask:TezTask[_]):ByteBuffer = {
+  def serialize(value:Any):ByteBuffer = {
     val bos = new ByteArrayOutputStream()
     val os = new TypeAwareObjectOutputStream(bos)
-    os.writeObject(vertexTask)
+    os.writeObject(value)
     ByteBuffer.wrap(bos.toByteArray())
   }
   
   /**
    * 
    */
-  def deserializeTask(vertexTaskStream:InputStream):TezTask[_] = {
-//    val bis = new ByteArrayInputStream(vertexTaskBuffer.array())
-    val is = new TypeAwareObjectInputStream(vertexTaskStream)
-    is.readObject().asInstanceOf[TezTask[_]]
+  def deserialize(ois:InputStream):Object = {
+    val is = new TypeAwareObjectInputStream(ois)
+    is.readObject()
   }
 
   /**

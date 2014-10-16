@@ -16,6 +16,8 @@
  */
 package org.apache.spark.tez;
 
+import java.io.File;
+import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -26,6 +28,8 @@ import java.util.Map.Entry;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -37,6 +41,7 @@ import org.apache.tez.dag.api.DataSinkDescriptor;
 import org.apache.tez.dag.api.DataSourceDescriptor;
 import org.apache.tez.dag.api.Edge;
 import org.apache.tez.dag.api.ProcessorDescriptor;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.Vertex;
 import org.apache.tez.dag.api.client.DAGClient;
 import org.apache.tez.dag.api.client.DAGStatus;
@@ -92,7 +97,10 @@ class DAGBuilder {
 		this.localResources = localResources;
 	}
 	
-	public org.apache.spark.Partitioner getNextPartitioner() {
+	private org.apache.spark.Partitioner getNextPartitioner() {
+		if (this.pIter == null){
+			this.pIter = this.partitioners.iterator();
+		}
 		if (pIter.hasNext()){
 			return pIter.next();
 		} else {
@@ -122,7 +130,6 @@ class DAGBuilder {
 	public DAGTask build(Class<? extends Writable> keyClass, Class<? extends Writable> valueClass, Class<?> outputFormatClass, String outputPath){
 		try {
 			this.doBuild(keyClass, valueClass, outputFormatClass, outputPath);
-			this.pIter = this.partitioners.iterator();
 		} catch (Exception e) {
 			throw new IllegalStateException(e);
 		}
@@ -205,18 +212,24 @@ class DAGBuilder {
 		
 		int sequenceCounter = 0;
 		int counter = 0;
+		FileSystem fs = FileSystem.get(this.tezConfiguration);
 		for (Entry<Integer, VertexDescriptor> vertexDescriptorEntry : this.vertexes.entrySet()) {
 			counter++;
 			VertexDescriptor vertexDescriptor = vertexDescriptorEntry.getValue();
+				
+			//
+			String vertexName = String.valueOf(sequenceCounter++);
+			UserPayload payload = this.buildPayload(vertexDescriptor, vertexName, fs);
+			//
 			
 			if (vertexDescriptor.getInput() instanceof TezRDD) {
 				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).getPath().toString();
 				Class<?> inputFormatClass = ((TezRDD<?,?>)vertexDescriptor.getInput()).inputFormatClass();
-				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();	
-				String vertexName = String.valueOf(sequenceCounter++);
-				vertexDescriptor.setVertexNameIndex(vertexName);
+				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();			
+				
 				String dsName = String.valueOf(sequenceCounter++);
-				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()))
+				
+				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload))
 						.addDataSource(dsName, dataSource);	
 				// For single stage vertex we need to add data sink
 				if (counter == vertexes.size()){
@@ -238,10 +251,8 @@ class DAGBuilder {
 					dsConfig.setOutputKeyClass(keyClass);
 					dsConfig.setOutputValueClass(valueClass);
 					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
-					String vertexName = String.valueOf(sequenceCounter++);
-					vertexDescriptor.setVertexNameIndex(vertexName);
 					String dsName = String.valueOf(sequenceCounter++);
-					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()), 
+					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload), 
 							vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
 					vertex.addTaskLocalFiles(localResources);
 					
@@ -249,9 +260,7 @@ class DAGBuilder {
 					this.addEdges(vertexDescriptor, vertex, edgeConf);   
 				}
 				else {
-					ProcessorDescriptor pd = ProcessorDescriptor.create(SparkTaskProcessor.class.getName());
-					String vertexName = String.valueOf(sequenceCounter++);
-					vertexDescriptor.setVertexNameIndex(vertexName);
+					ProcessorDescriptor pd = ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload);
 					Vertex vertex = Vertex.create(vertexName, pd, vertexDescriptor.getNumPartitions(), MRHelpers.getResourceForMRReducer(this.tezConfiguration));
 					vertex.addTaskLocalFiles(localResources);
 					
@@ -282,5 +291,16 @@ class DAGBuilder {
 		    	this.dag.addEdge(edge);
 			}
 	    } 
+	}
+	
+	private UserPayload buildPayload(VertexDescriptor vertexDescriptor, String vertexName, FileSystem fs){
+		vertexDescriptor.setVertexNameIndex(vertexName);		
+		TezTask<?> vertexTask = vertexDescriptor.getTask();
+		vertexTask.setPartitioner(this.getNextPartitioner());
+		ByteBuffer taskBuffer = SparkUtils.serialize(vertexTask);
+		File serTask = ClassPathUtils.ser(taskBuffer, vertexDescriptor.getVertexNameIndex() + ".ser");
+		Path taskPath = YarnUtils.provisionResource(serTask, fs, this.applicationInstanceName);
+		UserPayload payload = UserPayload.create(ByteBuffer.wrap(taskPath.toString().getBytes()));
+		return payload;
 	}
 }
