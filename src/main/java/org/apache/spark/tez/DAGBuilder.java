@@ -16,8 +16,6 @@
  */
 package org.apache.spark.tez;
 
-import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -29,7 +27,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -219,7 +216,7 @@ class DAGBuilder {
 				
 			//
 			String vertexName = String.valueOf(sequenceCounter++);
-			UserPayload payload = this.buildPayload(vertexDescriptor, vertexName, fs);
+			UserPayload payload = TezUtils.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationInstanceName);
 			//
 			
 			if (vertexDescriptor.getInput() instanceof TezRDD) {
@@ -291,16 +288,5 @@ class DAGBuilder {
 		    	this.dag.addEdge(edge);
 			}
 	    } 
-	}
-	
-	private UserPayload buildPayload(VertexDescriptor vertexDescriptor, String vertexName, FileSystem fs){
-		vertexDescriptor.setVertexNameIndex(vertexName);		
-		TezTask<?> vertexTask = vertexDescriptor.getTask();
-		vertexTask.setPartitioner(this.getNextPartitioner());
-		ByteBuffer taskBuffer = SparkUtils.serialize(vertexTask);
-		File serTask = ClassPathUtils.ser(taskBuffer, vertexDescriptor.getVertexNameIndex() + ".ser");
-		Path taskPath = YarnUtils.provisionResource(serTask, fs, this.applicationInstanceName);
-		UserPayload payload = UserPayload.create(ByteBuffer.wrap(taskPath.toString().getBytes()));
-		return payload;
 	}
 }

@@ -16,30 +16,40 @@
  */
 package org.apache.spark.tez;
 
+import java.io.File;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.ByteBuffer;
 
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.spark.Partitioner;
+import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.runtime.api.ProcessorContext;
 
 /**
  * 
  */
 public class TezUtils {
-
+	
 	/**
 	 * 
-	 * @param context
+	 * @param vertexDescriptor
+	 * @param vertexName
+	 * @param fs
 	 * @return
 	 */
-	public static byte[] getPayloadBytes(ProcessorContext context) {
-		ByteBuffer payload = context.getUserPayload().getPayload();
-		payload.rewind();
-		byte[] taskBytes = new byte[payload.capacity()];
-		payload.get(taskBytes);
-		return taskBytes;
+	public static UserPayload serializeTask(VertexDescriptor vertexDescriptor, String vertexName, FileSystem fs, Partitioner partitioner, String appName){
+		vertexDescriptor.setVertexNameIndex(vertexName);		
+		TezTask<?> vertexTask = vertexDescriptor.getTask();
+		vertexTask.setPartitioner(partitioner);
+		ByteBuffer taskBuffer = SparkUtils.serialize(vertexTask);
+		File serTask = ClassPathUtils.ser(taskBuffer, vertexDescriptor.getVertexNameIndex() + ".ser");
+		Path taskPath = YarnUtils.provisionResource(serTask, fs, appName);
+		UserPayload payload = UserPayload.create(ByteBuffer.wrap(taskPath.toString().getBytes()));
+		return payload;
 	}
-	
+
 	/**
 	 * 
 	 * @param context
