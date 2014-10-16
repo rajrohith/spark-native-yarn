@@ -35,11 +35,11 @@ object SparkDelegatingPartitioner {
  */
 class SparkDelegatingPartitioner extends HashPartitioner {
   override def getPartition(key:Object, value:Object, numPartitions:Int):Int = {
-//    if (SparkDelegatingPartitioner.getPartitioner != null){
+    if (SparkDelegatingPartitioner.getPartitioner != null){
       SparkDelegatingPartitioner.getPartitioner.getPartition(value)
-//    }
-//    else {
-//      super.getPartition(key, value, numPartitions)
-//    }
+    }
+    else {
+      super.getPartition(key, value, numPartitions)
+    }
   }
 }

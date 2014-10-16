@@ -31,6 +31,7 @@ import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.IntWritable
 import org.apache.spark.shuffle.BaseShuffleHandle
 import org.apache.spark.TaskContext
+import org.apache.spark.Partitioner
 
 /**
  * Tez vertex Task modeled after Spark's ShufleMapTask
@@ -39,7 +40,7 @@ class VertexShuffleTask(
     stageId: Int,
     rdd:RDD[_], 
     val dep: Option[ShuffleDependency[Any, Any, Any]],
-    partitions:Array[Partition]) extends Task[MapStatus](stageId, 0) with Logging {
+    partitions:Array[Partition]) extends TezTask[MapStatus](stageId, 0) {
   
   /*
    * NOTE: While we are not really dependent on the Partition we need it to be non null to 

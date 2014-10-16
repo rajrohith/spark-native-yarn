@@ -21,6 +21,7 @@ import org.apache.spark.tez.TezJobExecutionContext
 import scala.reflect.runtime.universe
 import org.apache.spark.JobExecutionContext
 import scala.reflect.ClassTag
+import java.lang.reflect.Field
 
 /**
  * 
@@ -52,15 +53,32 @@ object ReflectionUtils {
     field.setAccessible(true)
     field.set(result, newValue)
   }
-  
-  private def doGetFieldValue(instance:Any, fieldName:String):Any = {
-    try {
-      val field = instance.getClass.getDeclaredField(fieldName)
+
+  /**
+   * 
+   */
+  private def doGetFieldValue(instance: Any, fieldName: String): Any = {
+    val field = this.findField(instance.getClass, fieldName, null)
+    if (field != null) {
       field.setAccessible(true)
       field.get(instance)
-    } catch {
-      case nsfe:NoSuchFieldException => null
-      case e:Exception => throw new IllegalStateException(e)
     }
+  }
+
+  /**
+   * 
+   */
+  def findField(clazz: Class[_], name: String, _type: Class[_]): Field = {
+    var searchType = clazz
+    while (!classOf[Object].equals(searchType) && searchType != null) {
+      val fields = searchType.getDeclaredFields()
+      for (field <- fields) {
+        if ((name == null || name.equals(field.getName())) && (_type == null || _type.equals(field.getType()))) {
+          return field;
+        }
+      }
+      searchType = searchType.getSuperclass();
+    }
+    null
   }
 }

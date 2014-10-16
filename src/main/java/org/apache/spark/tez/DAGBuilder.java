@@ -16,8 +16,10 @@
  */
 package org.apache.spark.tez;
 
-import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -35,7 +37,6 @@ import org.apache.tez.dag.api.DataSinkDescriptor;
 import org.apache.tez.dag.api.DataSourceDescriptor;
 import org.apache.tez.dag.api.Edge;
 import org.apache.tez.dag.api.ProcessorDescriptor;
-import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.Vertex;
 import org.apache.tez.dag.api.client.DAGClient;
 import org.apache.tez.dag.api.client.DAGStatus;
@@ -43,7 +44,6 @@ import org.apache.tez.mapreduce.hadoop.MRHelpers;
 import org.apache.tez.mapreduce.input.MRInput;
 import org.apache.tez.mapreduce.output.MROutput;
 import org.apache.tez.runtime.library.conf.OrderedPartitionedKVEdgeConfig;
-import org.apache.tez.runtime.library.partitioner.HashPartitioner;
 
 import com.google.common.base.Preconditions;
 
@@ -64,15 +64,15 @@ class DAGBuilder {
 	
 	private final Map<Integer, VertexDescriptor> vertexes = new LinkedHashMap<Integer, VertexDescriptor>();
 	
-	private final TezClient tezClient;
-
 	private final Map<String, LocalResource> localResources;
 	
 	private final String applicationInstanceName;
 	
 	private DAG dag;
 	
-	private byte[] sparkPartitionerBytes;
+	private final LinkedHashSet<org.apache.spark.Partitioner> partitioners = new LinkedHashSet<org.apache.spark.Partitioner>();
+	
+	private Iterator<org.apache.spark.Partitioner> pIter;
 	
 	/**
 	 * 
@@ -81,24 +81,39 @@ class DAGBuilder {
 	 * @param tezConfiguration
 	 * @param outputPath
 	 */
-	public DAGBuilder(TezClient tezClient, Map<String, LocalResource> localResources, Configuration tezConfiguration) {
-		Preconditions.checkState(tezClient != null, "'tezClient' must not be null");
+	public DAGBuilder(String applicationName, Map<String, LocalResource> localResources, Configuration tezConfiguration) {
+		Preconditions.checkState(applicationName != null, "'applicationName' must not be null");
 		Preconditions.checkState(localResources != null, "'localResources' must not be null");
 		Preconditions.checkState(tezConfiguration != null, "'tezConfiguration' must not be null");
 		
-		this.tezClient = tezClient;
 		this.tezConfiguration = tezConfiguration;
-		this.applicationInstanceName = tezClient.getClientName() + "_" + System.currentTimeMillis();
+		this.applicationInstanceName = applicationName + "_" + System.currentTimeMillis();
 		this.dag = DAG.create(this.applicationInstanceName);
 		this.localResources = localResources;
 	}
 	
+	public org.apache.spark.Partitioner getNextPartitioner() {
+		if (pIter.hasNext()){
+			return pIter.next();
+		} else {
+			return null;
+		}
+	}
+	
 	/**
 	 * 
-	 * @param sparkPartitionerBytes
+	 * @return
 	 */
-	public void setSparkPartitionerBytes(byte[] sparkPartitionerBytes){
-		this.sparkPartitionerBytes = sparkPartitionerBytes;
+	public Map<Integer, VertexDescriptor> getVertexDescriptors() {
+		return Collections.unmodifiableMap(vertexes);
+	}
+	
+	/**
+	 * Must be {@link org.apache.spark.Partitioner}. Unfortunately 
+	 * @param partitioner
+	 */
+	public void addPartitioner(org.apache.spark.Partitioner partitioner) {
+		this.partitioners.add(partitioner);
 	}
 	/**
 	 * 
@@ -107,21 +122,14 @@ class DAGBuilder {
 	public DAGTask build(Class<? extends Writable> keyClass, Class<? extends Writable> valueClass, Class<?> outputFormatClass, String outputPath){
 		try {
 			this.doBuild(keyClass, valueClass, outputFormatClass, outputPath);
+			this.pIter = this.partitioners.iterator();
 		} catch (Exception e) {
 			throw new IllegalStateException(e);
 		}
 		return new DAGTask(){
 			@Override
-			public void execute() {
-				try {
-					DAGBuilder.this.run();
-				} catch (Exception e) {
-					try {
-						tezClient.stop();
-					} catch (Exception e2) {
-						// ignore
-					}
-				}
+			public void execute(TezClient tezClient) {
+				DAGBuilder.this.run(tezClient);
 			}
 		};
 	}
@@ -129,7 +137,7 @@ class DAGBuilder {
 	/**
 	 * 
 	 */
-	private void run(){
+	private void run(TezClient tezClient){
 	    try { 	
 		    DAGClient dagClient = null;
 //	        if (this.fileSystem.exists(new Path(outputPath))) {
@@ -191,14 +199,9 @@ class DAGBuilder {
 
 		// This is for the interim edge which means that the intermediary data will always be written in universal form Key/ValueWritable
 		// while the final data will be written as specified by the method (e.g., saveAsTex...)
-		OrderedPartitionedKVEdgeConfig edgeConf = this.sparkPartitionerBytes == null ? 
-				OrderedPartitionedKVEdgeConfig
-		        .newBuilder("org.apache.spark.tez.io.KeyWritable", "org.apache.spark.tez.io.ValueWritable", 
-		        		HashPartitioner.class.getName(), null).build() :
-		        	OrderedPartitionedKVEdgeConfig
+		OrderedPartitionedKVEdgeConfig edgeConf = OrderedPartitionedKVEdgeConfig
 			        .newBuilder("org.apache.spark.tez.io.KeyWritable", "org.apache.spark.tez.io.ValueWritable", 
 			        		SparkDelegatingPartitioner.class.getName(), null).build();
-		
 		
 		int sequenceCounter = 0;
 		int counter = 0;
@@ -210,13 +213,10 @@ class DAGBuilder {
 				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).getPath().toString();
 				Class<?> inputFormatClass = ((TezRDD<?,?>)vertexDescriptor.getInput()).inputFormatClass();
 				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();	
-						
-				ByteBuffer payloadBuffer = this.buildPayloadBuffer(vertexDescriptor);
-							
-				UserPayload payload = UserPayload.create(payloadBuffer);
 				String vertexName = String.valueOf(sequenceCounter++);
+				vertexDescriptor.setVertexNameIndex(vertexName);
 				String dsName = String.valueOf(sequenceCounter++);
-				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload))
+				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()))
 						.addDataSource(dsName, dataSource);	
 				// For single stage vertex we need to add data sink
 				if (counter == vertexes.size()){
@@ -238,13 +238,10 @@ class DAGBuilder {
 					dsConfig.setOutputKeyClass(keyClass);
 					dsConfig.setOutputValueClass(valueClass);
 					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
-					
-					ByteBuffer payloadBuffer = this.buildPayloadBuffer(vertexDescriptor);
-					
-					UserPayload payload = UserPayload.create(payloadBuffer);
 					String vertexName = String.valueOf(sequenceCounter++);
+					vertexDescriptor.setVertexNameIndex(vertexName);
 					String dsName = String.valueOf(sequenceCounter++);
-					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload), 
+					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()), 
 							vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
 					vertex.addTaskLocalFiles(localResources);
 					
@@ -253,11 +250,9 @@ class DAGBuilder {
 				}
 				else {
 					ProcessorDescriptor pd = ProcessorDescriptor.create(SparkTaskProcessor.class.getName());
-					ByteBuffer payloadBuffer = this.buildPayloadBuffer(vertexDescriptor);
-					
-					UserPayload payload = UserPayload.create(payloadBuffer);
-					pd.setUserPayload(payload);
-					Vertex vertex = Vertex.create(String.valueOf(sequenceCounter++), pd, vertexDescriptor.getNumPartitions(), MRHelpers.getResourceForMRReducer(this.tezConfiguration));
+					String vertexName = String.valueOf(sequenceCounter++);
+					vertexDescriptor.setVertexNameIndex(vertexName);
+					Vertex vertex = Vertex.create(vertexName, pd, vertexDescriptor.getNumPartitions(), MRHelpers.getResourceForMRReducer(this.tezConfiguration));
 					vertex.addTaskLocalFiles(localResources);
 					
 				    this.dag.addVertex(vertex);
@@ -287,32 +282,5 @@ class DAGBuilder {
 		    	this.dag.addEdge(edge);
 			}
 	    } 
-	}
-	
-	/**
-	 * 
-	 * @param vertexDescriptor
-	 * @return
-	 */
-	private ByteBuffer buildPayloadBuffer(VertexDescriptor vertexDescriptor) {
-		// byte how many segments
-		// int length of first segment 
-		// first segment
-		// int length of second segment
-		// second segment 
-		int segmentCount = this.sparkPartitionerBytes == null ? 1 : 2;
-		int capacity = this.sparkPartitionerBytes == null ? 1 + 4 + vertexDescriptor.getSerTaskData().capacity() :
-			1 + 4 + 4 + vertexDescriptor.getSerTaskData().capacity() + this.sparkPartitionerBytes.length;
-		
-		ByteBuffer payloadBuffer = ByteBuffer.allocate(capacity);
-		payloadBuffer.put((byte) segmentCount);
-		payloadBuffer.putInt(vertexDescriptor.getSerTaskData().capacity());
-		payloadBuffer.put(vertexDescriptor.getSerTaskData());
-		if (this.sparkPartitionerBytes != null){
-			payloadBuffer.putInt(this.sparkPartitionerBytes.length);
-			payloadBuffer.put(this.sparkPartitionerBytes);
-		}
-		payloadBuffer.flip();
-		return payloadBuffer;
 	}
 }

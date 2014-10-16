@@ -55,7 +55,7 @@ object TestUtils {
    */
   def instrumentTezClient(sc: SparkContext): TezClient = {
     val tezDelegate = ReflectionUtils.getFieldValue(sc, "executionContext.tezDelegate").asInstanceOf[TezDelegate]
-    tezDelegate.initializeAndStartTezClient(sc.appName)
+    tezDelegate.initializeTezClient(sc.appName)
     val tezClient = TezClient.create(sc.appName, new TezConfiguration)
     tezClient.start()
     val watchedTezClient = Mockito.spy(tezClient)

@@ -29,6 +29,11 @@ import org.apache.spark.scheduler.Task
 import org.apache.spark.shuffle.ShuffleMemoryManager
 import org.apache.spark.tez.io.TezShuffleManager
 import org.apache.spark.executor.TaskMetrics
+import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectOutputStream
+import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectInputStream
+import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 
 /**
  * Utility functions related to Spark functionality.
@@ -48,8 +53,26 @@ object SparkUtils {
   
   def getLastMethodName():String = {
     val ex = new Exception
-//    ex.printStackTrace()
     ex.getStackTrace().filter(_.toString().contains("org.apache.spark.rdd")).last.getMethodName()
+  }
+  
+  /**
+   * 
+   */
+  def serializeTask(vertexTask:TezTask[_]):ByteBuffer = {
+    val bos = new ByteArrayOutputStream()
+    val os = new TypeAwareObjectOutputStream(bos)
+    os.writeObject(vertexTask)
+    ByteBuffer.wrap(bos.toByteArray())
+  }
+  
+  /**
+   * 
+   */
+  def deserializeTask(vertexTaskStream:InputStream):TezTask[_] = {
+//    val bis = new ByteArrayInputStream(vertexTaskBuffer.array())
+    val is = new TypeAwareObjectInputStream(vertexTaskStream)
+    is.readObject().asInstanceOf[TezTask[_]]
   }
 
   /**

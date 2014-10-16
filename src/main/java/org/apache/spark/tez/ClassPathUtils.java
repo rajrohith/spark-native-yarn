@@ -18,14 +18,16 @@ package org.apache.spark.tez;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -37,6 +39,8 @@ import java.util.jar.Manifest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.google.common.base.Preconditions;
+
 /**
  * Utility class which contains methods related to generating JAR file 
  * and/or byte stream from passed directory.
@@ -47,14 +51,53 @@ public class ClassPathUtils {
 	private final static Log logger = LogFactory.getLog(ClassPathUtils.class);
 	
 	/**
+	 * 
+	 * @param resource
+	 */
+	public static void addResourceToClassPath(File resource) {
+		try {
+			Preconditions.checkState(resource != null && resource.exists(), "'resource' must not be null and it must exist: " + resource);
+			URLClassLoader cl = (URLClassLoader) Thread.currentThread().getContextClassLoader();
+			Method addUrlMethod = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+			addUrlMethod.setAccessible(true);
+			addUrlMethod.invoke(cl, resource.toURI().toURL());
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
+		}
+	}
+	
+	/**
+	 * 
+	 * @param bytesToSer
+	 * @param serName
+	 * @return
+	 */
+	public static File ser(ByteBuffer bytesToSer, String serName) {
+		FileOutputStream out = null;
+		try {
+			File outputFile = new File(serName);
+			outputFile.deleteOnExit();
+			out = new FileOutputStream(outputFile);
+			out.write(bytesToSer.array());
+			return outputFile;
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
+		} finally {
+			try {
+				out.close();
+			} catch (Exception e) {/*ignore*/}
+		}
+	}
+	
+	/**
 	 * Will create a JAR file from base dir
 	 *
 	 * @param source
 	 * @param jarName
 	 * @return
 	 */
-	public static File toJar(File source, String jarName) {
-		if (!source.isAbsolute()) {
+	public static File toJar(File sourceDir, String jarName) {
+		if (!sourceDir.isAbsolute()) {
 			throw new IllegalArgumentException("Source must be expressed through absolute path");
 		}
 		Manifest manifest = new Manifest();
@@ -62,12 +105,12 @@ public class ClassPathUtils {
 		File jarFile = new File(jarName);
 		try {
 			JarOutputStream target = new JarOutputStream(new FileOutputStream(jarFile), manifest);
-			add(source, source.getAbsolutePath().length(), target);
+			add(sourceDir, sourceDir.getAbsolutePath().length(), target);
 			target.close();
 		}
 		catch (Exception e) {
 			throw new IllegalStateException("Failed to create JAR file '"
-					+ jarName + "' from " + source.getAbsolutePath(), e);
+					+ jarName + "' from " + sourceDir.getAbsolutePath(), e);
 		}
 		return jarFile;
 	}

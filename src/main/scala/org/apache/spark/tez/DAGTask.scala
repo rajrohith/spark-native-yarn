@@ -16,9 +16,11 @@
  */
 package org.apache.spark.tez
 
+import org.apache.tez.client.TezClient
+
 /**
  * 
  */
 trait DAGTask {
-  def execute
+  def execute(tezClient:TezClient)
 }

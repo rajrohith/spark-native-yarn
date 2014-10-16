@@ -33,6 +33,7 @@ import org.apache.spark.shuffle.ShuffleWriter
 import org.apache.spark.rdd.ShuffledRDD
 import org.apache.spark.shuffle.BaseShuffleHandle
 import org.apache.spark.ShuffleDependency
+import org.apache.spark.Partitioner
 
 /**
  * Tez vertex Task modeled after Spark's ResultTask
@@ -42,7 +43,7 @@ class VertexResultTask[T, U](
   rdd: RDD[T],
   partition:Partition,
   func: (TaskContext, Iterator[T]) => U)
-  extends Task[U](stageId, 0) with Serializable {
+  extends TezTask[U](stageId, 0) {
   
   /*
    * NOTE: While we are not really dependent on the Partition we need it to be non null to 

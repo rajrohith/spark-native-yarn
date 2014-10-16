@@ -21,24 +21,19 @@ import org.apache.tez.mapreduce.processor.SimpleMRProcessor
 import org.apache.tez.runtime.api.LogicalInput
 import org.apache.tez.runtime.api.LogicalOutput
 import org.apache.tez.runtime.api.ProcessorContext
-import java.io.File
-import org.apache.tez.runtime.library.processor.SimpleProcessor
 import org.apache.spark.tez.io.TezShuffleManager
-import org.apache.spark.scheduler.Task
-import java.io.ByteArrayInputStream
-import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectInputStream
 import com.google.common.base.Preconditions
-import org.apache.spark.HashPartitioner
 import org.apache.spark.Partitioner
-import java.nio.ByteBuffer
 import org.apache.spark.tez.io.SparkDelegatingPartitioner
+import java.net.URLClassLoader
+import org.apache.commons.io.IOUtils
 
 /**
  * 
  */
 object SparkTaskProcessor {
-  var task:Task[_] = null
-  var vertexIndex = -1
+  var task:TezTask[_] = null
+  var vertexNameIndex = -1
 }
 /**
  * Universal Tez processor which aside from providing access to Tez's native readers and writers will also create
@@ -46,11 +41,14 @@ object SparkTaskProcessor {
  * It also contains Spark's serialized tasks (Shuffle and/or Result) which upon deserialization will be executed
  * essentially providing a delegation model from Tez to Spark native tasks.
  */
-class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcessor(context) with Logging {
+class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(context) with Logging {
   if (context == null){
     throw new IllegalArgumentException("'context' must not be null")
   }
   
+  private val dagName = context.getDAGName()
+  private val taskIndex = context.getTaskIndex()
+  private val vertexName = context.getTaskVertexName()
   /**
    * 
    */
@@ -68,36 +66,31 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
    * 
    */
   private def doRun() = {
-    logInfo("Executing processor for task: " + this.getContext().getTaskIndex() + " for DAG " + this.getContext().getDAGName());
+    val taskIndex = this.getContext().getTaskIndex()
+  
+    logInfo("Executing processor for task: " + taskIndex + " for DAG " + dagName);
     val inputs = this.toIntKey(this.getInputs()).asInstanceOf[java.util.Map[Integer, LogicalInput]]
     val outputs = this.toIntKey(this.getOutputs()).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
     
     val shufleManager = new TezShuffleManager(inputs, outputs);
 
     SparkUtils.createSparkEnv(shufleManager);
-
-    if (SparkTaskProcessor.task == null) {
-      val deserializedPayload = TezUtils.deserializePayload(context)
-      SparkTaskProcessor.task = deserializedPayload._1.asInstanceOf[Task[_]]
-      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
-      if (deserializedPayload._2 != null){
-        SparkDelegatingPartitioner.setSparkPartitioner(deserializedPayload._2.asInstanceOf[Partitioner])
-      }
-    } else if (context.getTaskVertexName() != SparkTaskProcessor.vertexIndex){
-      val deserializedPayload = TezUtils.deserializePayload(context)
-      SparkTaskProcessor.task = deserializedPayload._1.asInstanceOf[Task[_]]
-      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
-      if (deserializedPayload._2 != null){
-        SparkDelegatingPartitioner.setSparkPartitioner(deserializedPayload._2.asInstanceOf[Partitioner])
-      }
+    val t = SparkTaskProcessor.task
+    if (SparkTaskProcessor.task == null || this.vertexName != SparkTaskProcessor.vertexNameIndex) {
+      SparkTaskProcessor.task = this.deserializeTask
+      val d = SparkTaskProcessor.task
+//      if (SparkTaskProcessor.task.partitioner != null){
+        SparkDelegatingPartitioner.setSparkPartitioner(SparkTaskProcessor.task.partitioner)
+//      }
+      SparkTaskProcessor.vertexNameIndex = Integer.parseInt(this.vertexName)
     } 
+    
     if (SparkTaskProcessor.task.isInstanceOf[VertexResultTask[_,_]]){
       shufleManager.shuffleStage = false
     }
     SparkUtils.runTask(SparkTaskProcessor.task, this.context.getTaskIndex());
   }
   
-
   /**
    * 
    */
@@ -114,5 +107,16 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
       }
     }
     resultMap
+  }
+  
+  /**
+   * 
+   */
+  private def deserializeTask():TezTask[_] = {
+    val cl = Thread.currentThread().getContextClassLoader().asInstanceOf[URLClassLoader]
+    val resourceName = "/" + this.vertexName + ".ser"
+    val resource = cl.getURLs().filter(_.getPath().endsWith(resourceName))(0)
+    val is = resource.openStream()
+    SparkUtils.deserializeTask(is).asInstanceOf[TezTask[_]]
   }
 }

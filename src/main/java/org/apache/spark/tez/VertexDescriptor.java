@@ -25,12 +25,10 @@ public class VertexDescriptor {
 	private final int stageId;
 	private final int vertexId;
 	private final Object input;
-	private final ByteBuffer serTaskData;
-	private Class<?> inputFormatClass;	
-	private Class<?> key;
-	private Class<?> value;
+	private final TezTask<?> tezTask;
 	private int numPartitions = 1; // must be set to the amount of reducers or 1. Must NEVER be 0 otherwise there will be ArithmeticException in partitioner
-	
+	private String vertexNameIndex;
+
 	/**
 	 * 
 	 * @param stageId
@@ -38,11 +36,27 @@ public class VertexDescriptor {
 	 * @param input
 	 * @param serTaskData
 	 */
-	public VertexDescriptor(int stageId, int vertexId, Object input, ByteBuffer serTaskData){
+	public VertexDescriptor(int stageId, int vertexId, Object input, TezTask<?> tezTask){
 		this.stageId = stageId;
 		this.vertexId = vertexId;
 		this.input = input;
-		this.serTaskData = serTaskData;
+		this.tezTask = tezTask;
+	}
+	
+	/**
+	 * 
+	 * @return
+	 */
+	public String getVertexNameIndex() {
+		return vertexNameIndex;
+	}
+
+	/**
+	 * 
+	 * @param vertexNameIndex
+	 */
+	protected void setVertexNameIndex(String vertexNameIndex) {
+		this.vertexNameIndex = vertexNameIndex;
 	}
 	
 	/**
@@ -73,8 +87,8 @@ public class VertexDescriptor {
 	 * 
 	 * @return
 	 */
-	public ByteBuffer getSerTaskData() {
-		return serTaskData;
+	public TezTask<?> getTask() {
+		return this.tezTask;
 	}
 	
 	/**
@@ -92,29 +106,29 @@ public class VertexDescriptor {
 		return "(stage: " + this.stageId + "; vertex:" + this.vertexId + "; input:" + input + ")";
 	}
 	
-	/**
-	 * 
-	 * @param inputFormatClass
-	 */
-	public void setInputFormatClass(Class<?> inputFormatClass) {
-		this.inputFormatClass = inputFormatClass;
-	}
-
-	/**
-	 * 
-	 * @param key
-	 */
-	public void setKey(Class<?> key) {
-		this.key = key;
-	}
-
-	/**
-	 * 
-	 * @param value
-	 */
-	public void setValue(Class<?> value) {
-		this.value = value;
-	}
+//	/**
+//	 * 
+//	 * @param inputFormatClass
+//	 */
+//	public void setInputFormatClass(Class<?> inputFormatClass) {
+//		this.inputFormatClass = inputFormatClass;
+//	}
+//
+//	/**
+//	 * 
+//	 * @param key
+//	 */
+//	public void setKey(Class<?> key) {
+//		this.key = key;
+//	}
+//
+//	/**
+//	 * 
+//	 * @param value
+//	 */
+//	public void setValue(Class<?> value) {
+//		this.value = value;
+//	}
 	
 	/**
 	 * 

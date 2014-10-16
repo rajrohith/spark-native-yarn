@@ -43,11 +43,12 @@ import org.apache.spark.Partitioner
 import org.apache.hadoop.yarn.api.records.LocalResource
 import org.apache.spark.rdd.ParallelCollectionRDD
 import java.util.HashMap
+import scala.collection.JavaConverters._
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
  */
-class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContext, Iterator[T]) => U, 
+class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U, 
     localResources:java.util.Map[String, LocalResource] = new java.util.HashMap[String, LocalResource]) extends Logging {
 
   private var vertexId = 0;
@@ -56,7 +57,9 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
   
   private val tezConfiguration = new TezConfiguration
   
-  val dagBuilder = new DAGBuilder(this.tezClient, this.localResources, tezConfiguration)
+  private val dagBuilder = new DAGBuilder(stage.rdd.context.appName, this.localResources, tezConfiguration)
+  
+  private val fs = FileSystem.get(tezConfiguration)
 
   /**
    * 
@@ -64,6 +67,20 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
   def build(keyClass:Class[_ <:Writable], valueClass:Class[_ <:Writable], outputFormatClass:Class[_], outputPath:String):DAGTask = {
     this.prepareDag(stage, null, func, keyClass, valueClass)
     val dagTask = dagBuilder.build(keyClass, valueClass, outputFormatClass, outputPath)
+    val vertexDescriptors = dagBuilder.getVertexDescriptors().entrySet().asScala
+    
+    for (vertexDescriptor <- vertexDescriptors) {
+      val vertexTask = vertexDescriptor.getValue().getTask()
+      vertexTask.partitioner = this.dagBuilder.getNextPartitioner()
+      val vertexTaskBuffer = SparkUtils.serializeTask(vertexTask)
+      val serTask = ClassPathUtils.ser(vertexTaskBuffer, vertexDescriptor.getValue().getVertexNameIndex() + ".ser")
+      ClassPathUtils.addResourceToClassPath(serTask)
+      val path = YarnUtils.provisionResource(serTask, fs, sparkContext.appName + "/" + TezConstants.CLASSPATH_PATH)
+      val lr = YarnUtils.createLocalResource(fs, path) 
+      localResources.put(serTask.getName(), lr)
+      println(serTask.getName() + " - " + serTask.length())
+    }
+    
     logInfo("DAG: " + dagBuilder.toString())
     dagTask
   }
@@ -79,15 +96,12 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
       }
     }
 
-    val partitioner = ReflectionUtils.getFieldValue(stage.rdd, "partitioner")
-    if (partitioner != null && partitioner.isInstanceOf[Option[_]] && partitioner.asInstanceOf[Option[_]].isDefined) {
-      val p = partitioner.asInstanceOf[Option[_]].get
-      val bos = new ByteArrayOutputStream()
-      val os = new TypeAwareObjectOutputStream(bos)
-      os.writeObject(p)
-      this.dagBuilder.setSparkPartitionerBytes(bos.toByteArray())
+    val partitioner = ReflectionUtils.getFieldValue(stage.rdd, "partitioner").asInstanceOf[Option[Partitioner]]
+    
+    if (partitioner.isDefined){
+      dagBuilder.addPartitioner(partitioner.get)
     }
-      
+     
     val vertexTask =
       if (stage.isShuffleMap) {
         logInfo(stage.shuffleDep.get.toString)
@@ -103,15 +117,17 @@ class Utils[T, U: ClassTag](tezClient:TezClient, stage: Stage, func: (TaskContex
         new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), null)
       }
     
-    val bos = new ByteArrayOutputStream()
-    val os = new TypeAwareObjectOutputStream(bos)
-    os.writeObject(vertexTask)
+//    val bos = new ByteArrayOutputStream()
+//    val os = new TypeAwareObjectOutputStream(bos)
+//    os.writeObject(vertexTask)
     
-    val vertexTaskBuffer = ByteBuffer.wrap(bos.toByteArray())
+//    val vertexTaskBuffer = ByteBuffer.wrap(bos.toByteArray())
+    
+//    val vertexTaskBuffer = SparkUtils.serializeTask(vertexTask)
     
     val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
     val deps = (if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0))
-    val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTaskBuffer)
+    val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTask)
     vd.setNumPartitions(stage.numPartitions)
     dagBuilder.addVertex(vd)
 

@@ -31,8 +31,6 @@ import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.spark.tez.test.utils.Instrumentable;
 import org.apache.spark.tez.utils.ReflectionUtils;
-import org.apache.spark.tez.test.utils.TezClientMocker;
-import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.junit.Test;
 
@@ -43,29 +41,28 @@ public class DAGBuilderTests extends Instrumentable {
 
 	@SuppressWarnings("unchecked")
 	@Test(expected=IllegalStateException.class)
-	public void failWithTezClientNull() {
+	public void failWithappNameNull() {
 		new DAGBuilder(null, mock(Map.class), mock(Configuration.class));
 	}
 	
 	@Test(expected=IllegalStateException.class)
 	public void failWithLocalResourcesMapNull() {
-		new DAGBuilder(mock(TezClient.class), null, mock(Configuration.class));
+		new DAGBuilder("foo", null, mock(Configuration.class));
 	}
 	
 	@SuppressWarnings("unchecked")
 	@Test(expected=IllegalStateException.class)
 	public void failWithConfigurationNull() {
-		new DAGBuilder(mock(TezClient.class), mock(Map.class), null);
+		new DAGBuilder("foo", mock(Map.class), null);
 	}
 	
 	@Test
 	public void validateInitialization() {
+		String appName = "foo";
 		TezConfiguration configuration = new TezConfiguration();
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
-		TezClient tezClient = TezClientMocker.noOpTezClientWithSuccessfullSubmit("foo");
-		DAGBuilder dagBuilder = new DAGBuilder(tezClient, localResources, configuration);
+		DAGBuilder dagBuilder = new DAGBuilder(appName, localResources, configuration);
 		
-		assertSame(tezClient, ReflectionUtils.getFieldValue(dagBuilder, "tezClient"));
 		assertSame(configuration, ReflectionUtils.getFieldValue(dagBuilder, "tezConfiguration"));
 		assertSame(localResources, ReflectionUtils.getFieldValue(dagBuilder, "localResources"));
 		assertTrue(((String)ReflectionUtils.getFieldValue(dagBuilder, "applicationInstanceName")).startsWith("foo_"));
@@ -76,8 +73,7 @@ public class DAGBuilderTests extends Instrumentable {
 	public void validateFailureWithMissingKeyType() {
 		TezConfiguration configuration = new TezConfiguration();
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
-		TezClient tezClient = TezClientMocker.noOpTezClientWithSuccessfullSubmit("foo");
-		DAGBuilder dagBuilder = new DAGBuilder(tezClient, localResources, configuration);
+		DAGBuilder dagBuilder = new DAGBuilder("foo", localResources, configuration);
 		dagBuilder.build(null, Text.class, TextOutputFormat.class, "foo");
 	}
 	
@@ -85,8 +81,7 @@ public class DAGBuilderTests extends Instrumentable {
 	public void validateFailureWithMissingValueType() {
 		TezConfiguration configuration = new TezConfiguration();
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
-		TezClient tezClient = TezClientMocker.noOpTezClientWithSuccessfullSubmit("foo");
-		DAGBuilder dagBuilder = new DAGBuilder(tezClient, localResources, configuration);
+		DAGBuilder dagBuilder = new DAGBuilder("foo", localResources, configuration);
 		dagBuilder.build(IntWritable.class, null, TextOutputFormat.class, "foo");
 	}
 	
@@ -94,8 +89,8 @@ public class DAGBuilderTests extends Instrumentable {
 	public void validateFailureWithMissingOutputFormat() {
 		TezConfiguration configuration = new TezConfiguration();
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
-		TezClient tezClient = TezClientMocker.noOpTezClientWithSuccessfullSubmit("foo");
-		DAGBuilder dagBuilder = new DAGBuilder(tezClient, localResources, configuration);
+		
+		DAGBuilder dagBuilder = new DAGBuilder("foo", localResources, configuration);
 		dagBuilder.build(IntWritable.class, Text.class, null, "foo");
 	}
 	
@@ -103,8 +98,8 @@ public class DAGBuilderTests extends Instrumentable {
 	public void validateFailureWithMissingOutputPath() {
 		TezConfiguration configuration = new TezConfiguration();
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
-		TezClient tezClient = TezClientMocker.noOpTezClientWithSuccessfullSubmit("foo");
-		DAGBuilder dagBuilder = new DAGBuilder(tezClient, localResources, configuration);
+
+		DAGBuilder dagBuilder = new DAGBuilder("foo", localResources, configuration);
 		dagBuilder.build(IntWritable.class, Text.class, TextOutputFormat.class, null);
 	}
 	
@@ -112,8 +107,7 @@ public class DAGBuilderTests extends Instrumentable {
 	public void validateFailureWithMissingVertexesBuild() {
 		TezConfiguration configuration = new TezConfiguration();
 		Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
-		TezClient tezClient = TezClientMocker.noOpTezClientWithSuccessfullSubmit("foo");
-		DAGBuilder dagBuilder = new DAGBuilder(tezClient, localResources, configuration);
+		DAGBuilder dagBuilder = new DAGBuilder("foo", localResources, configuration);
 		dagBuilder.build(IntWritable.class, Text.class, TextOutputFormat.class, "foo");
 	}
 }
