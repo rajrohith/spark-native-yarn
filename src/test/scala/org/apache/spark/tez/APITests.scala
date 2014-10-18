@@ -56,7 +56,7 @@ class APITests {
         classOf[IntWritable], classOf[TextOutputFormat[_, _]])
     // ===
 
-    TestUtils.printSampleResults(applicationName + "_out")
+    TestUtils.printSampleResults(applicationName, applicationName + "_out")
     sc.stop
     this.cleanUp(applicationName)
   }
@@ -109,7 +109,7 @@ class APITests {
     // ===
 
     sc.stop
-    TestUtils.printSampleResults(applicationName + "_out")
+    TestUtils.printSampleResults(applicationName, applicationName + "_out")
     this.cleanUp(applicationName)
   }
 
@@ -140,7 +140,7 @@ class APITests {
     // ===
 
     Assert.assertTrue(new File(applicationName + "_executed").exists())
-    TestUtils.printSampleResults(applicationName + "_out")
+    TestUtils.printSampleResults(applicationName, applicationName + "_out")
     sc.stop
     this.cleanUp(applicationName)
   }
@@ -175,7 +175,8 @@ class APITests {
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.parallelize(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 0), 4)
-    Assert.assertEquals(5, source.filter(_ % 2 == 0).count)
+    val count = source.filter(_ % 2 == 0).count
+    Assert.assertEquals(5, count)
     this.cleanUp(applicationName)
   }
 
@@ -190,7 +191,8 @@ class APITests {
     val bList = sc.broadcast[List[Int]](list)
 
     val source = sc.parallelize(List(1, 2, 4, 5, 6, 7, 8, 9, 0), 1)
-    Assert.assertEquals(2, source.filter(bList.value.contains(_)).count)
+    val count = source.filter(bList.value.contains(_)).count
+    Assert.assertEquals(2, count)
     this.cleanUp(applicationName)
   }
 
@@ -198,7 +200,7 @@ class APITests {
    *
    */
   def cleanUp(applicationname: String) {
-    FileUtils.deleteDirectory(new File(applicationname + "_out"))
+    FileUtils.deleteDirectory(new File(applicationname))
   }
 
   /**

@@ -16,33 +16,25 @@
  */
 package org.apache.spark.tez.io
 
-import org.apache.spark.SparkEnv
-import org.apache.spark.InterruptibleIterator
 import org.apache.spark.rdd.RDD
-import org.apache.spark.TaskContext
-import org.apache.hadoop.conf.Configuration
-import org.apache.spark.Partition
-import org.apache.spark.Logging
 import org.apache.spark.SparkContext
-import org.apache.hadoop.fs.FileSystem
+import org.apache.spark.Partition
+import scala.reflect.ClassTag
+import org.apache.spark.TaskContext
+import org.apache.spark.InterruptibleIterator
+import org.apache.spark.SparkEnv
 import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.conf.Configuration
 import java.io.FileNotFoundException
-import org.apache.tez.dag.api.TezConfiguration
 
 /**
- * Replacement for HadoopRDD.
- * Overrides 'compute' methods to be compatible with Tez readers.
+ * 
  */
-class TezRDD[K, V](
-  path: String,
-  sc: SparkContext,
-  val inputFormatClass: Class[_],
-  val keyClass: Class[K],
-  val valueClass: Class[V],
-  @transient conf: Configuration)
-  extends RDD[(K, V)](sc, Nil)
-  with Logging {
-
+class CacheRDD[T:ClassTag](sc: SparkContext,
+    path: String,
+    @transient conf: Configuration) extends RDD[T](sc, Nil){
+  
   @transient private val fqPath = this.validatePath(path)
   this.name = path
 
@@ -51,22 +43,16 @@ class TezRDD[K, V](
   def getPath(): Path = {
     this.fqPath
   }
-  
-  /**
-   *
-   */
+
   override def getPartitions: Array[Partition] = {
     Array(new Partition {
       override def index: Int = 0
     })
   }
-  /**
-   *
-   */
-  override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
-    val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, context).read.asInstanceOf[Iterator[(K, V)]] 
-    new InterruptibleIterator(context, iterator)
-//     new InterruptibleIterator(context, iterator.map(_._2.getValue().asInstanceOf[T]))
+  
+  override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[T] = {
+    val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, context).read.asInstanceOf[Iterator[(Any, ValueWritable)]]
+    new InterruptibleIterator(context, iterator.map(_._2.getValue().asInstanceOf[Array[T]]).flatMap(_.toIterator))
   }
   
   /**

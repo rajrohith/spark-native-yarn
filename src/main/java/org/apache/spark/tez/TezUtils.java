@@ -16,9 +16,7 @@
  */
 package org.apache.spark.tez;
 
-import java.io.File;
 import java.io.InputStream;
-import java.net.URL;
 import java.nio.ByteBuffer;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -43,9 +41,7 @@ public class TezUtils {
 		vertexDescriptor.setVertexNameIndex(vertexName);		
 		TezTask<?> vertexTask = vertexDescriptor.getTask();
 		vertexTask.setPartitioner(partitioner);
-		ByteBuffer taskBuffer = SparkUtils.serialize(vertexTask);
-		File serTask = ClassPathUtils.ser(taskBuffer, vertexDescriptor.getVertexNameIndex() + ".ser");
-		Path taskPath = YarnUtils.provisionResource(serTask, fs, appName);
+		Path taskPath = SparkUtils.serializeToFs(vertexTask, fs, new Path(appName + "/tasks/" + vertexDescriptor.getVertexNameIndex() + ".ser"));
 		UserPayload payload = UserPayload.create(ByteBuffer.wrap(taskPath.toString().getBytes()));
 		return payload;
 	}
@@ -56,14 +52,14 @@ public class TezUtils {
 	 * @return
 	 * @throws Exception
 	 */
-	public static TezTask<?> deserializeTask(ProcessorContext context) throws Exception {
+	public static TezTask<?> deserializeTask(ProcessorContext context, FileSystem fs) throws Exception {
 		ByteBuffer payloadBuffer = context.getUserPayload().getPayload();
 		byte[] payloadBytes = new byte[payloadBuffer.capacity()];
 		payloadBuffer.get(payloadBytes);
 		String taskPath = new String(payloadBytes);
-		URL taskUrl = new URL(taskPath);
-		InputStream is = taskUrl.openStream();
+		InputStream is = fs.open(new Path(taskPath));
 		TezTask<?> task = (TezTask<?>) SparkUtils.deserialize(is);
+		is.close();
 		return task;
 	}
 }

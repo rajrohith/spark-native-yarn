@@ -33,6 +33,12 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.fs.FileSystem
 import java.lang.Boolean
 import org.apache.hadoop.yarn.api.records.LocalResource
+import org.apache.hadoop.mapred.SequenceFileOutputFormat
+import java.net.URL
+import org.apache.spark.SparkHadoopWriter
+import java.net.URI
+import org.apache.spark.deploy.SparkHadoopUtil
+import org.apache.hadoop.security.UserGroupInformation
 
 
 /**
@@ -50,22 +56,24 @@ class TezDelegate extends SparkListener with Logging {
   /**
    *
    */
-  def submitApplication[T, U: ClassTag](appName: String, configuration: Configuration, stage: Stage, func: (TaskContext, Iterator[T]) => U) {
-    logInfo("Job: " + appName + " will be submitted to the following YARN cluster: ")
+  def submitApplication[T, U: ClassTag](returnType:ClassTag[U], stage: Stage, func: (TaskContext, Iterator[T]) => U):String = {
+    val sc = stage.rdd.context
+    logInfo("Job: " + sc.appName + " will be submitted to the following YARN cluster: ")
     this.logYARNConfiguration(this.tezConfiguration)
     
-    val outputMetadata = this.extractOutputMetedata(configuration, appName) 
+    val outputMetadata = this.extractOutputMetedata(sc.hadoopConfiguration, sc.appName) 
     val tezUtils = new Utils(stage, func, this.localResources)  
-    val dagTask: DAGTask = tezUtils.build(outputMetadata._1, outputMetadata._2, outputMetadata._3, outputMetadata._4)
+    val dagTask: DAGTask = tezUtils.build(returnType, outputMetadata._1, outputMetadata._2, outputMetadata._3, outputMetadata._4)
 
     if (this.tezClient.isEmpty) {
-      this.initializeTezClient(appName)
-      this.createLocalResources(appName)
+      this.initializeTezClient(sc.appName)
+      this.createLocalResources(sc.appName)
       this.tezClient.get.addAppMasterLocalFiles(localResources);
       this.tezClient.get.start()
     }
     
     dagTask.execute(this.tezClient.get)
+    outputMetadata._4
   }
 
   /**
@@ -103,7 +111,7 @@ class TezDelegate extends SparkListener with Logging {
       logInfo("Refreshing application classpath, by deleting the existing one. New one will be provisioned")
       fs.delete(appClassPathDir)
     }
-    val lr = YarnUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH)
+    val lr = HadoopUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH)
     this.localResources.putAll(lr)
   }
 
@@ -111,11 +119,17 @@ class TezDelegate extends SparkListener with Logging {
    *
    */
   private def extractOutputMetedata[T, U](conf: Configuration, appName: String): Tuple4[Class[_ <:Writable], Class[_ <:Writable], Class[_], String] = {
-    val outputFormat = conf.getClass("mapreduce.job.outputformat.class", classOf[TextOutputFormat[_, _]])
+    val outputFormat = conf.getClass("mapreduce.job.outputformat.class", classOf[SequenceFileOutputFormat[_, _]])
     val keyType = conf.getClass("mapreduce.job.output.key.class", classOf[KeyWritable], classOf[Writable])
     val valueType = conf.getClass("mapreduce.job.output.value.class", classOf[ValueWritable], classOf[Writable])
-    val outputPath = conf.get("mapred.output.dir", appName + "_out")
+    var outputPath = conf.get("mapred.output.dir", "out")
+    
     conf.clear()
+    if (new URI(outputPath).isAbsolute()){
+      val fs = FileSystem.get(new TezConfiguration).getWorkingDirectory().toString()
+      outputPath = outputPath.replace(fs, "").substring(1)
+    }
+    outputPath = appName + "/" + outputPath
     if (outputPath == null || outputFormat == null || keyType == null) {
       throw new IllegalArgumentException("Failed to determine output metadata (KEY/VALUE/OutputFormat type)")
     } else {

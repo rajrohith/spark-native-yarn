@@ -55,6 +55,13 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
    * 
    */
   def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
+//    println
+//    while (records.hasNext) {
+//      val next = records.next.asInstanceOf[Any]
+//      println(next)
+//    }
+    
+    
     val (iter, mergeFunction) = {
       val comb = this.buildCombinedIterator(records, combine)
       (comb._1, comb._2)

@@ -66,10 +66,10 @@ object TestUtils {
   /**
    *
    */
-  def printSampleResults(outputPath: String) {
+  def printSampleResults(appName:String, outputPath: String) {
     val conf = new TezConfiguration
     val fs = FileSystem.get(conf);
-    val iter = fs.listFiles(new Path(outputPath), false);
+    val iter = fs.listFiles(new Path(appName + "/" + outputPath), false);
     var counter = 0;
     var run = true
     while (iter.hasNext() && run) {

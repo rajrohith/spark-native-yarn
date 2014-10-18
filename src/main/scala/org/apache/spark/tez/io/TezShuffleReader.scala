@@ -81,9 +81,13 @@ private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[Any, A
    */
   override def next(): Product2[Any, Any] = {
     if (this.kvReader.isDefined) {
-      (this.kvReader.get.getCurrentKey(), this.kvReader.get.getCurrentValue())
+      val k = this.kvReader.get.getCurrentKey()
+      val v = this.kvReader.get.getCurrentValue()
+      (k, v)
     } else {
-      (this.kvsReader.get.getCurrentKey, this.kvsReader.get.nextValue)
+      val k = this.kvsReader.get.getCurrentKey
+      val v = this.kvsReader.get.nextValue
+      (k, v)
     }
   }
 }

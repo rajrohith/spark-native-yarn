@@ -60,7 +60,7 @@ public class YarnUtilsTests {
 		String appName = "validateCreateLocalResourcesWithGeneratedJar";
 		TezConfiguration tezConfiguration = new TezConfiguration();
 		FileSystem fs = FileSystem.get(tezConfiguration);
-		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH);
+		Map<String, LocalResource> localResources = HadoopUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH);
 		assertTrue(localResources.size() > 1);
 		boolean generatedAppJar = false;
 		for (String key : localResources.keySet()) {
@@ -82,7 +82,7 @@ public class YarnUtilsTests {
 		String appName = "validateNotCreateLocalResourcesWithGeneratedJar";
 		TezConfiguration tezConfiguration = new TezConfiguration();
 		FileSystem fs = FileSystem.get(tezConfiguration);
-		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH);
+		Map<String, LocalResource> localResources = HadoopUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH);
 		assertTrue(localResources.size() > 1);
 		boolean generatedAppJar = false;
 		boolean generatedAppConfigJar = false;

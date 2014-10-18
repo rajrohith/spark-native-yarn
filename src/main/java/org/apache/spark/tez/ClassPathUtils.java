@@ -66,28 +66,28 @@ public class ClassPathUtils {
 		}
 	}
 	
-	/**
-	 * 
-	 * @param bytesToSer
-	 * @param serName
-	 * @return
-	 */
-	public static File ser(ByteBuffer bytesToSer, String serName) {
-		FileOutputStream out = null;
-		try {
-			File outputFile = new File(serName);
-			outputFile.deleteOnExit();
-			out = new FileOutputStream(outputFile);
-			out.write(bytesToSer.array());
-			return outputFile;
-		} catch (Exception e) {
-			throw new IllegalStateException(e);
-		} finally {
-			try {
-				out.close();
-			} catch (Exception e) {/*ignore*/}
-		}
-	}
+//	/**
+//	 * 
+//	 * @param bytesToSer
+//	 * @param serName
+//	 * @return
+//	 */
+//	public static File ser(ByteBuffer bytesToSer, String serName) {
+//		FileOutputStream out = null;
+//		try {
+//			File outputFile = new File(serName);
+//			outputFile.deleteOnExit();
+//			out = new FileOutputStream(outputFile);
+//			out.write(bytesToSer.array());
+//			return outputFile;
+//		} catch (Exception e) {
+//			throw new IllegalStateException(e);
+//		} finally {
+//			try {
+//				out.close();
+//			} catch (Exception e) {/*ignore*/}
+//		}
+//	}
 	
 	/**
 	 * Will create a JAR file from base dir

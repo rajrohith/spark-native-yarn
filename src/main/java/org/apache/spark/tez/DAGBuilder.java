@@ -29,7 +29,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.spark.tez.io.CacheRDD;
 import org.apache.spark.tez.io.SparkDelegatingPartitioner;
 import org.apache.spark.tez.io.TezRDD;
 import org.apache.tez.client.TezClient;
@@ -68,7 +70,7 @@ class DAGBuilder {
 	
 	private final Map<String, LocalResource> localResources;
 	
-	private final String applicationInstanceName;
+	private final String applicationName;
 	
 	private DAG dag;
 	
@@ -89,8 +91,8 @@ class DAGBuilder {
 		Preconditions.checkState(tezConfiguration != null, "'tezConfiguration' must not be null");
 		
 		this.tezConfiguration = tezConfiguration;
-		this.applicationInstanceName = applicationName + "_" + System.currentTimeMillis();
-		this.dag = DAG.create(this.applicationInstanceName);
+		this.applicationName = applicationName;
+		this.dag = DAG.create(this.applicationName + "_" + System.currentTimeMillis());
 		this.localResources = localResources;
 	}
 	
@@ -189,6 +191,7 @@ class DAGBuilder {
 	 * 
 	 * @throws Exception
 	 */
+	@SuppressWarnings({ "unchecked", "rawtypes" })
 	private void doBuild(Class<? extends Writable> keyClass, Class<? extends Writable> valueClass, 
 			Class<?> outputFormatClass, String outputPath) throws Exception {
 		Preconditions.checkState(keyClass != null, "'keyClass' must not be null");
@@ -216,12 +219,41 @@ class DAGBuilder {
 				
 			//
 			String vertexName = String.valueOf(sequenceCounter++);
-			UserPayload payload = TezUtils.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationInstanceName);
+			TezTask<?> task = vertexDescriptor.getTask();
+			if (task instanceof VertexResultTask){
+				((VertexResultTask)task).setKeyClass(keyClass);
+				((VertexResultTask)task).setValueClass(valueClass);
+			}
+			
+			UserPayload payload = TezUtils.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationName);
 			//
 			
 			if (vertexDescriptor.getInput() instanceof TezRDD) {
 				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).getPath().toString();
 				Class<?> inputFormatClass = ((TezRDD<?,?>)vertexDescriptor.getInput()).inputFormatClass();
+				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();			
+				
+				String dsName = String.valueOf(sequenceCounter++);
+				
+				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload))
+						.addDataSource(dsName, dataSource);	
+				// For single stage vertex we need to add data sink
+				if (counter == vertexes.size()){
+					JobConf dsConfig = new JobConf(tezConfiguration);
+					dsConfig.setOutputKeyClass(keyClass);
+					dsConfig.setOutputValueClass(valueClass);
+					dsConfig.setOutputKeyClass(keyClass);
+					dsConfig.setOutputValueClass(valueClass);
+					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
+					vertex.addDataSink(dsName, dataSink);
+				}
+				
+				vertex.addTaskLocalFiles(localResources);			
+				dag.addVertex(vertex);
+			}
+			else if (vertexDescriptor.getInput() instanceof CacheRDD){
+				String inputPath = ((CacheRDD<?>)vertexDescriptor.getInput()).getPath().toString();
+				Class<?> inputFormatClass = SequenceFileInputFormat.class;
 				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();			
 				
 				String dsName = String.valueOf(sequenceCounter++);

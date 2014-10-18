@@ -39,8 +39,8 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
  * such as setting up LocalResource, provisioning classpath etc.
  *
  */
-public class YarnUtils {
-	private static final Log logger = LogFactory.getLog(YarnUtils.class);
+public class HadoopUtils {
+	private static final Log logger = LogFactory.getLog(HadoopUtils.class);
 
 	/**
 	 * Creates {@link LocalResource}s based on the current user's classpath
@@ -63,7 +63,7 @@ public class YarnUtils {
 	 * @param applicationName
 	 * @return
 	 */
-	public static Path provisionResource(File localResource, FileSystem fs, String applicationName) {
+	public static Path provisionResourceToFs(File localResource, FileSystem fs, String applicationName) {
 		String destinationFilePath = applicationName + "/" + localResource.getName();
 		Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
 		provisioinResourceToFs(fs, new Path(localResource.getAbsolutePath()), provisionedPath);
@@ -221,8 +221,8 @@ public class YarnUtils {
 		
 		try {
 			File scalaLibLocation = new File(new URL(path).toURI());
-			Path provisionedPath = YarnUtils.provisionResource(scalaLibLocation, fs, appName);
-			LocalResource localResource = YarnUtils.createLocalResource(fs, provisionedPath);
+			Path provisionedPath = HadoopUtils.provisionResourceToFs(scalaLibLocation, fs, appName);
+			LocalResource localResource = HadoopUtils.createLocalResource(fs, provisionedPath);
 			localResources.put(provisionedPath.getName(), localResource);
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to provision Scala Library", e);
@@ -233,8 +233,8 @@ public class YarnUtils {
 	 * 
 	 */
 	private static Map<String, LocalResource> provisionAndLocalizeCurrentClasspath(FileSystem fs, String appName) {
-		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(fs, appName, ClassPathUtils.initClasspathExclusions(TezConstants.CLASSPATH_EXCLUSIONS));
-		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(fs, provisionedResourcesPaths);
+		Path[] provisionedResourcesPaths = HadoopUtils.provisionClassPath(fs, appName, ClassPathUtils.initClasspathExclusions(TezConstants.CLASSPATH_EXCLUSIONS));
+		Map<String, LocalResource> localResources = HadoopUtils.createLocalResources(fs, provisionedResourcesPaths);
 
 		return localResources;
 	}

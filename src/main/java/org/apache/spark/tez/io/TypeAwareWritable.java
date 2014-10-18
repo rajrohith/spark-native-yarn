@@ -9,10 +9,10 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.NullWritable;
 
 @SuppressWarnings("unchecked")
-public abstract class TypeAwareWritable<T> implements Writable {
+public abstract class TypeAwareWritable<T> implements NewWritable<T> {
 	
     protected T value;
 	
@@ -67,7 +67,6 @@ public abstract class TypeAwareWritable<T> implements Writable {
 				oos.writeObject(value);
 				this.valueEncoder.valueType = OBJECT;
 				this.valueEncoder.valueBytes = bos.toByteArray();
-				
 			} catch (Exception e) {
 				throw new IllegalStateException("Failed to serialize value: " + value, e);
 			} finally {
@@ -85,7 +84,7 @@ public abstract class TypeAwareWritable<T> implements Writable {
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
-		if (this.valueEncoder.valueType != NULL){
+		if (this.valueEncoder.valueBytes != null){
 			out.writeByte(this.valueType);
 			out.write(this.valueEncoder.valueBytes);
 		}

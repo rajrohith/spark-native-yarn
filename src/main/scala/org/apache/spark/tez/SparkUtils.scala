@@ -22,6 +22,8 @@ import org.apache.spark.storage.BlockManager
 import sun.misc.Unsafe
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkEnv
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
 import org.apache.spark.storage.BlockManager
 import sun.misc.Unsafe
 import org.apache.spark.TaskContext
@@ -34,6 +36,13 @@ import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectInputStream
 import java.io.ByteArrayOutputStream
 import java.io.ByteArrayInputStream
 import java.io.InputStream
+import org.apache.spark.rdd.RDD
+import java.io.OutputStream
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.Path
+import org.apache.spark.CacheManager
+import org.apache.spark.Partition
+import org.apache.spark.storage.StorageLevel
 
 /**
  * Utility functions related to Spark functionality.
@@ -49,19 +58,43 @@ object SparkUtils {
   unsafeConstructor.setAccessible(true);
   val unsafe = unsafeConstructor.newInstance();
   
+  /**
+   * 
+   */
   def getLastMethodName():String = {
     val ex = new Exception
-    ex.getStackTrace().filter(_.toString().contains("org.apache.spark.rdd")).last.getMethodName()
+    ex.getStackTrace().filter(_.toString().contains("org.apache.spark.rdd")).head.getMethodName()
   }
   
   /**
    * 
    */
-  def serialize(value:Any):ByteBuffer = {
+  def serializeToBuffer(value:Any):ByteBuffer = {
     val bos = new ByteArrayOutputStream()
-    val os = new TypeAwareObjectOutputStream(bos)
-    os.writeObject(value)
+    this.serializeToOutputStream(value, bos)
     ByteBuffer.wrap(bos.toByteArray())
+  }
+  
+  /**
+   * 
+   */
+  def serializeToOutputStream(value:Any, outputStream:OutputStream) {
+    val os = new TypeAwareObjectOutputStream(outputStream)
+    os.writeObject(value)
+  }
+  
+  /**
+   * 
+   */
+  def serializeToFs(value:Any, fs:FileSystem, path:Path):Path = {
+    val os = fs.create(path)
+    SparkUtils.serializeToOutputStream(value, os)
+    os.close()
+    if (fs.exists(path)){
+      path
+    } else {
+      throw new IllegalStateException("Failed to serialize: " + path  + " to: " + fs)
+    }
   }
   
   /**
@@ -69,7 +102,9 @@ object SparkUtils {
    */
   def deserialize(ois:InputStream):Object = {
     val is = new TypeAwareObjectInputStream(ois)
-    is.readObject()
+    val result = is.readObject()
+    is.close
+    result
   }
 
   /**
@@ -85,9 +120,10 @@ object SparkUtils {
   def createSparkEnv(shuffleManager:TezShuffleManager) {
     val tm = new TaskMetrics
     TaskContext.setTaskContext(new TaskContext(1, 1, 1, true, tm))
-    val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];   
+    val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];  
+    val cacheManager = new TezCacheManager(blockManager)
     val memoryManager = new ShuffleMemoryManager(20793262)
-    val se = new SparkEnv("0", null, closueSerializer, closueSerializer, null, null, shuffleManager, null, null, blockManager, null, null, null, null, memoryManager, sparkConf)
+    val se = new SparkEnv("0", null, closueSerializer, closueSerializer, cacheManager, null, shuffleManager, null, null, blockManager, null, null, null, null, memoryManager, sparkConf)
     SparkEnv.set(se)
   }
   
@@ -97,5 +133,16 @@ object SparkUtils {
   def runTask(task: Task[_], taskIndex:Int) = { 
     val taskContext = new TaskContext(0, taskIndex, 0)
     task.runTask(taskContext)
+  }
+  
+  class TezCacheManager(blockManager: BlockManager) extends CacheManager(blockManager) {
+    override def getOrCompute[T](
+      rdd: RDD[T],
+      partition: Partition,
+      context: TaskContext,
+      storageLevel: StorageLevel): Iterator[T] = {
+      
+      rdd.computeOrReadCheckpoint(partition, context)
+    }
   }
 }

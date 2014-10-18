@@ -62,6 +62,12 @@ import org.apache.tez.client.TezClient
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.ArrayList
 import java.util.Arrays
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat
+import org.apache.hadoop.io.NullWritable
+import org.apache.spark.tez.io.CacheRDD
+import org.apache.spark.Partition
+import org.apache.hadoop.io.SequenceFile
+import scala.collection.mutable.ListBuffer
 
 /**
  *
@@ -129,64 +135,42 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
       sc.addSparkListener(this.tezDelegate)
     }
 
-    val (operationName, finalRdd) = this.computeLastRdd(sc, rdd)
-    val stage = this.caclulateStages(sc, finalRdd)
+    val operationName = SparkUtils.getLastMethodName
+    val stage = this.caclulateStages(sc, rdd)
 
-    this.tezDelegate.submitApplication[T, U](sc.appName, sc.hadoopConfiguration, stage: Stage, func: (TaskContext, Iterator[T]) => U)
-
-    this.processResult(sc.appName, partitions.size, operationName, returnType, resultHandler)
+    val outputPath = this.tezDelegate.submitApplication[T, U](returnType:ClassTag[U], stage: Stage, func: (TaskContext, Iterator[T]) => U)
+    
+    this.processResult(sc, outputPath, partitions.size, operationName, returnType, resultHandler)
   }
 
   /**
    *
    */
-  private def processResult[U](appName: String, partitionSize: Int, operationName: String, returnType: ClassTag[U], resultHandler: (Int, U) => Unit) {
+  private def processResult[U](sc: SparkContext, out:String, partitionSize: Int, operationName: String, returnType: ClassTag[U], resultHandler: (Int, U) => Unit) {
     if (!classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
       logDebug("Building non Unit result")
       val conf = new TezConfiguration
-      val fs = FileSystem.get(conf);
-      val iter = fs.listFiles(new Path(appName + "_out"), false);
+      val outputPath = new Path(out)
+      val iter = fs.listFiles(outputPath, false)
       var partitionCounter = 0
       while (iter.hasNext() && partitionCounter < partitionSize) {
         val fStatus = iter.next()
         if (!fStatus.getPath().toString().endsWith("_SUCCESS")) {
-          if (operationName == "count") {
-            val reader = new BufferedReader(new InputStreamReader(fs.open(fStatus.getPath())))
-            val line = reader.readLine()
-            if (line != null) {
-              val count = Long.parseLong(line.split("\\s+")(1))
-              resultHandler(partitionCounter, count.asInstanceOf[U])
-              reader.close
-            }
+          if (operationName == "count" || operationName == "collect") {
+            val reader = new SequenceFile.Reader(conf, SequenceFile.Reader.file(fStatus.getPath()));
+            val kw = reader.getKeyClass().newInstance().asInstanceOf[org.apache.spark.tez.io.NewWritable[_]]
+            val vw = reader.getValueClass().newInstance().asInstanceOf[org.apache.spark.tez.io.NewWritable[_]]
+            reader.next(kw, vw)
+            val value = vw.getValue
+            resultHandler(partitionCounter, value.asInstanceOf[U])
+            reader.close()
           }
           partitionCounter += 1
         }
       }
+      fs.delete(outputPath, true)
+      logDebug("Deleted job's output path: " + outputPath)
     }
-  }
-
-  /**
-   *
-   */
-  private def validateIfSupported(operationName: String) {
-    if (operationName == "collect") {
-      throw new UnsupportedOperationException("'collect' is not supported yet")
-    }
-  }
-
-  /**
-   *
-   */
-  private def computeLastRdd(sc: SparkContext, rdd: RDD[_]): Tuple2[String, RDD[_]] = {
-    val operationName = SparkUtils.getLastMethodName
-    val (fName, fRdd) =
-      if (operationName == "count") {
-        (operationName, rdd.map(x => ("l", 1)).reduceByKey(_ + _))
-      } else {
-        (operationName, rdd)
-      }
-    this.validateIfSupported(fName)
-    (fName, fRdd)
   }
 
   /**
@@ -203,25 +187,45 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   /**
    *
    */
-  def persist(sc: SparkContext, rdd: RDD[_], newLevel: StorageLevel): RDD[_] = {
+  def persist(sc: SparkContext, rdd: RDD[_], newLevel: StorageLevel): rdd.type = {
     logDebug("Caching " + rdd)
-    val cachePath = rdd.name
-    if (cachePath != null && this.cachedRDDs.contains(this.fs.makeQualified(new Path(cachePath)))) {
-      logInfo("Skipping caching as the RDD is already cached")
-      val cachedRdd = sc.textFile(cachePath)
-      cachedRdd
-    } else {
-      val outputDirectory = sc.appName + "_cache_" + rdd.id
-      rdd.saveAsTextFile(outputDirectory)
-
-      val cachedRdd = new TezRDD(outputDirectory, sc, classOf[TextInputFormat],
-        classOf[Text], classOf[IntWritable], new TezConfiguration)
-      logInfo("Cached RDD: " + cachedRdd)
-      cachedRDDs += cachedRdd.getPath
-      cachedRdd
-    }
+    val cachedRdd =
+      if (rdd.name != null) {    
+        val path = new Path(rdd.name)
+        if (fs.exists(path)) {
+          rdd
+        } else {
+          this.doPersist[Any](sc, rdd.asInstanceOf[RDD[Any]], newLevel)
+        }
+      } else {
+        this.doPersist[Any](sc, rdd.asInstanceOf[RDD[Any]], newLevel)
+      }
+    
+    cachedRdd.asInstanceOf[rdd.type]
   }
 
+  /**
+   * 
+   */
+  private def doPersist[T: ClassTag](sc: SparkContext, rdd: RDD[T], newLevel: StorageLevel): RDD[T] = {
+    val outputDirectory = "cache_" + rdd.id
+
+    rdd.mapPartitions(iter => iter.grouped(10).map(_.toArray))
+      .map { x =>
+        val v = new ValueWritable()
+        v.setValue(x)
+        (NullWritable.get(), v)
+      }
+      .saveAsSequenceFile(outputDirectory)
+
+    val cachedRDD = new CacheRDD(sc, sc.appName + "/" + outputDirectory, new TezConfiguration)
+    cachedRDDs += cachedRDD.getPath
+    cachedRDD.asInstanceOf[RDD[T]]
+  }
+
+  /**
+   * 
+   */
   def unpersist(sc: SparkContext, rdd: RDD[_], blocking: Boolean = true): RDD[_] = {
     val cachePath = rdd.name
     if (cachePath != null) {

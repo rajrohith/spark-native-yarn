@@ -44,6 +44,9 @@ import org.apache.hadoop.yarn.api.records.LocalResource
 import org.apache.spark.rdd.ParallelCollectionRDD
 import java.util.HashMap
 import scala.collection.JavaConverters._
+import org.apache.spark.tez.io.TezRDD
+import org.apache.hadoop.io.NullWritable
+import org.apache.spark.tez.io.CacheRDD
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
@@ -64,8 +67,8 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
   /**
    * 
    */
-  def build(keyClass:Class[_ <:Writable], valueClass:Class[_ <:Writable], outputFormatClass:Class[_], outputPath:String):DAGTask = {
-    this.prepareDag(stage, null, func, keyClass, valueClass)
+  def build(returnType:ClassTag[U], keyClass:Class[_ <:Writable], valueClass:Class[_ <:Writable], outputFormatClass:Class[_], outputPath:String):DAGTask = {
+    this.prepareDag(returnType, stage, null, func, keyClass, valueClass)
     val dagTask = dagBuilder.build(keyClass, valueClass, outputFormatClass, outputPath)
     val vertexDescriptors = dagBuilder.getVertexDescriptors().entrySet().asScala
     logInfo("DAG: " + dagBuilder.toString())
@@ -75,11 +78,11 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
   /**
    * 
    */
-  private def prepareDag(stage: Stage, dependentStage: Stage, func: (TaskContext, Iterator[T]) => U, keyClass:Class[_], valueClass:Class[_]) {
+  private def prepareDag(returnType:ClassTag[U], stage: Stage, dependentStage: Stage, func: (TaskContext, Iterator[T]) => U, keyClass:Class[_], valueClass:Class[_]) {
     if (stage.parents.size > 0) {
       val missing = stage.parents.sortBy(_.id)
       for (parent <- missing) {
-        prepareDag(parent, stage, func, keyClass, valueClass)
+        prepareDag(returnType, parent, stage, func, keyClass, valueClass)
       }
     }
 
@@ -101,11 +104,45 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
         }
       } else {
         logInfo("STAGE Result: " + stage + " vertex: " + this.vertexId)
-        new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), null)
+        val narrowAncestors = stage.rdd.getNarrowAncestors.sortBy(_.id)
+//        val initialRdd = narrowAncestors.head
+        if (narrowAncestors.size > 0 &&  narrowAncestors.head.isInstanceOf[ParallelCollectionRDD[_]]) {
+          if (classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
+            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions)
+          } else {
+            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions, func)
+          }
+        } else {
+          if (classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
+            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], Array(stage.rdd.partitions(0)))
+          } else {
+            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], Array(stage.rdd.partitions(0)), func)
+          }
+        }
       }
     
-    val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
-    val deps = (if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0))
+    var dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
+   
+    val deps = 
+      if (stage.rdd.isInstanceOf[CacheRDD[_]]){
+        stage.rdd
+      } else {
+        if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0)
+      }
+//      (if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0))
+//    val deps =
+//      if (dependencies.size == 0 || dependencies(0).name == null) {
+//        val d = (for (parent <- stage.parents) yield parent.id).asJavaCollection
+//        if (stage.parents.size > 0) {
+//          (for (parent <- stage.parents) yield parent.id).asJavaCollection
+//        } else {
+//          stage.rdd
+//        }
+//      }
+//      else {
+//        dependencies(0)
+//      }
+
     val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTask)
     vd.setNumPartitions(stage.numPartitions)
     dagBuilder.addVertex(vd)
