@@ -1,4 +1,4 @@
-description = 'Tez port for Spark'
+description = 'Natiev YARN/Tez port for Spark'
 group = 'org.apache.spark.tez'
 
 apply plugin: 'eclipse'
@@ -31,8 +31,8 @@ publishing {
         publications {
             maven(MavenPublication) {
                 groupId 'org.apache.spark.tez'
-                artifactId 'stark'
-                version '0.1'
+                artifactId 'spark-native-yarn'
+                version '0.1-PREVIEW'
                 from components.java
                 artifact sourceJar {
                     classifier "sources"
