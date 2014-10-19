@@ -21,7 +21,6 @@ import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import breeze.linalg.{ Vector, DenseVector, squaredDistance }
-import dev.demo.DemoUtilities
 import org.apache.hadoop.io.NullWritable
 import org.apache.spark.tez.io.KeyWritable
 import org.apache.commons.io.FileUtils

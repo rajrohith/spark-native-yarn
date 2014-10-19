@@ -99,10 +99,10 @@ object SparkToTezAdapter extends Logging {
     // java.lang.NoSuchMethodError: org.apache.spark.tez.TezContext$$anonfun$textFile$1.<init>(Lorg/apache/spark/SparkContext;)V  
     pairRddFunctionsAdapter.getNestedClasses.foreach{x =>
         x.replaceClassName("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter", "org.apache.spark.rdd.PairRDDFunctions");
-        x.toClass(cl)
+        x.toClass(cl, classOf[ClassPool].getProtectionDomain())
     }
     
-    this.klass = pool.toClass(pairRddFunctions, Thread.currentThread().getContextClassLoader())
+    this.klass = pool.toClass(pairRddFunctions, cl, classOf[ClassPool].getProtectionDomain())
   }
 
   /**

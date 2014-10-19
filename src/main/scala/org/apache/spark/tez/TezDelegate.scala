@@ -113,7 +113,7 @@ class TezDelegate extends SparkListener with Logging {
     val updateClassPath = ucpProp != null && Boolean.parseBoolean(ucpProp)
     if (updateClassPath) {
       logInfo("Refreshing application classpath, by deleting the existing one. New one will be provisioned")
-      fs.delete(appClassPathDir)
+      fs.delete(appClassPathDir, true)
     }
     val lr = HadoopUtils.createLocalResources(fs, appName + "/" + TezConstants.CLASSPATH_PATH)
     this.localResources.putAll(lr)

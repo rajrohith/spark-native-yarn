@@ -36,7 +36,7 @@ import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.spark.tez.TezConstants;
 /**
- * Utility functions related to variety of tasks to be performed via YARN
+ * Utility functions related to variety of tasks to be performed in HADOOP
  * such as setting up LocalResource, provisioning classpath etc.
  *
  */

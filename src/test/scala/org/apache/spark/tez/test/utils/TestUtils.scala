@@ -76,7 +76,7 @@ object TestUtils {
       val status = iter.next();
       if (status.isFile()) {
         if (!status.getPath().toString().endsWith("_SUCCESS")) {
-          println("Results from " + status.getPath() + " - " + fs.getLength(status.getPath()))
+          println("Results from " + status.getPath() + " - " + status.getLen())
 
           val reader = new BufferedReader(new InputStreamReader(fs.open(status.getPath())))
           var line: String = null
