@@ -36,47 +36,41 @@ import java.nio.ByteBuffer
 import java.lang.Boolean
 import org.apache.spark.tez.io.TezRDD
 import java.io.FileNotFoundException
+import org.apache.hadoop.io.Writable
+import org.apache.spark.rdd.ShuffledRDD
+import org.apache.spark.tez.utils.ReflectionUtils
+import org.apache.spark.Partitioner
+import org.apache.hadoop.yarn.api.records.LocalResource
+import org.apache.spark.rdd.ParallelCollectionRDD
+import java.util.HashMap
+import scala.collection.JavaConverters._
+import org.apache.spark.tez.io.TezRDD
+import org.apache.hadoop.io.NullWritable
+import org.apache.spark.tez.io.CacheRDD
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
  */
-class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U) extends Logging {
+class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U, 
+    localResources:java.util.Map[String, LocalResource] = new java.util.HashMap[String, LocalResource]) extends Logging {
 
   private var vertexId = 0;
-  
-  private val serializer = SparkEnv.get.serializer.newInstance
   
   private val sparkContext = stage.rdd.context
   
   private val tezConfiguration = new TezConfiguration
   
-  val fs = FileSystem.get(tezConfiguration);
-  val appClassPathDir = fs.makeQualified(new Path(TezConstants.CLASSPATH_PATH))
-  logInfo("Application classpath dir is: " + appClassPathDir)
-  val ucpProp = System.getProperty(TezConstants.UPDATE_CLASSPATH)
- 
-  val updateClassPath = ucpProp != null && Boolean.parseBoolean(ucpProp)
-  if (updateClassPath){
-    logInfo("Refreshing application classpath, by deleting the existing one. New one will be provisioned")
-    fs.delete(new Path(TezConstants.CLASSPATH_PATH))
-  }
-  else {
-    logInfo("Relying on the existing classpath: " + appClassPathDir)
-  }
-  val localResources = YarnUtils.createLocalResources(this.fs, TezConstants.CLASSPATH_PATH)
-  val tezClient = TezClient.create(sparkContext.appName, tezConfiguration);
-  this.tezClient.addAppMasterLocalFiles(this.localResources);
-  tezClient.start();
+  private val dagBuilder = new DAGBuilder(stage.rdd.context.appName, this.localResources, tezConfiguration)
   
-  val dagBuilder = new DAGBuilder(this.tezClient, this.localResources, tezConfiguration)
-  
-  def getConfiguration = tezConfiguration
+  private val fs = FileSystem.get(tezConfiguration)
+
   /**
    * 
    */
-  def build(keyClass:Class[_], valueClass:Class[_], outputFormatClass:Class[_], outputPath:String):DAGTask = {
-    this.prepareDag(stage, null, func, keyClass, valueClass)
+  def build(returnType:ClassTag[U], keyClass:Class[_ <:Writable], valueClass:Class[_ <:Writable], outputFormatClass:Class[_], outputPath:String):DAGTask = {
+    this.prepareDag(returnType, stage, null, func, keyClass, valueClass)
     val dagTask = dagBuilder.build(keyClass, valueClass, outputFormatClass, outputPath)
+    val vertexDescriptors = dagBuilder.getVertexDescriptors().entrySet().asScala
     logInfo("DAG: " + dagBuilder.toString())
     dagTask
   }
@@ -84,62 +78,61 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U)
   /**
    * 
    */
-  private def prepareDag(stage: Stage, dependentStage: Stage, func: (TaskContext, Iterator[T]) => U, keyClass:Class[_], valueClass:Class[_]) {
+  private def prepareDag(returnType:ClassTag[U], stage: Stage, dependentStage: Stage, func: (TaskContext, Iterator[T]) => U, keyClass:Class[_], valueClass:Class[_]) {
     if (stage.parents.size > 0) {
       val missing = stage.parents.sortBy(_.id)
       for (parent <- missing) {
-        prepareDag(parent, stage, func, keyClass, valueClass)
+        prepareDag(returnType, parent, stage, func, keyClass, valueClass)
       }
     }
 
+    val partitioner = ReflectionUtils.getFieldValue(stage.rdd, "partitioner").asInstanceOf[Option[Partitioner]]
+    
+    if (partitioner.isDefined){
+      dagBuilder.addPartitioner(partitioner.get)
+    }
+     
     val vertexTask =
       if (stage.isShuffleMap) {
         logInfo(stage.shuffleDep.get.toString)
         logInfo("STAGE Shuffle: " + stage + " vertex: " + this.vertexId)
-        new VertexShuffleTask(stage.id, stage.rdd, stage.rdd.partitions(0), stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]])
+        val initialRdd = stage.rdd.getNarrowAncestors.sortBy(_.id).head
+        if (initialRdd.isInstanceOf[ParallelCollectionRDD[_]]){
+          new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]], stage.rdd.partitions)
+        } else {
+          new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]], Array(stage.rdd.partitions(0)))
+        }
       } else {
         logInfo("STAGE Result: " + stage + " vertex: " + this.vertexId)
-        val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
-        new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions(0), null)
+        val narrowAncestors = stage.rdd.getNarrowAncestors.sortBy(_.id)
+        if (narrowAncestors.size > 0 &&  narrowAncestors.head.isInstanceOf[ParallelCollectionRDD[_]]) {
+          if (classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
+            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions)
+          } else {
+            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions, func)
+          }
+        } else {
+          if (classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
+            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], Array(stage.rdd.partitions(0)))
+          } else {
+            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], Array(stage.rdd.partitions(0)), func)
+          }
+        }
       }
     
-    val bos = new ByteArrayOutputStream()
-    val os = new TypeAwareObjectOutputStream(bos)
-    os.writeObject(vertexTask)
-    
-    val vertexTaskBuffer = ByteBuffer.wrap(bos.toByteArray())
-    
-    // will serialize only ParallelCollectionPartition instances. The rest are ignored
-    this.serializePartitions(stage.rdd.partitions)
+    var dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
+   
+    val deps = 
+      if (stage.rdd.isInstanceOf[CacheRDD[_]]){
+        stage.rdd
+      } else {
+        if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0)
+      }
 
-    val dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
-    val deps = (if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0))
-    if (deps.isInstanceOf[TezRDD[_,_]]){
-      val qPath = fs.makeQualified(new Path(deps.asInstanceOf[TezRDD[_,_]].getPath))
-      if (!fs.exists(qPath)){
-        throw new FileNotFoundException("Path: " + qPath + " does not exist")
-      }
-    }
-    val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTaskBuffer)
+    val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTask)
     vd.setNumPartitions(stage.numPartitions)
     dagBuilder.addVertex(vd)
 
     vertexId += 1
-  }
-  
-  /**
-   * 
-   */
-  private def serializePartitions(partitions:Array[Partition]){
-    if (partitions.size > 0 && partitions(0).isInstanceOf[ParallelCollectionPartition[_]]){
-      var partitionCounter = 0
-      for (partition <- partitions) {
-        val partitionPath = new Path(this.sparkContext.appName + "_p_" + partitionCounter)
-        val os = fs.create(partitionPath)
-        logDebug("serializing: " + partitionPath)
-        partitionCounter += 1
-        serializer.serializeStream(os).writeObject(partition).close
-      }
-    }
   }
 }

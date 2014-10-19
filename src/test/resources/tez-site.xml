@@ -1,0 +1,18 @@
+<configuration>
+	<property>
+		<name>tez.local.mode</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>tez.runtime.optimize.local.fetch</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>tez.am.mode.session</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>tez.am.session.min.held-containers</name>
+		<value>2</value>
+	</property>
+</configuration>

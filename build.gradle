@@ -1,12 +1,12 @@
 description = 'Tez port for Spark'
-applicationName="stark"
-group = 'hortonworks'
+group = 'org.apache.spark.tez'
 
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'java'
 apply plugin: 'scala'
 apply plugin: 'application'
+apply plugin: 'maven-publish'
 
 mainClassName="org.apache.spark.tez.Main"
 
@@ -26,6 +26,25 @@ sourceSets.main.scala.srcDir "src/main/java"
 sourceSets.main.java.srcDirs = []
 sourceSets.test.scala.srcDir "src/test/java"
 sourceSets.test.java.srcDirs = []
+
+publishing {
+        publications {
+            maven(MavenPublication) {
+                groupId 'org.apache.spark.tez'
+                artifactId 'stark'
+                version '0.1'
+                from components.java
+                artifact sourceJar {
+                    classifier "sources"
+                }
+            }
+        }
+    }
+    
+task sourceJar(type: Jar) {
+    from sourceSets.main.allJava
+    from sourceSets.main.allScala
+}
 
 repositories {
     mavenCentral()
@@ -82,7 +101,9 @@ dependencies {
 	compile ("org.apache.spark:spark-core_2.10:$sparkVersion") {
 		exclude group: 'org.apache.hadoop'
 	}
-	compile ("org.apache.spark:spark-repl_2.10:1.1.0") 
+	runtime ("org.apache.spark:spark-repl_2.10:1.1.0") {
+		exclude group: 'org.apache.hadoop'
+	}
 	compile "org.apache.tez:tez-common:$tezVersion"
 	compile "org.apache.tez:tez-dag:$tezVersion"
 	compile "org.apache.tez:tez-mapreduce:$tezVersion"
@@ -90,9 +111,9 @@ dependencies {
 	compile "org.apache.hadoop:hadoop-common:$hadoopVersion"
 	compile "javassist:javassist:3.12.1.GA"
 	
+	testCompile "org.scalanlp:breeze_2.10:0.9"
 	testCompile "junit:junit-dep:$junitVersion"
 	testCompile "org.mockito:mockito-all:$mockitoVersion"
-	
 }
 
 compileScala {

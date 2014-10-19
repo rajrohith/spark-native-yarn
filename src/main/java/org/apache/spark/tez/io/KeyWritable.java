@@ -16,6 +16,8 @@
  */
 package org.apache.spark.tez.io;
 
+import java.io.Serializable;
+
 import org.apache.hadoop.io.WritableComparable;
 
 /**
@@ -30,8 +32,8 @@ import org.apache.hadoop.io.WritableComparable;
  * 
  * This class is not public nor it is meant/designed as thread-safe.
  */
-@SuppressWarnings("rawtypes") 
-class KeyWritable extends TypeAwareWritable<Comparable> implements WritableComparable<KeyWritable> {
+@SuppressWarnings({ "rawtypes", "serial" }) 
+public class KeyWritable extends TypeAwareWritable<Comparable> implements WritableComparable<KeyWritable>, Serializable {
 	
 	@SuppressWarnings("unchecked")
 	@Override

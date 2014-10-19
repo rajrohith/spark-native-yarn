@@ -30,6 +30,7 @@ import org.apache.hadoop.io.IntWritable
 import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.conf.Configuration
 import org.apache.tez.dag.api.TezConfiguration
+import org.apache.spark.InterruptibleIterator
 
 /**
  * Implementation of Spark's ShuffleReader tailored for Tez which means its is aware of
@@ -80,9 +81,13 @@ private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[Any, A
    */
   override def next(): Product2[Any, Any] = {
     if (this.kvReader.isDefined) {
-      (this.kvReader.get.getCurrentKey(), this.kvReader.get.getCurrentValue())
+      val k = this.kvReader.get.getCurrentKey()
+      val v = this.kvReader.get.getCurrentValue()
+      (k, v)
     } else {
-      (this.kvsReader.get.getCurrentKey, this.kvsReader.get.nextValue)
+      val k = this.kvsReader.get.getCurrentKey
+      val v = this.kvsReader.get.nextValue
+      (k, v)
     }
   }
 }
@@ -92,13 +97,13 @@ private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[Any, A
  * while giving you access to "current key" and "next value" contained in KeyValuesReader's ValuesIterator.
  */
 private class KVSIterator(kvReader: KeyValuesReader) {
-  var vIter = kvReader.getCurrentValues().iterator()
+  var vIter:java.util.Iterator[_] = null
 
   /**
    * Checks if underlying reader contains more data to read.
    */
   def hasNext = {
-    if (vIter.hasNext()) {
+    if (vIter != null && vIter.hasNext()) {
       true
     } else {
       if (kvReader.next()) {
@@ -118,7 +123,9 @@ private class KVSIterator(kvReader: KeyValuesReader) {
   }
 
   /**
-   *
+   * For this case 'ket' will always be represented by TypeAwareWritable (KeyWritable)
+   * since its source is the result of YARN shuffle and the preceeding writer will
+   * write all intermediate outputs as TypeAwareWritable for both keys and values.
    */
   def getCurrentKey = {
     kvReader.getCurrentKey().asInstanceOf[TypeAwareWritable[_]].getValue()

@@ -16,14 +16,20 @@
  */
 package org.apache.spark.tez
 
-import org.apache.tez.client.TezClient
-
+import org.apache.spark.scheduler.Task
+import org.apache.spark.Partitioner
+import org.apache.spark.Logging
 /**
  * 
  */
-trait DAGTask {
+private[tez] abstract class TezTask[U](stageId: Int, partitionId: Int) extends Task[U](stageId, 0) with Logging {
+
+  var partitioner:Partitioner = null
+  
   /**
    * 
    */
-  def execute(tezClient:TezClient)
+  private[tez] def setPartitioner(partitioner:Partitioner) {
+    this.partitioner = partitioner
+  }
 }

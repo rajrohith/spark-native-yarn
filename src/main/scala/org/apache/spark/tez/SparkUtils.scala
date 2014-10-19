@@ -22,12 +22,28 @@ import org.apache.spark.storage.BlockManager
 import sun.misc.Unsafe
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkEnv
+import org.apache.spark.SparkContext
+import org.apache.spark.SparkContext._
 import org.apache.spark.storage.BlockManager
 import sun.misc.Unsafe
 import org.apache.spark.TaskContext
 import org.apache.spark.scheduler.Task
 import org.apache.spark.shuffle.ShuffleMemoryManager
 import org.apache.spark.tez.io.TezShuffleManager
+import org.apache.spark.executor.TaskMetrics
+import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectOutputStream
+import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectInputStream
+import java.io.ByteArrayOutputStream
+import java.io.ByteArrayInputStream
+import java.io.InputStream
+import org.apache.spark.rdd.RDD
+import java.io.OutputStream
+import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.Path
+import org.apache.spark.CacheManager
+import org.apache.spark.Partition
+import org.apache.spark.storage.StorageLevel
+import org.apache.spark.TaskContextImpl
 
 /**
  * Utility functions related to Spark functionality.
@@ -43,11 +59,53 @@ object SparkUtils {
   unsafeConstructor.setAccessible(true);
   val unsafe = unsafeConstructor.newInstance();
   
-  val taskContext = new TaskContext(1,1,1)
-  
+  /**
+   * 
+   */
   def getLastMethodName():String = {
     val ex = new Exception
-    ex.getStackTrace().filter(_.toString().contains("org.apache.spark")).last.getMethodName()
+    ex.getStackTrace().filter(_.toString().contains("org.apache.spark.rdd")).head.getMethodName()
+  }
+  
+  /**
+   * 
+   */
+  def serializeToBuffer(value:Any):ByteBuffer = {
+    val bos = new ByteArrayOutputStream()
+    this.serializeToOutputStream(value, bos)
+    ByteBuffer.wrap(bos.toByteArray())
+  }
+  
+  /**
+   * 
+   */
+  def serializeToOutputStream(value:Any, outputStream:OutputStream) {
+    val os = new TypeAwareObjectOutputStream(outputStream)
+    os.writeObject(value)
+  }
+  
+  /**
+   * 
+   */
+  def serializeToFs(value:Any, fs:FileSystem, path:Path):Path = {
+    val os = fs.create(path)
+    SparkUtils.serializeToOutputStream(value, os)
+    os.close()
+    if (fs.exists(path)){
+      path
+    } else {
+      throw new IllegalStateException("Failed to serialize: " + path  + " to: " + fs)
+    }
+  }
+  
+  /**
+   * 
+   */
+  def deserialize(ois:InputStream):Object = {
+    val is = new TypeAwareObjectInputStream(ois)
+    val result = is.readObject()
+    is.close
+    result
   }
 
   /**
@@ -61,25 +119,42 @@ object SparkUtils {
    * 
    */
   def createSparkEnv(shuffleManager:TezShuffleManager) {
-    val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];   
+    this.setTaskContext
+    val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];  
+    val cacheManager = new TezCacheManager(blockManager)
     val memoryManager = new ShuffleMemoryManager(20793262)
-    val se = new SparkEnv("0", null, closueSerializer, closueSerializer, null, null, shuffleManager, null, null, blockManager, null, null, null, null, memoryManager, sparkConf)
+    val se = new SparkEnv("0", null, closueSerializer, closueSerializer, cacheManager, null, shuffleManager, null, null, blockManager, null, null, null, null, memoryManager, sparkConf)
     SparkEnv.set(se)
-  }
-
-  /**
-   * 
-   */
-  def deserializeSparkTask(taskBytes: Array[Byte], partitionId:Int): Task[_] = {
-    val taskBytesBuffer = ByteBuffer.wrap(taskBytes)
-    val task = closureSerializerInstance.deserialize[Task[_]](taskBytesBuffer)
-    task
   }
   
   /**
    * 
    */
-  def runTask(task: Task[_]) = { 
+  def runTask(task: Task[_], taskIndex:Int) = { 
+    val taskContext = new TaskContextImpl(0, taskIndex, 0)
     task.runTask(taskContext)
+  }
+  
+  private def setTaskContext() {
+    val tm = new TaskMetrics
+    val tc = new TaskContextImpl(1, 1, 1, true, tm)
+    val m = classOf[TaskContext].getDeclaredMethod("setTaskContext", classOf[TaskContext])
+    m.setAccessible(true)
+    m.invoke(null, tc)
+  }
+  
+  
+  /**
+   * 
+   */
+  private class TezCacheManager(blockManager: BlockManager) extends CacheManager(blockManager) {
+    override def getOrCompute[T](
+      rdd: RDD[T],
+      partition: Partition,
+      context: TaskContext,
+      storageLevel: StorageLevel): Iterator[T] = {
+      
+      rdd.computeOrReadCheckpoint(partition, context)
+    }
   }
 }

@@ -14,52 +14,69 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dev.demo
+package org.apache.spark.tez.test.utils
 
-import java.io.{InputStreamReader, BufferedReader, File}
-import java.net.URL
-import java.net.URLClassLoader
-
-import org.apache.hadoop.fs.FileSystem
-import org.apache.hadoop.fs.Path
-import org.apache.spark.tez.TezConstants
+import org.apache.spark.rdd.RDD
+import java.io.File
+import org.apache.commons.io.FileUtils
 import org.apache.tez.dag.api.TezConfiguration
+import org.apache.hadoop.fs.FileSystem
+import java.io.BufferedReader
+import org.apache.hadoop.fs.Path
+import java.io.InputStreamReader
+import org.apache.spark.SparkContext
+import org.apache.tez.client.TezClient
+import org.apache.spark.tez.TezDelegate
+import org.apache.spark.tez.utils.ReflectionUtils
+import org.mockito.Mockito
+/**
+ *
+ */
+object TestUtils {
 
-object DemoUtilities {
-
-  def prepareJob(inputFiles: Array[String]) : String = {
-    val jobName = this.getClass().getName()
-    val cl = ClassLoader.getSystemClassLoader().asInstanceOf[URLClassLoader]
-    val m = classOf[URLClassLoader].getDeclaredMethod("addURL", classOf[URL]);
-    m.setAccessible(true);
-    val file = new File("src/test/resources/mini/").toURI().toURL()
-    m.invoke(cl, file)
-
-    if (jobName != null && inputFiles != null) {
-      System.setProperty(TezConstants.GENERATE_JAR, "true");
-      val configuration = new TezConfiguration
-
-      val fs = FileSystem.get(configuration);
-      fs.delete(new Path(jobName + "_out"))
-      inputFiles.foreach(x => fs.copyFromLocalFile(new Path(x), new Path(x)))
-    }
-    jobName
+  /**
+   *
+   */
+  def stubPersistentFile(appName: String, rdd: RDD[_]): String = {
+    val cache = new File(appName + "_cache_" + rdd.id)
+    cache.createNewFile()
+    cache.getName()
   }
 
   /**
    *
    */
-  def printSampleResults(outputPath: String) {
+  def cleanup(testName: String) {
+    FileUtils.deleteQuietly(new File(testName))
+  }
+
+  /**
+   * 
+   */
+  def instrumentTezClient(sc: SparkContext): TezClient = {
+    val tezDelegate = ReflectionUtils.getFieldValue(sc, "executionContext.tezDelegate").asInstanceOf[TezDelegate]
+    tezDelegate.initializeTezClient(sc.appName)
+    val tezClient = TezClient.create(sc.appName, new TezConfiguration)
+    tezClient.start()
+    val watchedTezClient = Mockito.spy(tezClient)
+    ReflectionUtils.setFieldValue(tezDelegate, "tezClient", new Some(watchedTezClient))
+    watchedTezClient
+  }
+
+  /**
+   *
+   */
+  def printSampleResults(appName:String, outputPath: String) {
     val conf = new TezConfiguration
     val fs = FileSystem.get(conf);
-    val iter = fs.listFiles(new Path(outputPath), false);
+    val iter = fs.listFiles(new Path(appName + "/" + outputPath), false);
     var counter = 0;
     var run = true
     while (iter.hasNext() && run) {
       val status = iter.next();
       if (status.isFile()) {
         if (!status.getPath().toString().endsWith("_SUCCESS")) {
-          println("Results from " + status.getPath() + " - " + fs.getLength(status.getPath()))
+          println("Results from " + status.getPath() + " - " + status.getLen())
 
           val reader = new BufferedReader(new InputStreamReader(fs.open(status.getPath())))
           var line: String = null

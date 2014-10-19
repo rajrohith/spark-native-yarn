@@ -31,14 +31,19 @@ import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.io.Text
 import org.apache.spark.Logging
 import org.apache.spark.tez.SparkUtils
+import org.apache.spark.scheduler.CompressedMapStatus
+import org.apache.hadoop.io.NullWritable
 
 /**
  * 
  */
-class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], handle: BaseShuffleHandle[K, V, C]) extends ShuffleWriter[K, V] with Logging {
+class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], handle: BaseShuffleHandle[K, V, C], context: TaskContext) extends ShuffleWriter[K, V] with Logging {
   
   private val kvOutput = output.values.iterator().next()
   private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
+  
+  private[tez] var keyWritable:Writable = null
+  private[tez] var valueWritable:Writable = null
 
   /**
    *
@@ -58,22 +63,6 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
   /**
    * 
    */
-  /*
-   * TODO
-   * For cases such as count or other the iterator may not be KV. It may just be a single value
-   * so we need somethimg lieke this:
-   * for (value <- iterator) {
-        println(value)
-        if (value.isInstanceOf[Product2[K, V]]){
-          println("product")
-        }
-        else {
-          println("other")
-        }
-        
-        kvWriter.write(NullWritable.get(), value)
-      }
-   */
   private def sinkKeyValuesIterator(records: Iterator[_ <: Product2[K, V]], mergeFunction:Function2[Any,Any,Any]) {
     var previousKey:Any = null
     var mergedValue: Any = null
@@ -90,12 +79,12 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
           mergedValue = record._2
         }
       } else {
-         kvWriter.write(record._1, record._2)
+        this.write(record._1, record._2)
       }
     }
     // last element need to be flushed
     if (previousKey != null) {
-      kvWriter.write(previousKey, mergedValue)
+      this.write(previousKey, mergedValue)
     }
   }
 
@@ -103,6 +92,55 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
    * 
    */
   def stop(success: Boolean): Option[MapStatus] = {
-    Some(SparkUtils.createUnsafeInstance(classOf[MapStatus]))
+    Some(SparkUtils.createUnsafeInstance(classOf[CompressedMapStatus]))
+  }
+  
+  /**
+   * 
+   */
+  private[tez] def setKeyClass(keyClass:Class[Writable]) {
+    this.keyWritable = this.buildWritable(keyClass)
+  }
+  
+  /**
+   * 
+   */
+  private[tez] def setValueClass(valueClass:Class[Writable]) {
+    this.valueWritable = this.buildWritable(valueClass)
+  }
+  
+  /**
+   * 
+   */
+  private def write(key:Any, value:Any) {
+   if (key.isInstanceOf[Writable] && value.isInstanceOf[Writable]){
+     kvWriter.write(key, value)
+   }
+   else {
+     this.keyWritable.asInstanceOf[NewWritable[Any]].setValue(key)
+     this.valueWritable.asInstanceOf[NewWritable[Any]].setValue(value)
+     kvWriter.write(this.keyWritable, this.valueWritable)
+   }
+  }
+  
+  /**
+   * 
+   */
+  private def buildWritable(wClass:Class[Writable]):Writable = {
+    if (wClass.isAssignableFrom(classOf[IntWritable])){
+      new NewWritable.NewIntWritable
+    } else if (wClass.isAssignableFrom(classOf[LongWritable])){
+      new NewWritable.NewLongWritable
+    } else if (wClass.isAssignableFrom(classOf[Text])){
+      new NewWritable.NewTextWritable
+    } else if (wClass.isAssignableFrom(classOf[KeyWritable])){
+      new KeyWritable
+    } else if (wClass.isAssignableFrom(classOf[ValueWritable])){
+      new ValueWritable
+    } else if (wClass.isAssignableFrom(classOf[NullWritable])){
+      NullWritable.get
+    } else {
+      throw new IllegalStateException("Unrecognized writable: " + wClass)
+    }
   }
 }

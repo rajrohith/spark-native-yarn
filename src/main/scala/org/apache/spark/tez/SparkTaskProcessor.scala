@@ -21,27 +21,27 @@ import org.apache.tez.mapreduce.processor.SimpleMRProcessor
 import org.apache.tez.runtime.api.LogicalInput
 import org.apache.tez.runtime.api.LogicalOutput
 import org.apache.tez.runtime.api.ProcessorContext
-import java.io.File
-import org.apache.tez.runtime.library.processor.SimpleProcessor
 import org.apache.spark.tez.io.TezShuffleManager
-import org.apache.spark.scheduler.Task
-import java.io.ByteArrayInputStream
-import org.apache.spark.tez.io.TypeAwareStreams.TypeAwareObjectInputStream
+import com.google.common.base.Preconditions
+import org.apache.spark.Partitioner
+import org.apache.spark.tez.io.SparkDelegatingPartitioner
+import java.net.URLClassLoader
+import org.apache.commons.io.IOUtils
+import org.apache.hadoop.fs.FileSystem
+import org.apache.tez.dag.api.TezConfiguration
 
-/**
- * 
- */
-object SparkTaskProcessor {
-  var task:Task[_] = null
-  var vertexIndex = -1
-}
 /**
  * Universal Tez processor which aside from providing access to Tez's native readers and writers will also create
  * and instance of custom Spark ShuffleManager thus exposing Tez's reader/writers to Spark.
- * It also contains Spark's serialized tasks (Shuffle and/or Result) which upon deserialization will be executed
+ * It also contains Spark's serialized tasks (Shuffle and/or Result) which upon de-serialization will be executed
  * essentially providing a delegation model from Tez to Spark native tasks.
  */
-class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcessor(context) with Logging {
+class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(context) with Logging {
+  Preconditions.checkState(context != null, "'context' must not be null".asInstanceOf[Object])
+  
+  private val dagName = context.getDAGName()
+  private val taskIndex = context.getTaskIndex()
+  private val vertexName = context.getTaskVertexName()
   
   /**
    * 
@@ -60,36 +60,27 @@ class SparkTaskProcessor(val context: ProcessorContext) extends SimpleMRProcesso
    * 
    */
   private def doRun() = {
-    logInfo("Executing processor for task: " + this.getContext().getTaskIndex() + " for DAG " + this.getContext().getDAGName());
+    logInfo("Executing processor for task: " + taskIndex + " for DAG " + dagName);
     val inputs = this.toIntKey(this.getInputs()).asInstanceOf[java.util.Map[Integer, LogicalInput]]
     val outputs = this.toIntKey(this.getOutputs()).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
-  
-    if (SparkTaskProcessor.task == null) {
-      val taskBytes = TezUtils.getTaskBuffer(context)      
-      val bis = new ByteArrayInputStream(taskBytes)
-      val is = new TypeAwareObjectInputStream(bis)
-      SparkTaskProcessor.task = is.readObject().asInstanceOf[Task[_]]
-      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
-    } else if (context.getTaskVertexName() != SparkTaskProcessor.vertexIndex){
-      val taskBytes = TezUtils.getTaskBuffer(context)
-      val bis = new ByteArrayInputStream(taskBytes)
-      val is = new TypeAwareObjectInputStream(bis)
-      SparkTaskProcessor.task = is.readObject().asInstanceOf[Task[_]]
-      SparkTaskProcessor.vertexIndex = context.getTaskVertexIndex()
+    
+    val shufleManager = new TezShuffleManager(inputs, outputs)
+    SparkUtils.createSparkEnv(shufleManager)
+    
+    val registry = this.context.getObjectRegistry()
+    
+    var task = registry.get(vertexName).asInstanceOf[TezTask[_]]
+    if (task == null) {
+      val fs = FileSystem.get(new TezConfiguration)
+      task = TezHelper.deserializeTask(context, fs)
+      registry.cacheForDAG(vertexName, task)
+      SparkDelegatingPartitioner.setSparkPartitioner(task.partitioner)
     } 
     
-    val shufleManager = 
-      if (SparkTaskProcessor.task.isInstanceOf[VertexResultTask[_,_]]){
-        val vrt = SparkTaskProcessor.task.asInstanceOf[VertexResultTask[_,_]]
-        new TezShuffleManager(inputs, outputs, false);
-      } else {
-        new TezShuffleManager(inputs, outputs);
-      }
-
-    SparkUtils.createSparkEnv(shufleManager);
-    SparkUtils.runTask(SparkTaskProcessor.task);
+    shufleManager.shuffleStage = task.isInstanceOf[VertexShuffleTask]
+    SparkUtils.runTask(task, this.context.getTaskIndex());
   }
-
+  
   /**
    * 
    */

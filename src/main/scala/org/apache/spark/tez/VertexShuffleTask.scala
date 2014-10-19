@@ -31,6 +31,7 @@ import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.IntWritable
 import org.apache.spark.shuffle.BaseShuffleHandle
 import org.apache.spark.TaskContext
+import org.apache.spark.Partitioner
 
 /**
  * Tez vertex Task modeled after Spark's ShufleMapTask
@@ -38,8 +39,8 @@ import org.apache.spark.TaskContext
 class VertexShuffleTask(
     stageId: Int,
     rdd:RDD[_], 
-    partition:Partition,
-    val dep: Option[ShuffleDependency[Any, Any, Any]]) extends Task[MapStatus](stageId, 0) with Logging {
+    val dep: Option[ShuffleDependency[Any, Any, Any]],
+    partitions:Array[Partition]) extends TezTask[MapStatus](stageId, 0) {
   
   /*
    * NOTE: While we are not really dependent on the Partition we need it to be non null to 
@@ -50,12 +51,14 @@ class VertexShuffleTask(
     var writer: ShuffleWriter[Any, Any] = null
     try {
       val manager = SparkEnv.get.shuffleManager
-//      val partition = null
       val sh = new BaseShuffleHandle(0, 0, dep.get)
-      writer = manager.getWriter[Any, Any](sh, 1, new TaskContext(1,1,1))
+      writer = manager.getWriter[Any, Any](sh, 1, context)
       
-      writer.write(rdd.iterator(partition, null).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
-
+      if (partitions.length == 1){
+        writer.write(rdd.iterator(partitions(0), context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+      } else {
+        writer.write(rdd.iterator(partitions(context.partitionId()), context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+      }
       return writer.stop(success = true).get
     } catch {
       case e: Exception =>

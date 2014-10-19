@@ -27,10 +27,15 @@ import org.apache.spark.Partitioner
 import org.apache.spark.rdd.ShuffledRDD
 
 /**
- *
+ * This is a template file which defines operations use during instrumentation(implementation swap) of 
+ * PairRDDFunctions class (see SparkToTezAdapter). Outside of instrumentation
+ * this code is not used anywhere.
  */
 class PairRDDFunctionsAdapter[K, V] extends Logging {
 
+  /**
+   * 
+   */
   def saveAsNewAPIHadoopDataset(conf: Configuration) {
     val fields = this.getClass().getDeclaredFields().filter(_.getName().endsWith("self"))
     val field = fields(0)
@@ -52,6 +57,9 @@ class PairRDDFunctionsAdapter[K, V] extends Logging {
     self.context.runJob(self, (context: TaskContext, iter: Iterator[_]) => ())
   }
 
+  /**
+   * 
+   */
   def saveAsHadoopDataset(conf: JobConf) {
     val fields = this.getClass().getDeclaredFields().filter(_.getName().endsWith("self"))
     val field = fields(0)
@@ -73,6 +81,9 @@ class PairRDDFunctionsAdapter[K, V] extends Logging {
     self.context.runJob(self, (context: TaskContext, iter: Iterator[_]) => ())
   }
 
+  /**
+   * 
+   */
   def groupByKey(partitioner: Partitioner): RDD[(K, Iterable[V])] = {
     val fields = this.getClass().getDeclaredFields().filter(_.getName().endsWith("self"))
     val field = fields(0)

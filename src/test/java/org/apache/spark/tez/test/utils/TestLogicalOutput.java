@@ -14,19 +14,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.tez;
+package org.apache.spark.tez.test.utils;
 
-import java.nio.ByteBuffer;
+import java.io.File;
+import java.io.IOException;
 
-import org.apache.tez.runtime.api.ProcessorContext;
-
-public class TezUtils {
-
-	public static byte[] getTaskBuffer(ProcessorContext context) {
-		ByteBuffer payload = context.getUserPayload().getPayload();
-		payload.rewind();
-		byte[] taskBytes = new byte[payload.capacity()];
-		payload.get(taskBytes);
-		return taskBytes;
+import org.apache.tez.runtime.api.LogicalOutput;
+import org.apache.tez.runtime.api.Writer;
+import org.apache.tez.runtime.library.api.KeyValueWriter;
+/**
+ * Stub for LogicalOutput used in tests
+ *
+ */
+public class TestLogicalOutput implements LogicalOutput {
+	
+	public TestLogicalOutput() {
+		
 	}
+	
+    public TestLogicalOutput(File file) {
+		
+	}
+
+	@Override
+	public void start() throws Exception {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public Writer getWriter() throws Exception {
+		return new KeyValueWriter() {
+			
+			@Override
+			public void write(Object key, Object value) throws IOException {
+
+			}
+		};
+	}
+
 }

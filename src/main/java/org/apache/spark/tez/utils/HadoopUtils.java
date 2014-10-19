@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.tez;
+package org.apache.spark.tez.utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,13 +34,14 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.spark.tez.TezConstants;
 /**
- * Utility functions related to variety of tasks to be performed via YARN
+ * Utility functions related to variety of tasks to be performed in HADOOP
  * such as setting up LocalResource, provisioning classpath etc.
  *
  */
-public class YarnUtils {
-	private static final Log logger = LogFactory.getLog(YarnUtils.class);
+public class HadoopUtils {
+	private static final Log logger = LogFactory.getLog(HadoopUtils.class);
 
 	/**
 	 * Creates {@link LocalResource}s based on the current user's classpath
@@ -49,9 +50,9 @@ public class YarnUtils {
 	 * @param appName
 	 * @return
 	 */
-	public static Map<String, LocalResource> createLocalResources(FileSystem fs, String appName) {
-		Map<String, LocalResource> localResources = provisionAndLocalizeCurrentClasspath(fs, appName);
-		provisionAndLocalizeScalaLib(fs, appName, localResources);
+	public static Map<String, LocalResource> createLocalResources(FileSystem fs, String classPathDir) {
+		Map<String, LocalResource> localResources = provisionAndLocalizeCurrentClasspath(fs, classPathDir);
+		provisionAndLocalizeScalaLib(fs, classPathDir, localResources);
 		return localResources;
 	}
 	
@@ -63,7 +64,7 @@ public class YarnUtils {
 	 * @param applicationName
 	 * @return
 	 */
-	public static Path provisionResource(File localResource, FileSystem fs, String applicationName) {
+	public static Path provisionResourceToFs(File localResource, FileSystem fs, String applicationName) {
 		String destinationFilePath = applicationName + "/" + localResource.getName();
 		Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
 		provisioinResourceToFs(fs, new Path(localResource.getAbsolutePath()), provisionedPath);
@@ -101,30 +102,28 @@ public class YarnUtils {
 	 * @return
 	 */
 	private static Path[] provisionClassPath(FileSystem fs, String applicationName, String[] classPathExclusions){
-		boolean generateJar = System.getProperty(TezConstants.GENERATE_JAR) != null;
+		
+		
+		
+		
+		String genJarProperty = System.getProperty(TezConstants.GENERATE_JAR);
+		boolean generateJar = genJarProperty != null && Boolean.parseBoolean(genJarProperty);
 		List<Path> provisionedPaths = new ArrayList<Path>();
 		List<File> generatedJars = new ArrayList<File>();
+		
+		boolean confFromHadoopConfDir = generateConfigJarFromHadoopConfDir(fs, applicationName, provisionedPaths, generatedJars);
+		
 		URL[] classpath = ((URLClassLoader) ClassLoader.getSystemClassLoader()).getURLs();
 		for (URL classpathUrl : classpath) {
 			File f = new File(classpathUrl.getFile());
-			if (f.isDirectory()) {
+			if (f.isDirectory()) {			
 				if (generateJar){
-					String jarFileName = ClassPathUtils.generateJarFileName(applicationName);
-					if (logger.isDebugEnabled()){
-						logger.debug("Generating application JAR: " + jarFileName);
-					}
-					File jarFile = ClassPathUtils.toJar(f, jarFileName);
-					generatedJars.add(jarFile);
-					f = jarFile;
+					String jarFileName = ClassPathUtils.generateJarFileName("application");
+					f = doGenerateJar(f, jarFileName, generatedJars, "application");
 				} 
-				else if (f.getName().equals("conf")){
-					String jarFileName = ClassPathUtils.generateJarFileName(applicationName + "_conf");
-					if (logger.isDebugEnabled()){
-						logger.debug("Generating application JAR: " + jarFileName);
-					}
-					File jarFile = ClassPathUtils.toJar(f, jarFileName);
-					generatedJars.add(jarFile);
-					f = jarFile;
+				else if (f.getName().equals("conf") && !confFromHadoopConfDir){
+					String jarFileName = ClassPathUtils.generateJarFileName("conf_application");
+					f = doGenerateJar(f, jarFileName, generatedJars, "configuration");
 				}
 				else {
 					f = null;
@@ -145,10 +144,45 @@ public class YarnUtils {
 			try {
 				generatedJar.delete(); 
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.warn("Failed to delete generated jars", e);
 			}
 		}
 		return provisionedPaths.toArray(new Path[]{});
+	}
+	
+	/**
+	 * 
+	 * @param f
+	 * @param jarFileName
+	 * @param generatedJars
+	 * @return
+	 */
+	private static File doGenerateJar(File f, String jarFileName, List<File> generatedJars, String subMessage) {
+		if (logger.isDebugEnabled()){
+			logger.debug("Generating " + subMessage + " JAR: " + jarFileName);
+		}
+		File jarFile = ClassPathUtils.toJar(f, jarFileName);
+		generatedJars.add(jarFile);
+		return jarFile;
+	}
+	
+	/**
+	 * 
+	 */
+	private static boolean generateConfigJarFromHadoopConfDir(FileSystem fs, String applicationName, List<Path> provisionedPaths, List<File> generatedJars){
+		boolean generated = false;
+		String hadoopConfDir = System.getenv().get("HADOOP_CONF_DIR");
+		if (hadoopConfDir != null && hadoopConfDir.trim().length() > 0){
+			String jarFileName = ClassPathUtils.generateJarFileName("conf_application");
+			File confDir = new File(hadoopConfDir.trim());
+			File jarFile = doGenerateJar(confDir, jarFileName, generatedJars, "configuration (HADOOP_CONF_DIR)");
+			String destinationFilePath = applicationName + "/" + jarFile.getName();
+			Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
+			provisioinResourceToFs(fs, new Path(jarFile.getAbsolutePath()), provisionedPath);
+			provisionedPaths.add(provisionedPath);
+			generated = true;
+		}
+		return generated;
 	}
 	
 	/**
@@ -220,8 +254,8 @@ public class YarnUtils {
 		
 		try {
 			File scalaLibLocation = new File(new URL(path).toURI());
-			Path provisionedPath = YarnUtils.provisionResource(scalaLibLocation, fs, appName);
-			LocalResource localResource = YarnUtils.createLocalResource(fs, provisionedPath);
+			Path provisionedPath = HadoopUtils.provisionResourceToFs(scalaLibLocation, fs, appName);
+			LocalResource localResource = HadoopUtils.createLocalResource(fs, provisionedPath);
 			localResources.put(provisionedPath.getName(), localResource);
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to provision Scala Library", e);
@@ -232,8 +266,8 @@ public class YarnUtils {
 	 * 
 	 */
 	private static Map<String, LocalResource> provisionAndLocalizeCurrentClasspath(FileSystem fs, String appName) {
-		Path[] provisionedResourcesPaths = YarnUtils.provisionClassPath(fs, appName, ClassPathUtils.initClasspathExclusions(TezConstants.CLASSPATH_EXCLUSIONS));
-		Map<String, LocalResource> localResources = YarnUtils.createLocalResources(fs, provisionedResourcesPaths);
+		Path[] provisionedResourcesPaths = HadoopUtils.provisionClassPath(fs, appName, ClassPathUtils.initClasspathExclusions(TezConstants.CLASSPATH_EXCLUSIONS));
+		Map<String, LocalResource> localResources = HadoopUtils.createLocalResources(fs, provisionedResourcesPaths);
 
 		return localResources;
 	}

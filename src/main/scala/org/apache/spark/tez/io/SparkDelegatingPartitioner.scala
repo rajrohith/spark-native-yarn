@@ -14,22 +14,38 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package dev.demo
-
-import org.apache.hadoop.io.NullWritable
-import org.apache.hadoop.mapred.lib.MultipleTextOutputFormat
-
+package org.apache.spark.tez.io
+import org.apache.tez.runtime.library.partitioner.HashPartitioner
 /**
- * Implementation of MultipleTextOutputFormat which will endure that each 
- * unique key is written to a unique file essentially grouping keys in single file
  * 
  */
-class KeyPerPartitionOutputFormat extends MultipleTextOutputFormat[Any, Any] {
-  override def generateActualKey(key: Any, value: Any): Any = {
-    NullWritable.get()
+object SparkDelegatingPartitioner {
+  private var sparkPartitioner:org.apache.spark.Partitioner = null
+  
+  /**
+   * 
+   */
+  def setSparkPartitioner(sparkPartitioner:org.apache.spark.Partitioner) {
+    this.sparkPartitioner = sparkPartitioner
   }
-
-  override def generateFileNameForKeyValue(key: Any, value: Any, name: String): String = {
-    key.asInstanceOf[String]
+  
+  /**
+   * 
+   */
+  def getPartitioner:org.apache.spark.Partitioner = {
+    sparkPartitioner
+  }
+}
+/**
+ * 
+ */
+class SparkDelegatingPartitioner extends HashPartitioner {
+  override def getPartition(key:Object, value:Object, numPartitions:Int):Int = {
+    if (SparkDelegatingPartitioner.getPartitioner != null){
+      SparkDelegatingPartitioner.getPartitioner.getPartition(value)
+    }
+    else {
+      super.getPartition(key, value, numPartitions)
+    }
   }
 }

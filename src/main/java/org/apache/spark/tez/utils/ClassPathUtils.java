@@ -14,18 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.tez;
+package org.apache.spark.tez.utils;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -36,6 +37,8 @@ import java.util.jar.Manifest;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+
+import com.google.common.base.Preconditions;
 
 /**
  * Utility class which contains methods related to generating JAR file 
@@ -48,35 +51,29 @@ public class ClassPathUtils {
 	
 	/**
 	 * 
-	 * @param source
-	 * @return
+	 * @param resource
 	 */
-	public static byte[] toJarBytes(File source) {
-		if (!source.isAbsolute()) {
-			throw new IllegalArgumentException("Source must be expressed through absolute path");
-		}
-		Manifest manifest = new Manifest();
-		manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION, "1.0");
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
+	public static void addResourceToClassPath(File resource) {
 		try {
-			JarOutputStream target = new JarOutputStream(bos, manifest);
-			add(source, source.getAbsolutePath().length(), target);
-			target.close();
+			Preconditions.checkState(resource != null && resource.exists(), "'resource' must not be null and it must exist: " + resource);
+			URLClassLoader cl = (URLClassLoader) Thread.currentThread().getContextClassLoader();
+			Method addUrlMethod = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+			addUrlMethod.setAccessible(true);
+			addUrlMethod.invoke(cl, resource.toURI().toURL());
+		} catch (Exception e) {
+			throw new IllegalStateException(e);
 		}
-		catch (Exception e) {
-			throw new IllegalStateException("Failed to generate JAR bytes from " + source.getAbsolutePath(), e);
-		}
-		return bos.toByteArray();
 	}
+	
 	/**
-	 * Will create a JAR file frombase dir
+	 * Will create a JAR file from base dir
 	 *
 	 * @param source
 	 * @param jarName
 	 * @return
 	 */
-	public static File toJar(File source, String jarName) {
-		if (!source.isAbsolute()) {
+	public static File toJar(File sourceDir, String jarName) {
+		if (!sourceDir.isAbsolute()) {
 			throw new IllegalArgumentException("Source must be expressed through absolute path");
 		}
 		Manifest manifest = new Manifest();
@@ -84,12 +81,12 @@ public class ClassPathUtils {
 		File jarFile = new File(jarName);
 		try {
 			JarOutputStream target = new JarOutputStream(new FileOutputStream(jarFile), manifest);
-			add(source, source.getAbsolutePath().length(), target);
+			add(sourceDir, sourceDir.getAbsolutePath().length(), target);
 			target.close();
 		}
 		catch (Exception e) {
 			throw new IllegalStateException("Failed to create JAR file '"
-					+ jarName + "' from " + source.getAbsolutePath(), e);
+					+ jarName + "' from " + sourceDir.getAbsolutePath(), e);
 		}
 		return jarFile;
 	}
@@ -196,23 +193,5 @@ public class ClassPathUtils {
 			logger.warn("Failed to build the list of classpath exclusion. ", e);
 		}
 		return classpathExclusions;
-	}
-	
-	/**
-	 * 
-	 * @param path
-	 * @param classPathExclusions
-	 * @return
-	 */
-	public static boolean useClassPathEntry(String path, String[] classPathExclusions){
-		for (String exclusion : classPathExclusions) {
-			if (path.contains(exclusion) || !path.endsWith(".jar")){
-				if (logger.isDebugEnabled()){
-					logger.debug("Excluding resource: " + path);
-				}
-				return false;
-			}
-		}
-		return true;
 	}
 }
