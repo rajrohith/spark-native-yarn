@@ -102,31 +102,28 @@ public class HadoopUtils {
 	 * @return
 	 */
 	private static Path[] provisionClassPath(FileSystem fs, String applicationName, String[] classPathExclusions){
+		
+		
+		
+		
 		String genJarProperty = System.getProperty(TezConstants.GENERATE_JAR);
 		boolean generateJar = genJarProperty != null && Boolean.parseBoolean(genJarProperty);
 		List<Path> provisionedPaths = new ArrayList<Path>();
 		List<File> generatedJars = new ArrayList<File>();
+		
+		boolean confFromHadoopConfDir = generateConfigJarFromHadoopConfDir(fs, applicationName, provisionedPaths, generatedJars);
+		
 		URL[] classpath = ((URLClassLoader) ClassLoader.getSystemClassLoader()).getURLs();
 		for (URL classpathUrl : classpath) {
 			File f = new File(classpathUrl.getFile());
-			if (f.isDirectory()) {
+			if (f.isDirectory()) {			
 				if (generateJar){
 					String jarFileName = ClassPathUtils.generateJarFileName("application");
-					if (logger.isDebugEnabled()){
-						logger.debug("Generating application JAR: " + jarFileName);
-					}
-					File jarFile = ClassPathUtils.toJar(f, jarFileName);
-					generatedJars.add(jarFile);
-					f = jarFile;
+					f = doGenerateJar(f, jarFileName, generatedJars, "application");
 				} 
-				else if (f.getName().equals("conf")){
+				else if (f.getName().equals("conf") && !confFromHadoopConfDir){
 					String jarFileName = ClassPathUtils.generateJarFileName("conf_application");
-					if (logger.isDebugEnabled()){
-						logger.debug("Generating application JAR: " + jarFileName);
-					}
-					File jarFile = ClassPathUtils.toJar(f, jarFileName);
-					generatedJars.add(jarFile);
-					f = jarFile;
+					f = doGenerateJar(f, jarFileName, generatedJars, "configuration");
 				}
 				else {
 					f = null;
@@ -147,10 +144,45 @@ public class HadoopUtils {
 			try {
 				generatedJar.delete(); 
 			} catch (Exception e) {
-				e.printStackTrace();
+				logger.warn("Failed to delete generated jars", e);
 			}
 		}
 		return provisionedPaths.toArray(new Path[]{});
+	}
+	
+	/**
+	 * 
+	 * @param f
+	 * @param jarFileName
+	 * @param generatedJars
+	 * @return
+	 */
+	private static File doGenerateJar(File f, String jarFileName, List<File> generatedJars, String subMessage) {
+		if (logger.isDebugEnabled()){
+			logger.debug("Generating " + subMessage + " JAR: " + jarFileName);
+		}
+		File jarFile = ClassPathUtils.toJar(f, jarFileName);
+		generatedJars.add(jarFile);
+		return jarFile;
+	}
+	
+	/**
+	 * 
+	 */
+	private static boolean generateConfigJarFromHadoopConfDir(FileSystem fs, String applicationName, List<Path> provisionedPaths, List<File> generatedJars){
+		boolean generated = false;
+		String hadoopConfDir = System.getenv().get("HADOOP_CONF_DIR");
+		if (hadoopConfDir != null && hadoopConfDir.trim().length() > 0){
+			String jarFileName = ClassPathUtils.generateJarFileName("conf_application");
+			File confDir = new File(hadoopConfDir.trim());
+			File jarFile = doGenerateJar(confDir, jarFileName, generatedJars, "configuration (HADOOP_CONF_DIR)");
+			String destinationFilePath = applicationName + "/" + jarFile.getName();
+			Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
+			provisioinResourceToFs(fs, new Path(jarFile.getAbsolutePath()), provisionedPath);
+			provisionedPaths.add(provisionedPath);
+			generated = true;
+		}
+		return generated;
 	}
 	
 	/**
