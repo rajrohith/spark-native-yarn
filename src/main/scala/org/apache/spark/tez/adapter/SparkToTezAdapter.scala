@@ -80,7 +80,7 @@ object SparkToTezAdapter extends Logging {
    * 
    */
   private def doAdapt {
-    val cl = Thread.currentThread().getContextClassLoader()
+    val cl = ClassLoader.getSystemClassLoader()
     val pool = ClassPool.getDefault();
    
     val pairRddFunctionsAdapter = pool.get("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter")

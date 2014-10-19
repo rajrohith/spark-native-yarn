@@ -43,6 +43,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.CacheManager
 import org.apache.spark.Partition
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.TaskContextImpl
 
 /**
  * Utility functions related to Spark functionality.
@@ -118,8 +119,7 @@ object SparkUtils {
    * 
    */
   def createSparkEnv(shuffleManager:TezShuffleManager) {
-    val tm = new TaskMetrics
-    TaskContext.setTaskContext(new TaskContext(1, 1, 1, true, tm))
+    this.setTaskContext
     val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];  
     val cacheManager = new TezCacheManager(blockManager)
     val memoryManager = new ShuffleMemoryManager(20793262)
@@ -131,9 +131,18 @@ object SparkUtils {
    * 
    */
   def runTask(task: Task[_], taskIndex:Int) = { 
-    val taskContext = new TaskContext(0, taskIndex, 0)
+    val taskContext = new TaskContextImpl(0, taskIndex, 0)
     task.runTask(taskContext)
   }
+  
+  private def setTaskContext() {
+    val tm = new TaskMetrics
+    val tc = new TaskContextImpl(1, 1, 1, true, tm)
+    val m = classOf[TaskContext].getDeclaredMethod("setTaskContext", classOf[TaskContext])
+    m.setAccessible(true)
+    m.invoke(null, tc)
+  }
+  
   
   /**
    * 

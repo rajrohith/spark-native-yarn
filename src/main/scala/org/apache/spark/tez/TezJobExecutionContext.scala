@@ -68,13 +68,18 @@ import org.apache.spark.tez.io.CacheRDD
 import org.apache.spark.Partition
 import org.apache.hadoop.io.SequenceFile
 import scala.collection.mutable.ListBuffer
+import org.apache.hadoop.yarn.conf.YarnConfiguration
 
 /**
  *
  */
 class TezJobExecutionContext extends JobExecutionContext with Logging {
   SparkToTezAdapter.adapt
-
+  
+  val hadoopConf = System.getenv().get("HADOOP_CONF_DIR")
+  logInfo("Config dir: " + hadoopConf)
+  logInfo("FileSystem: " + new TezConfiguration().get("fs.default.name"))
+  
   private val cachedRDDs = new HashSet[Path]
 
   private val runJobInvocationCounter = new AtomicInteger
@@ -207,7 +212,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
    * 
    */
   private def doPersist[T: ClassTag](sc: SparkContext, rdd: RDD[T], newLevel: StorageLevel): RDD[T] = {
-    val outputDirectory = "cache_" + rdd.id
+    val outputDirectory = "cache/cache_" + rdd.id
 
     rdd.mapPartitions(iter => iter.grouped(10).map(_.toArray))
       .map { x =>

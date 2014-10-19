@@ -58,7 +58,7 @@ class TezDelegate extends SparkListener with Logging {
   private[tez] val tezConfiguration = new TezConfiguration
 
   private var tezClient: Option[TezClient] = None
-  
+ 
   private var localResources:java.util.Map[String, LocalResource] = 
     new java.util.HashMap[String, LocalResource]()
 
@@ -72,7 +72,6 @@ class TezDelegate extends SparkListener with Logging {
     
     val outputMetadata = this.extractOutputMetedata(sc.hadoopConfiguration, sc.appName) 
     val tezUtils = new Utils(stage, func, this.localResources)  
-    val dagTask: DAGTask = tezUtils.build(returnType, outputMetadata._1, outputMetadata._2, outputMetadata._3, outputMetadata._4)
 
     if (this.tezClient.isEmpty) {
       this.initializeTezClient(sc.appName)
@@ -80,7 +79,7 @@ class TezDelegate extends SparkListener with Logging {
       this.tezClient.get.addAppMasterLocalFiles(localResources);
       this.tezClient.get.start()
     }
-    
+    val dagTask: DAGTask = tezUtils.build(returnType, outputMetadata._1, outputMetadata._2, outputMetadata._3, outputMetadata._4)
     dagTask.execute(this.tezClient.get)
     outputMetadata._4
   }
@@ -89,10 +88,19 @@ class TezDelegate extends SparkListener with Logging {
    * Called when the application ends
    */
   override def onApplicationEnd(applicationEnd: SparkListenerApplicationEnd) {
+    logInfo("Stopping Application: " + applicationEnd)
     if (this.tezClient.isDefined) {
-      logInfo("Stopping TezClient")
+      logInfo("Stopping TezClient: " + this.tezClient.get.getClientName())
       val tezClient = this.tezClient.get
       tezClient.stop()
+      val fs = FileSystem.get(tezConfiguration)  
+      
+      var path = fs.makeQualified(new Path(this.tezClient.get.getClientName + "/tasks"))
+      logDebug("Removed: " + path + " - " + fs.delete(path, true))
+      path = fs.makeQualified(new Path(this.tezClient.get.getClientName + "/cache"))
+      logDebug("Removed: " + path + " - " + fs.delete(path, true))
+      path = fs.makeQualified(new Path(this.tezClient.get.getClientName + "/broadcast"))
+      logDebug("Removed: " + path + " - " + fs.delete(path, true))
     }
   }
 

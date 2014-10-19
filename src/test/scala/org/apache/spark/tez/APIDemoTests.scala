@@ -140,6 +140,22 @@ class APIDemoTests {
     sc.stop
     this.cleanUp(applicationName)
   }
+  
+  @Test
+  def sourceCount() {
+    val applicationName = "sourceCount"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+
+    // ===
+    val result = source.count     
+    // ===  
+    Assert.assertEquals(6, result)
+    sc.stop
+    this.cleanUp(applicationName)
+  }
 
   @Test
   def join() {
