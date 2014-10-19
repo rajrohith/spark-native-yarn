@@ -58,9 +58,7 @@ object KMeans {
     var tempDist = 1.0
 
     while(tempDist > convergeDist) {
-      val closest = data.map {p => 
-        println(p)
-        (closestPoint(p, kPoints), (p, 1))}
+      val closest = data.map(p => (closestPoint(p, kPoints), (p, 1)))
 
       val pointStats = closest.reduceByKey{case ((x1, y1), (x2, y2)) => (x1 + x2, y1 + y2)}
 

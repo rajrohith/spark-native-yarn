@@ -105,7 +105,6 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
       } else {
         logInfo("STAGE Result: " + stage + " vertex: " + this.vertexId)
         val narrowAncestors = stage.rdd.getNarrowAncestors.sortBy(_.id)
-//        val initialRdd = narrowAncestors.head
         if (narrowAncestors.size > 0 &&  narrowAncestors.head.isInstanceOf[ParallelCollectionRDD[_]]) {
           if (classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
             new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions)
@@ -129,19 +128,6 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
       } else {
         if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0)
       }
-//      (if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0))
-//    val deps =
-//      if (dependencies.size == 0 || dependencies(0).name == null) {
-//        val d = (for (parent <- stage.parents) yield parent.id).asJavaCollection
-//        if (stage.parents.size > 0) {
-//          (for (parent <- stage.parents) yield parent.id).asJavaCollection
-//        } else {
-//          stage.rdd
-//        }
-//      }
-//      else {
-//        dependencies(0)
-//      }
 
     val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTask)
     vd.setNumPartitions(stage.numPartitions)

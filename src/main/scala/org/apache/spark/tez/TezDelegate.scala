@@ -92,12 +92,7 @@ class TezDelegate extends SparkListener with Logging {
    * to be used in application classpath management
    */
   private[tez] def initializeTezClient(appName: String) {
-    
     this.tezClient = new Some(TezClient.create(appName, new TezConfiguration))
-    
-    
-    
-//    this.tezClient.get.start()
   }
   
   private def createLocalResources(appName: String){

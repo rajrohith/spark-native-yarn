@@ -22,5 +22,8 @@ import org.apache.tez.client.TezClient
  * 
  */
 trait DAGTask {
+  /**
+   * 
+   */
   def execute(tezClient:TezClient)
 }

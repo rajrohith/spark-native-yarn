@@ -9,7 +9,6 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.hadoop.io.NullWritable;
 
 @SuppressWarnings("unchecked")
 public abstract class TypeAwareWritable<T> implements NewWritable<T> {

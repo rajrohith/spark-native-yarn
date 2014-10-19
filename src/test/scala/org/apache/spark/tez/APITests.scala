@@ -40,6 +40,65 @@ import java.util.concurrent.atomic.AtomicInteger
 class APITests {
 
   @Test
+  def collect() {
+    val applicationName = "collect"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+
+    // ===
+    val result = source
+      .flatMap(x => x.split(" "))
+      .map(x => (x, 1))
+      .reduceByKey((x, y) => x + y)
+      .filter(_._2 > 3)
+      .collect
+    // ===
+    Assert.assertEquals(2, result.length)
+    sc.stop
+    this.cleanUp(applicationName)
+  }
+  
+  @Test
+  def sample() {
+    val applicationName = "sample"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+
+    // ===
+    val result = source.sample(true, 0.2, 2L).collect
+    Assert.assertEquals(1, result.length)
+    // ===
+    
+    sc.stop
+    this.cleanUp(applicationName)
+  }
+  
+  @Test
+  def saveAsTextFile() {
+    val applicationName = "saveAsTextFile"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+
+    // ===
+    val result = source
+      .flatMap(x => x.split(" "))
+      .map(x => (x, 1))
+      .reduceByKey((x, y) => x + y)
+      .saveAsTextFile(applicationName + "_out")
+    // ===
+
+    TestUtils.printSampleResults(applicationName, applicationName + "_out")
+    sc.stop
+    this.cleanUp(applicationName)
+  }
+
+  @Test
   def reduceByKey() {
     val applicationName = "reduceByKey"
     val sparkConf = this.buildSparkConf
@@ -93,6 +152,11 @@ class APITests {
     val source1 = sc.textFile(file1)
     val source2 = sc.textFile(file2)
 
+    /*
+     * The issue is that now with ResultWriter we recognize types.
+     * But in this case we have two different types for value - String(1) and Tuple2(2)
+     * So need to think if we jsut save as ValueWritable
+     */
     // ===
     val two = source2.map { x =>
       val s = x.split(" ")
@@ -208,6 +272,7 @@ class APITests {
    */
   def buildSparkConf(): SparkConf = {
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+//    val masterUrl = "local"
     val sparkConf = new SparkConf
     sparkConf.set("spark.ui.enabled", "false")
     sparkConf.setMaster(masterUrl)
@@ -224,6 +289,6 @@ class KeyPerPartitionOutputFormat extends MultipleTextOutputFormat[Any, Any] {
   }
 
   override def generateFileNameForKeyValue(key: Any, value: Any, name: String): String = {
-    key.asInstanceOf[String]
+    key.toString
   }
 }

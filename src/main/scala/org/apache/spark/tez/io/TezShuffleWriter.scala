@@ -51,17 +51,11 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
   private val kw:KeyWritable = new KeyWritable
   private val vw:ValueWritable = new ValueWritable
+  
   /**
    * 
    */
   def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
-//    println
-//    while (records.hasNext) {
-//      val next = records.next.asInstanceOf[Any]
-//      println(next)
-//    }
-    
-    
     val (iter, mergeFunction) = {
       val comb = this.buildCombinedIterator(records, combine)
       (comb._1, comb._2)
@@ -81,6 +75,9 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
     }
   }
 
+  /**
+   * 
+   */
   private def writeKeyValue(key: Any, value: Any) {
     this.kw.setValue(key.asInstanceOf[Comparable[_]])
     this.vw.setValue(value.asInstanceOf[Object])

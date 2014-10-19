@@ -23,14 +23,22 @@ import org.apache.hadoop.io.Writable;
 
 /**
  * 
- * @author ozhurakousky
- *
- * @param <T>
  */
 public interface NewWritable<T> extends Writable {
+	/**
+	 * 
+	 * @param value
+	 */
 	void setValue(T value);
+	/**
+	 * 
+	 * @return
+	 */
 	T getValue();
 	
+	/**
+	 * 
+	 */
 	static class NewIntWritable extends IntWritable implements NewWritable<Integer> {
 		@Override
 		public void setValue(Integer value) {
@@ -42,6 +50,9 @@ public interface NewWritable<T> extends Writable {
 			return super.get();
 		}
 	}
+	/**
+	 * 
+	 */
 	static class NewLongWritable extends LongWritable implements NewWritable<Long> {
 		@Override
 		public void setValue(Long value) {
@@ -53,10 +64,13 @@ public interface NewWritable<T> extends Writable {
 			return super.get();
 		}
 	}
-	static class NewTextWritable extends Text implements NewWritable<String> {
+	/**
+	 * 
+	 */
+	static class NewTextWritable extends Text implements NewWritable<Object> {
 		@Override
-		public void setValue(String value) {
-			super.set(value);
+		public void setValue(Object value) {
+			super.set(value.toString());
 		}
 
 		@Override

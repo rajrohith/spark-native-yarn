@@ -199,8 +199,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
         }
       } else {
         this.doPersist[Any](sc, rdd.asInstanceOf[RDD[Any]], newLevel)
-      }
-    
+      } 
     cachedRdd.asInstanceOf[rdd.type]
   }
 

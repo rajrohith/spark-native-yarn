@@ -135,7 +135,10 @@ object SparkUtils {
     task.runTask(taskContext)
   }
   
-  class TezCacheManager(blockManager: BlockManager) extends CacheManager(blockManager) {
+  /**
+   * 
+   */
+  private class TezCacheManager(blockManager: BlockManager) extends CacheManager(blockManager) {
     override def getOrCompute[T](
       rdd: RDD[T],
       partition: Partition,

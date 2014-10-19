@@ -18,7 +18,6 @@ package org.apache.spark.tez;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import java.util.HashMap;
@@ -65,7 +64,6 @@ public class DAGBuilderTests extends Instrumentable {
 		
 		assertSame(configuration, ReflectionUtils.getFieldValue(dagBuilder, "tezConfiguration"));
 		assertSame(localResources, ReflectionUtils.getFieldValue(dagBuilder, "localResources"));
-		assertTrue(((String)ReflectionUtils.getFieldValue(dagBuilder, "applicationInstanceName")).startsWith("foo_"));
 		assertNotNull(ReflectionUtils.getFieldValue(dagBuilder, "dag"));
 	}
 	

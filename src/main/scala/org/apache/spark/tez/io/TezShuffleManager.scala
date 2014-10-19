@@ -55,8 +55,6 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
   
   private[tez] var shuffleStage = true
   
-//  def this(input:Map[Integer, LogicalInput], output:Map[Integer, LogicalOutput]) = this(input, output, true)
-
   /**
    * 
    */
@@ -67,7 +65,9 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
     null
   }
 
-  /** Get a writer for a given partition. Called on executors by map tasks. */
+  /** 
+   *  Get a writer for a given partition. Called on executors by map tasks. 
+   */
   def getWriter[K, V](handle: ShuffleHandle, mapId: Int, context: TaskContext): ShuffleWriter[K, V] = {
     if (shuffleStage){
       new TezShuffleWriter(this.output, handle.asInstanceOf[BaseShuffleHandle[K, V, _]], context, shuffleStage)

@@ -32,7 +32,7 @@ import org.apache.hadoop.io.WritableComparable;
  * 
  * This class is not public nor it is meant/designed as thread-safe.
  */
-@SuppressWarnings("rawtypes") 
+@SuppressWarnings({ "rawtypes", "serial" }) 
 public class KeyWritable extends TypeAwareWritable<Comparable> implements WritableComparable<KeyWritable>, Serializable {
 	
 	@SuppressWarnings("unchecked")

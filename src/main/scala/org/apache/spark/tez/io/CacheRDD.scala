@@ -38,18 +38,30 @@ class CacheRDD[T:ClassTag](sc: SparkContext,
   @transient private val fqPath = this.validatePath(path)
   this.name = path
 
+  /**
+   * 
+   */
   override def toString = "name:" + this.name + "; path:" + this.fqPath
 
+  /**
+   * 
+   */
   def getPath(): Path = {
     this.fqPath
   }
 
+  /**
+   * 
+   */
   override def getPartitions: Array[Partition] = {
     Array(new Partition {
       override def index: Int = 0
     })
   }
   
+  /**
+   * 
+   */
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[T] = {
     val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, context).read.asInstanceOf[Iterator[(Any, ValueWritable)]]
     new InterruptibleIterator(context, iterator.map(_._2.getValue().asInstanceOf[Array[T]]).flatMap(_.toIterator))

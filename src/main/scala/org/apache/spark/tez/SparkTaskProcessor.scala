@@ -37,7 +37,7 @@ import org.apache.tez.dag.api.TezConfiguration
  * essentially providing a delegation model from Tez to Spark native tasks.
  */
 class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(context) with Logging {
-  Preconditions.checkState(context != null)
+  Preconditions.checkState(context != null, "'context' must not be null".asInstanceOf[Object])
   
   private val dagName = context.getDAGName()
   private val taskIndex = context.getTaskIndex()

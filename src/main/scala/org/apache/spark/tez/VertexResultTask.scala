@@ -74,8 +74,6 @@ class VertexResultTask[T, U](
    */
   override def runTask(context: TaskContext): U = {
     try {
-//      val unit = func.getClass().getDeclaredMethods().filter(x => x.getName() == "apply" && x.getReturnType().getName() == "void").length == 0
-      
       val partition = if (partitions.length == 1) partitions(0) else partitions(context.getPartitionId())
 
       val result =
@@ -85,17 +83,9 @@ class VertexResultTask[T, U](
           func(context, rdd.iterator(partition, context))
         }
       if (!result.isInstanceOf[Unit]){
-        // persist to HDFS
-        println(result)
-        val manager = SparkEnv.get.shuffleManager
-        
+        val manager = SparkEnv.get.shuffleManager      
         val iter = new InterruptibleIterator(context, Map(0 -> result).iterator)
         toHdfs(iter)
-        
-//        val fs = FileSystem.get(new TezConfiguration)
-//        val resultPath = SparkUtils.serializeToFs(result, fs, new Path("foo"))
-//        println(resultPath)
-//        HadoopUtils.provisionResourceToFs(localResource, fs, applicationName)
       }
       ().asInstanceOf[U]
     } catch {
@@ -116,7 +106,6 @@ class VertexResultTask[T, U](
    */
   private def toHdfs(iter: Iterator[Product2[_, _]]) {
     val manager = SparkEnv.get.shuffleManager
-//    val dependency = rdd.dependencies.head
     val dependency = if (rdd.dependencies.size > 0) rdd.dependencies.head else null
     val handle =
       if (dependency != null && dependency.isInstanceOf[ShuffleDependency[_, _, _]]) {

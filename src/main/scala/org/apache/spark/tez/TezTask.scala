@@ -26,7 +26,10 @@ private[tez] abstract class TezTask[U](stageId: Int, partitionId: Int) extends T
 
   var partitioner:Partitioner = null
   
-  def setPartitioner(partitioner:Partitioner) {
+  /**
+   * 
+   */
+  private[tez] def setPartitioner(partitioner:Partitioner) {
     this.partitioner = partitioner
   }
 }

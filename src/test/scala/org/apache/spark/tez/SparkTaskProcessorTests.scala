@@ -51,8 +51,8 @@ class SparkTaskProcessorTests {
       new SparkTaskProcessor(null)
       Assert.fail
     } catch {
-      case e: IllegalArgumentException => // success
-      case other: Exception => Assert.fail
+      case e: IllegalStateException => // success
+      case other: Exception => Assert.fail()
     }
   }
 

@@ -46,8 +46,14 @@ class TezRDD[K, V](
   @transient private val fqPath = this.validatePath(path)
   this.name = path
 
+  /**
+   * 
+   */
   override def toString = "name:" + this.name + "; path:" + this.fqPath
 
+  /**
+   * 
+   */
   def getPath(): Path = {
     this.fqPath
   }

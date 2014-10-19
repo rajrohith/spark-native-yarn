@@ -22,10 +22,16 @@ import org.apache.tez.runtime.library.partitioner.HashPartitioner
 object SparkDelegatingPartitioner {
   private var sparkPartitioner:org.apache.spark.Partitioner = null
   
+  /**
+   * 
+   */
   def setSparkPartitioner(sparkPartitioner:org.apache.spark.Partitioner) {
     this.sparkPartitioner = sparkPartitioner
   }
   
+  /**
+   * 
+   */
   def getPartitioner:org.apache.spark.Partitioner = {
     sparkPartitioner
   }

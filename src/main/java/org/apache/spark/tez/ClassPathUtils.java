@@ -27,7 +27,6 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -65,29 +64,6 @@ public class ClassPathUtils {
 			throw new IllegalStateException(e);
 		}
 	}
-	
-//	/**
-//	 * 
-//	 * @param bytesToSer
-//	 * @param serName
-//	 * @return
-//	 */
-//	public static File ser(ByteBuffer bytesToSer, String serName) {
-//		FileOutputStream out = null;
-//		try {
-//			File outputFile = new File(serName);
-//			outputFile.deleteOnExit();
-//			out = new FileOutputStream(outputFile);
-//			out.write(bytesToSer.array());
-//			return outputFile;
-//		} catch (Exception e) {
-//			throw new IllegalStateException(e);
-//		} finally {
-//			try {
-//				out.close();
-//			} catch (Exception e) {/*ignore*/}
-//		}
-//	}
 	
 	/**
 	 * Will create a JAR file from base dir

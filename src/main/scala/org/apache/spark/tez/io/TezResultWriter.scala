@@ -44,14 +44,6 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
   
   private[tez] var keyWritable:Writable = null
   private[tez] var valueWritable:Writable = null
-  
-  private[tez] def setKeyClass(keyClass:Class[Writable]) {
-    this.keyWritable = this.buildWritable(keyClass)
-  }
-  
-  private[tez] def setValueClass(valueClass:Class[Writable]) {
-    this.valueWritable = this.buildWritable(valueClass)
-  }
 
   /**
    *
@@ -88,26 +80,12 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
         }
       } else {
         this.write(record._1, record._2)
-//         kvWriter.write(record._1, record._2)
       }
     }
     // last element need to be flushed
     if (previousKey != null) {
       this.write(previousKey, mergedValue)
-//      kvWriter.write(previousKey, mergedValue)
     }
-  }
-  
-  private def write(key:Any, value:Any) {
-   if (key.isInstanceOf[Writable] && value.isInstanceOf[Writable]){
-     kvWriter.write(key, value)
-   }
-   else {
-     this.keyWritable.asInstanceOf[NewWritable[Any]].setValue(key)
-     this.valueWritable.asInstanceOf[NewWritable[Any]].setValue(value)
-     println(key + " - " + value)
-     kvWriter.write(this.keyWritable, this.valueWritable)
-   }
   }
 
   /**
@@ -117,8 +95,37 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
     Some(SparkUtils.createUnsafeInstance(classOf[CompressedMapStatus]))
   }
   
+  /**
+   * 
+   */
+  private[tez] def setKeyClass(keyClass:Class[Writable]) {
+    this.keyWritable = this.buildWritable(keyClass)
+  }
   
+  /**
+   * 
+   */
+  private[tez] def setValueClass(valueClass:Class[Writable]) {
+    this.valueWritable = this.buildWritable(valueClass)
+  }
   
+  /**
+   * 
+   */
+  private def write(key:Any, value:Any) {
+   if (key.isInstanceOf[Writable] && value.isInstanceOf[Writable]){
+     kvWriter.write(key, value)
+   }
+   else {
+     this.keyWritable.asInstanceOf[NewWritable[Any]].setValue(key)
+     this.valueWritable.asInstanceOf[NewWritable[Any]].setValue(value)
+     kvWriter.write(this.keyWritable, this.valueWritable)
+   }
+  }
+  
+  /**
+   * 
+   */
   private def buildWritable(wClass:Class[Writable]):Writable = {
     if (wClass.isAssignableFrom(classOf[IntWritable])){
       new NewWritable.NewIntWritable
