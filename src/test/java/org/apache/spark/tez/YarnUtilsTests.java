@@ -29,6 +29,7 @@ import java.util.Map;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.spark.tez.utils.HadoopUtils;
 import org.apache.tez.dag.api.TezConfiguration;
 import org.junit.After;
 import org.junit.Before;

@@ -72,7 +72,7 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
     var task = registry.get(vertexName).asInstanceOf[TezTask[_]]
     if (task == null) {
       val fs = FileSystem.get(new TezConfiguration)
-      task = TezUtils.deserializeTask(context, fs)
+      task = TezHelper.deserializeTask(context, fs)
       registry.cacheForDAG(vertexName, task)
       SparkDelegatingPartitioner.setSparkPartitioner(task.partitioner)
     } 

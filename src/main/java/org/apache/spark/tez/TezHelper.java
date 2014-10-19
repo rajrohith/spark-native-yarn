@@ -28,7 +28,7 @@ import org.apache.tez.runtime.api.ProcessorContext;
 /**
  * 
  */
-public class TezUtils {
+public class TezHelper {
 	
 	/**
 	 * 

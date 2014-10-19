@@ -22,21 +22,30 @@ import org.apache.spark.scheduler.SparkListenerApplicationEnd
 import org.apache.spark.scheduler.Stage
 import org.apache.tez.client.TezClient
 import org.apache.tez.dag.api.TezConfiguration
+
 import scala.reflect.ClassTag
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 import org.apache.spark.Logging
 import org.apache.hadoop.io.Writable
 import org.apache.spark.tez.io.KeyWritable
 import org.apache.spark.tez.io.ValueWritable
+import org.apache.spark.tez.utils.HadoopUtils;
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.fs.FileSystem
+
 import java.lang.Boolean
+
 import org.apache.hadoop.yarn.api.records.LocalResource
 import org.apache.hadoop.mapred.SequenceFileOutputFormat
+
 import java.net.URL
+
 import org.apache.spark.SparkHadoopWriter
+
 import java.net.URI
+
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.hadoop.security.UserGroupInformation
 

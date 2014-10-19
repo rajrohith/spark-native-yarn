@@ -225,7 +225,7 @@ class DAGBuilder {
 				((VertexResultTask)task).setValueClass(valueClass);
 			}
 			
-			UserPayload payload = TezUtils.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationName);
+			UserPayload payload = TezHelper.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationName);
 			//
 			
 			if (vertexDescriptor.getInput() instanceof TezRDD) {

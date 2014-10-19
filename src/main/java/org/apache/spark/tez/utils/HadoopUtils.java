@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.tez;
+package org.apache.spark.tez.utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,6 +34,7 @@ import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.util.ConverterUtils;
+import org.apache.spark.tez.TezConstants;
 /**
  * Utility functions related to variety of tasks to be performed via YARN
  * such as setting up LocalResource, provisioning classpath etc.

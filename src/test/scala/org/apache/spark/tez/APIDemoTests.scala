@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Will run in Tez local mode
  */
-class APITests {
+class APIDemoTests {
 
   @Test
   def collect() {
