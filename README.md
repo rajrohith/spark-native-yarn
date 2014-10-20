@@ -37,7 +37,7 @@ $> git fetch --all
 Switch to SPARK-3561 branch
 
 ```
-$> git branch --track SPARK-HADOOP origin/SH-1
+$> git branch --track SH-1 origin/SH-1
 $> git checkout SH-1
 ```
 Spark uses Maven for its build so it must be present. And to ensure there are no OOM errors set up Maven options as below. 
