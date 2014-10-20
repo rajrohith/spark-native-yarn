@@ -21,7 +21,7 @@ Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache
  * _ability to place breakpoints in SPARK code to facilitate debugging when using mini-cluster (see InJvmContainerExecutor provided with [mini-dev-cluster](https://github.com/hortonworks/mini-dev-cluster))_
  
 At the moment of writing, _**spark-native-yarn**_ is dependent on modifications to SPARK code described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
-This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2422).
+This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2849).
 
 Below are the prerequisites and instructions on how to proceed.
 
