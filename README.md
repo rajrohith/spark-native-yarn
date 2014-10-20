@@ -1,6 +1,6 @@
 ### spark-native-yarn 
 
-Native YARN integration with Apache Spark
+##### Native YARN integration with Apache Spark
 ============
 
 > IMPORTANT: At the time or writing, the project represents a **_prototype_** with the goal of demonstrating 
