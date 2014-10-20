@@ -1,4 +1,4 @@
-STARK - Spark on Tez
+spark-native-yarn - Native YARN integration in Apache Spark
 ============
 
 > IMPORTANT: At the time or writing, the project represents a **_prototype_** with the goal of demonstrating 
@@ -8,21 +8,22 @@ samples please refer to [Functionality](https://github.com/hortonworks/stark/wik
 
 ==
 
-**_STARK_** project represents an extension to [Apache Spark](https://spark.apache.org/) which enables DAGs assembled using SPARK API to run on [Apache Tez](http://tez.apache.org/),
+**_spark-native-yarn_** project represents an extension to [Apache Spark](https://spark.apache.org/) which enables DAGs assembled using SPARK API to run on [Apache Tez](http://tez.apache.org/),
 thus allowing one to benefit from native features of Tez, especially related to large scale Batch/ETL applications.
 
 Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache.org/), this project provides additional functionality which addresses developer productivity including but not limited to:
  * _executing your code directly from the IDE (Eclipse and/or IntelliJ)_
+ * _remote submission (submission from the remote client)_
  * _transparent classpath management_ 
  * _seamless and simplified integration with mini-cluster environment_ 
  * _ability to place breakpoints in SPARK code to facilitate debugging when using mini-cluster (see InJvmContainerExecutor provided with [mini-dev-cluster](https://github.com/hortonworks/mini-dev-cluster))_
  
-At the moment of writing, STARK is dependent on modifications to SPARK code described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
+At the moment of writing, _**spark-native-yarn**_ is dependent on modifications to SPARK code described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
 This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2422).
 
 Below are the prerequisites and instructions on how to proceed.
 
-> IMPORTANT: Please follow the prerequisites described below and then continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Home) guide.
+> IMPORTANT: Please follow the prerequisites described below and then continue to [**_Getting Started_**](https://github.com/hortonworks/spark-native-yarn/wiki/Home) guide.
 
 #### Checkout and Build SPARK-3561
 ```
@@ -34,8 +35,8 @@ $> git fetch --all
 Switch to SPARK-3561 branch
 
 ```
-$> git branch --track SPARK-HADOOP origin/SPARK-HADOOP
-$> git checkout SPARK-HADOOP
+$> git branch --track SPARK-HADOOP origin/SH-1
+$> git checkout SH-1
 ```
 Spark uses Maven for its build so it must be present. And to ensure there are no OOM errors set up Maven options as below. 
 See [Spark's documentation](https://spark.apache.org/docs/latest/building-with-maven.html) for more details.
@@ -63,18 +64,15 @@ INFO] ------------------------------------------------------------------------
 [INFO] ------------------------------------------------------------------------
 ```
 
-##### Clone STARK
+##### Clone spark-native-yarn
 
 ```
-$> git clone https://github.com/hortonworks/stark.git
+$> git clone https://github.com/hortonworks/spark-native-yarn.git
 $> cd stark
 ```
 
-> IMPORTANT: As work continues, to ensure that reviewer has access to a stable version of code please refer to 
-`PREVIEW-0.2` tag
-
 This completes the pre-requisite required to run STARK and you can now 
-continue to [**_Getting Started_**](https://github.com/hortonworks/spark-on-tez/wiki/Home) guide.
+continue to [**_Getting Started_**](https://github.com/hortonworks/spark-native-yarn/wiki/Home) guide.
 
 ==
 

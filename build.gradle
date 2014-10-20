@@ -1,4 +1,4 @@
-description = 'Natiev YARN/Tez port for Spark'
+description = 'Native YARN/Tez port for Spark'
 group = 'org.apache.spark.tez'
 
 apply plugin: 'eclipse'
