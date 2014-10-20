@@ -192,12 +192,14 @@ public class HadoopUtils {
 	 * @return
 	 */
 	private static boolean shouldProvision(String path, String[] classPathExclusions){
-		for (String exclusion : classPathExclusions) {
-			if (path.contains(exclusion) || !path.endsWith(".jar")){
-				if (logger.isDebugEnabled()){
-					logger.debug("Excluding resource: " + path);
+		if (classPathExclusions != null){
+			for (String exclusion : classPathExclusions) {
+				if (path.contains(exclusion) || !path.endsWith(".jar")){
+					if (logger.isDebugEnabled()){
+						logger.debug("Excluding resource: " + path);
+					}
+					return false;
 				}
-				return false;
 			}
 		}
 		return true;

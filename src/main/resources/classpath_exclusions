@@ -5,7 +5,7 @@ curator
 jetty 
 servlet 
 netty
-#akka
+akka
 paranamer
 concurrent
 metrics
