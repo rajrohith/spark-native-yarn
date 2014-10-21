@@ -29,11 +29,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.yarn.api.records.LocalResource;
-import org.apache.spark.tez.io.CacheRDD;
+import org.apache.spark.tez.io.HdfsSourceRDD;
 import org.apache.spark.tez.io.SparkDelegatingPartitioner;
-import org.apache.spark.tez.io.TezRDD;
 import org.apache.tez.client.TezClient;
 import org.apache.tez.dag.api.DAG;
 import org.apache.tez.dag.api.DataSinkDescriptor;
@@ -96,6 +94,10 @@ class DAGBuilder {
 		this.localResources = localResources;
 	}
 	
+	/**
+	 * 
+	 * @return
+	 */
 	private org.apache.spark.Partitioner getNextPartitioner() {
 		if (this.pIter == null){
 			this.pIter = this.partitioners.iterator();
@@ -145,20 +147,14 @@ class DAGBuilder {
 	 */
 	private void run(TezClient tezClient){
 	    try { 	
-		    DAGClient dagClient = null;
-//	        if (this.fileSystem.exists(new Path(outputPath))) {
-//	          throw new FileAlreadyExistsException("Output directory " + this.outputPath + " already exists");
-//	        }
-
 	        tezClient.waitTillReady();
 	       
 	        if (logger.isInfoEnabled()){
 	        	logger.info("Submitting generated DAG to YARN/Tez cluster");
 	        }
 	 
-	        dagClient = tezClient.submitDAG(this.dag);
+	        DAGClient dagClient = tezClient.submitDAG(this.dag);
 
-	
 	        DAGStatus dagStatus =  dagClient.waitForCompletionWithStatusUpdates(null);
 	        
 	        if (logger.isInfoEnabled()){
@@ -210,97 +206,80 @@ class DAGBuilder {
 			        .newBuilder("org.apache.spark.tez.io.KeyWritable", "org.apache.spark.tez.io.ValueWritable", 
 			        		SparkDelegatingPartitioner.class.getName(), null).build();
 		
-		int sequenceCounter = 0;
+		int nameCreatingCounter = 0;
 		int counter = 0;
 		FileSystem fs = FileSystem.get(this.tezConfiguration);
 		for (Entry<Integer, VertexDescriptor> vertexDescriptorEntry : this.vertexes.entrySet()) {
 			counter++;
 			VertexDescriptor vertexDescriptor = vertexDescriptorEntry.getValue();
-				
-			//
-			String vertexName = String.valueOf(sequenceCounter++);
+			
+			// Don't like it. Need to re-think
 			TezTask<?> task = vertexDescriptor.getTask();
 			if (task instanceof VertexResultTask){
 				((VertexResultTask)task).setKeyClass(keyClass);
 				((VertexResultTask)task).setValueClass(valueClass);
 			}
-			
-			UserPayload payload = TezHelper.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationName);
 			//
 			
-			if (vertexDescriptor.getInput() instanceof TezRDD) {
-				String inputPath = ((TezRDD<?,?>)vertexDescriptor.getInput()).getPath().toString();
-				Class<?> inputFormatClass = ((TezRDD<?,?>)vertexDescriptor.getInput()).inputFormatClass();
-				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();			
+			String vertexName = String.valueOf(nameCreatingCounter++);
+			UserPayload payload = TezHelper.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationName);
+
+			Vertex vertex = null;
+			if (vertexDescriptor.getInput() instanceof HdfsSourceRDD) {
+				String inputPath = ((HdfsSourceRDD<?>)vertexDescriptor.getInput()).getPath().toString();
+				Class<?> inputFormatClass = ((HdfsSourceRDD<?>)vertexDescriptor.getInput()).inputFormatClass();
+				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(this.tezConfiguration), inputFormatClass, inputPath).build();			
 				
-				String dsName = String.valueOf(sequenceCounter++);
-				
-				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload))
-						.addDataSource(dsName, dataSource);	
+				String dataSourceName = String.valueOf(nameCreatingCounter++);
+				ProcessorDescriptor pd = ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload);
+				vertex = Vertex.create(vertexName, pd).addDataSource(dataSourceName, dataSource);	
 				// For single stage vertex we need to add data sink
-				if (counter == vertexes.size()){
-					JobConf dsConfig = new JobConf(tezConfiguration);
-					dsConfig.setOutputKeyClass(keyClass);
-					dsConfig.setOutputValueClass(valueClass);
-					dsConfig.setOutputKeyClass(keyClass);
-					dsConfig.setOutputValueClass(valueClass);
-					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
-					vertex.addDataSink(dsName, dataSink);
+				if (counter == this.vertexes.size()){
+					this.createDataSink(vertex, String.valueOf(nameCreatingCounter++), keyClass, valueClass, outputFormatClass, outputPath);
 				}
-				
-				vertex.addTaskLocalFiles(localResources);			
-				dag.addVertex(vertex);
-			}
-			else if (vertexDescriptor.getInput() instanceof CacheRDD){
-				String inputPath = ((CacheRDD<?>)vertexDescriptor.getInput()).getPath().toString();
-				Class<?> inputFormatClass = SequenceFileInputFormat.class;
-				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(tezConfiguration), inputFormatClass, inputPath).build();			
-				
-				String dsName = String.valueOf(sequenceCounter++);
-				
-				Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload))
-						.addDataSource(dsName, dataSource);	
-				// For single stage vertex we need to add data sink
-				if (counter == vertexes.size()){
-					JobConf dsConfig = new JobConf(tezConfiguration);
-					dsConfig.setOutputKeyClass(keyClass);
-					dsConfig.setOutputValueClass(valueClass);
-					dsConfig.setOutputKeyClass(keyClass);
-					dsConfig.setOutputValueClass(valueClass);
-					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
-					vertex.addDataSink(dsName, dataSink);
-				}
-				
-				vertex.addTaskLocalFiles(localResources);			
-				dag.addVertex(vertex);
 			}
 			else {
-				if (counter == vertexes.size()) {
-					JobConf dsConfig = new JobConf(tezConfiguration);
-					dsConfig.setOutputKeyClass(keyClass);
-					dsConfig.setOutputValueClass(valueClass);
-					DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
-					String dsName = String.valueOf(sequenceCounter++);
-					Vertex vertex = Vertex.create(vertexName, ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload), 
-							vertexDescriptor.getNumPartitions()).addDataSink(dsName, dataSink);
-					vertex.addTaskLocalFiles(localResources);
-					
-					dag.addVertex(vertex);
-					this.addEdges(vertexDescriptor, vertex, edgeConf);   
+				if (counter == this.vertexes.size()) {
+					ProcessorDescriptor pd = ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload);
+					vertex = Vertex.create(vertexName, pd, vertexDescriptor.getNumPartitions());
+					this.createDataSink(vertex, String.valueOf(nameCreatingCounter++), keyClass, valueClass, outputFormatClass, outputPath);
 				}
 				else {
 					ProcessorDescriptor pd = ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload);
-					Vertex vertex = Vertex.create(vertexName, pd, vertexDescriptor.getNumPartitions(), MRHelpers.getResourceForMRReducer(this.tezConfiguration));
-					vertex.addTaskLocalFiles(localResources);
-					
-				    this.dag.addVertex(vertex);
-				    this.addEdges(vertexDescriptor, vertex, edgeConf);
+					vertex = Vertex.create(vertexName, pd, vertexDescriptor.getNumPartitions(), MRHelpers.getResourceForMRReducer(this.tezConfiguration));
 				}
 			}
+			vertex.addTaskLocalFiles(this.localResources);	
+		    this.dag.addVertex(vertex);
+		    if (!(vertexDescriptor.getInput() instanceof HdfsSourceRDD<?>)){
+		    	this.addEdges(vertexDescriptor, vertex, edgeConf);
+		    }
 		}
 		if (logger.isDebugEnabled()){
 			logger.debug("Finished building Tez DAG");
 		}
+	}
+	
+	/**
+	 * 
+	 */
+	private void createDataSink(Vertex vertex, String name, Class<? extends Writable> keyClass, Class<? extends Writable> valueClass, Class<?> outputFormatClass, String outputPath){
+		JobConf dsConfig = this.buildJobConf(keyClass, valueClass);
+		DataSinkDescriptor dataSink = MROutput.createConfigBuilder(dsConfig, outputFormatClass, outputPath).build();
+		vertex.addDataSink(name, dataSink);
+	}
+	
+	/**
+	 * 
+	 * @param keyClass
+	 * @param valueClass
+	 * @return
+	 */
+	private JobConf buildJobConf(Class<? extends Writable> keyClass, Class<? extends Writable> valueClass){
+		JobConf jobConf = new JobConf(this.tezConfiguration);
+		jobConf.setOutputKeyClass(keyClass);
+		jobConf.setOutputValueClass(valueClass);
+		return jobConf;
 	}
 	
 	/**

@@ -61,10 +61,12 @@ class VertexResultTask[T, U](
   var keyClass:Class[Writable] = null
   var valueClass:Class[Writable] = null
   
+  //TODO review. Need a cleaner way
   def setKeyClass(keyClass:Class[Writable]) {
     this.keyClass = keyClass
   }
   
+  //TODO review. Need a cleaner way
   def setValueClass(valueClass:Class[Writable]) {
     this.valueClass = valueClass
   }
@@ -76,23 +78,16 @@ class VertexResultTask[T, U](
     try {
       val partition = if (partitions.length == 1) partitions(0) else partitions(context.partitionId())
 
-      val result =
-        if (func == null) {
-          toHdfs(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])
-        } else {
-          func(context, rdd.iterator(partition, context))
-        }
-      if (!result.isInstanceOf[Unit]){
-        val manager = SparkEnv.get.shuffleManager      
+      if (func == null) {
+        toHdfs(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])
+      } else {
+        val result = func(context, rdd.iterator(partition, context))
+        val manager = SparkEnv.get.shuffleManager
         val iter = new InterruptibleIterator(context, Map(0 -> result).iterator)
         toHdfs(iter)
       }
-      ().asInstanceOf[U]
     } catch {
-      case e:Exception => e.printStackTrace();throw new IllegalStateException(e)
-    } 
-    finally {
-//      context.markTaskCompleted()
+      case e: Exception => e.printStackTrace(); throw new IllegalStateException(e)
     }
   }
 
@@ -104,7 +99,7 @@ class VertexResultTask[T, U](
   /**
    * 
    */
-  private def toHdfs(iter: Iterator[Product2[_, _]]) {
+  private def toHdfs(iter: Iterator[Product2[_, _]]):U = {
     val manager = SparkEnv.get.shuffleManager
     val dependency = if (rdd.dependencies.size > 0) rdd.dependencies.head else null
     val handle =
@@ -117,5 +112,6 @@ class VertexResultTask[T, U](
     writer.asInstanceOf[TezResultWriter[_, _, _]].setKeyClass(this.keyClass)
     writer.asInstanceOf[TezResultWriter[_, _, _]].setValueClass(this.valueClass)
     writer.write(iter)
+    ().asInstanceOf[U]
   }
 }

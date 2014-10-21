@@ -33,31 +33,8 @@ import java.io.FileNotFoundException
  */
 class CacheRDD[T:ClassTag](sc: SparkContext,
     path: String,
-    @transient conf: Configuration) extends RDD[T](sc, Nil){
-  
-  @transient private val fqPath = this.validatePath(path)
-  this.name = path
-
-  /**
-   * 
-   */
-  override def toString = "name:" + this.name + "; path:" + this.fqPath
-
-  /**
-   * 
-   */
-  def getPath(): Path = {
-    this.fqPath
-  }
-
-  /**
-   * 
-   */
-  override def getPartitions: Array[Partition] = {
-    Array(new Partition {
-      override def index: Int = 0
-    })
-  }
+    @transient conf: Configuration,
+    inputFormatClass:Class[_]) extends HdfsSourceRDD[T](path, sc, conf, inputFormatClass) {
   
   /**
    * 
@@ -66,18 +43,5 @@ class CacheRDD[T:ClassTag](sc: SparkContext,
     val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, context).read.asInstanceOf[Iterator[(Any, ValueWritable)]]
 //    new InterruptibleIterator(context, iterator.map(_._2.getValue().asInstanceOf[Array[T]]).flatMap(_.toIterator))
     new InterruptibleIterator(context, iterator.map(_._2.getValue().asInstanceOf[T]))
-  }
-  
-  /**
-   *
-   */
-  private def validatePath(path: String): Path = {
-    val fs = FileSystem.get(conf)
-    val hPath = new Path(path)
-    logInfo("Creating instance of TezRDD for path: " + hPath)
-    if (!fs.exists(hPath)) {
-      throw new FileNotFoundException("Path: " + hPath + " does not exist")
-    }
-    hPath
   }
 }

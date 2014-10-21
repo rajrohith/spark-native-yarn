@@ -229,7 +229,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
       }
       .saveAsSequenceFile(outputDirectory)
 
-    val cachedRDD = new CacheRDD(sc, sc.appName + "/" + outputDirectory, new TezConfiguration)
+    val cachedRDD = new CacheRDD(sc, sc.appName + "/" + outputDirectory, new TezConfiguration, classOf[SequenceFileInputFormat[_,_]])
     cachedRDDs += fs.makeQualified(cachedRDD.getPath)
     cachedRDD.asInstanceOf[RDD[T]]
   }

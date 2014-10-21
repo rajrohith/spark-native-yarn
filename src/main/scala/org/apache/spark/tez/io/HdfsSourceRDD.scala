@@ -28,26 +28,54 @@ import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
 import java.io.FileNotFoundException
 import org.apache.tez.dag.api.TezConfiguration
+import scala.reflect.ClassTag
 
 /**
  * Replacement for HadoopRDD.
  * Overrides 'compute' methods to be compatible with Tez readers.
  */
-class TezRDD[K, V](
+abstract class HdfsSourceRDD[T:ClassTag](
   path: String,
   sc: SparkContext,
-  inputFormatClass: Class[_],
-  val keyClass: Class[K],
-  val valueClass: Class[V],
-  @transient conf: Configuration)
-  extends HdfsSourceRDD[(K, V)](path, sc, conf, inputFormatClass) {
+  @transient conf: Configuration,
+  val inputFormatClass: Class[_])
+  extends RDD[T](sc, Nil)
+  with Logging {
 
+  @transient private val validatedPath = this.validatePath(path)
+  this.name = path
+
+  /**
+   * 
+   */
+  override def toString = "name:" + this.name + "; path:" + this.validatedPath
+
+  /**
+   * 
+   */
+  def getPath(): Path = {
+    this.validatedPath
+  }
+  
   /**
    *
    */
-  override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[(K, V)] = {
-    val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, context).read.asInstanceOf[Iterator[(K, V)]] 
-    new InterruptibleIterator(context, iterator)
-//     new InterruptibleIterator(context, iterator.map(_._2.getValue().asInstanceOf[T]))
+  override def getPartitions: Array[Partition] = {
+    Array(new Partition {
+      override def index: Int = 0
+    })
+  }
+  
+  /**
+   *
+   */
+  private def validatePath(path: String): Path = {
+    val fs = FileSystem.get(conf)
+    val hPath = new Path(path)
+    logInfo("Creating instance of TezRDD for path: " + hPath)
+    if (!fs.exists(hPath)) {
+      throw new FileNotFoundException("Path: " + hPath + " does not exist")
+    }
+    hPath
   }
 }

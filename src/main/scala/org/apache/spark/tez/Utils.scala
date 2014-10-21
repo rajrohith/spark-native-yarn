@@ -70,8 +70,7 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
   def build(returnType:ClassTag[U], keyClass:Class[_ <:Writable], valueClass:Class[_ <:Writable], outputFormatClass:Class[_], outputPath:String):DAGTask = {
     this.prepareDag(returnType, stage, null, func, keyClass, valueClass)
     val dagTask = dagBuilder.build(keyClass, valueClass, outputFormatClass, outputPath)
-    val vertexDescriptors = dagBuilder.getVertexDescriptors().entrySet().asScala
-    logInfo("DAG: " + dagBuilder.toString())
+    logInfo("DAG: " + dagBuilder)
     dagTask
   }
 
@@ -80,43 +79,31 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
    */
   private def prepareDag(returnType:ClassTag[U], stage: Stage, dependentStage: Stage, func: (TaskContext, Iterator[T]) => U, keyClass:Class[_], valueClass:Class[_]) {
     if (stage.parents.size > 0) {
-      val missing = stage.parents.sortBy(_.id)
-      for (parent <- missing) {
-        prepareDag(returnType, parent, stage, func, keyClass, valueClass)
+      stage.parents.sortBy(_.id).foreach(prepareDag(returnType, _, stage, func, keyClass, valueClass))
+    }
+
+    this.addPartitionerToDAGIfAvailable(stage.rdd)
+    
+    val partitions = {
+      val narrowAncestors = stage.rdd.getNarrowAncestors.sortBy(_.id)
+      if (narrowAncestors.size > 0 && narrowAncestors.head.isInstanceOf[ParallelCollectionRDD[_]]) {
+        stage.rdd.partitions
+      } else {
+        Array(stage.rdd.partitions(0))
       }
     }
 
-    val partitioner = ReflectionUtils.getFieldValue(stage.rdd, "partitioner").asInstanceOf[Option[Partitioner]]
-    
-    if (partitioner.isDefined){
-      dagBuilder.addPartitioner(partitioner.get)
-    }
-     
     val vertexTask =
       if (stage.isShuffleMap) {
         logInfo(stage.shuffleDep.get.toString)
         logInfo("STAGE Shuffle: " + stage + " vertex: " + this.vertexId)
-        val initialRdd = stage.rdd.getNarrowAncestors.sortBy(_.id).head
-        if (initialRdd.isInstanceOf[ParallelCollectionRDD[_]]){
-          new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]], stage.rdd.partitions)
-        } else {
-          new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]], Array(stage.rdd.partitions(0)))
-        }
+        new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]], partitions)
       } else {
         logInfo("STAGE Result: " + stage + " vertex: " + this.vertexId)
-        val narrowAncestors = stage.rdd.getNarrowAncestors.sortBy(_.id)
-        if (narrowAncestors.size > 0 &&  narrowAncestors.head.isInstanceOf[ParallelCollectionRDD[_]]) {
-          if (classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
-            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions)
-          } else {
-            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], stage.rdd.partitions, func)
-          }
+        if (classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
+          new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], partitions)
         } else {
-          if (classOf[Unit].isAssignableFrom(returnType.runtimeClass)) {
-            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], Array(stage.rdd.partitions(0)))
-          } else {
-            new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], Array(stage.rdd.partitions(0)), func)
-          }
+          new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], partitions, func)
         }
       }
     
@@ -134,5 +121,13 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
     dagBuilder.addVertex(vd)
 
     vertexId += 1
+  }
+  
+  /**
+   * 
+   */
+  private def addPartitionerToDAGIfAvailable(rdd:RDD[_]) {
+    val partitioner = ReflectionUtils.getFieldValue(rdd, "partitioner").asInstanceOf[Option[Partitioner]]
+    if (partitioner.isDefined) this.dagBuilder.addPartitioner(partitioner.get)
   }
 }
