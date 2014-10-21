@@ -64,7 +64,8 @@ class CacheRDD[T:ClassTag](sc: SparkContext,
    */
   override def compute(theSplit: Partition, context: TaskContext): InterruptibleIterator[T] = {
     val iterator = SparkEnv.get.shuffleManager.getReader(null, 0, 0, context).read.asInstanceOf[Iterator[(Any, ValueWritable)]]
-    new InterruptibleIterator(context, iterator.map(_._2.getValue().asInstanceOf[Array[T]]).flatMap(_.toIterator))
+//    new InterruptibleIterator(context, iterator.map(_._2.getValue().asInstanceOf[Array[T]]).flatMap(_.toIterator))
+    new InterruptibleIterator(context, iterator.map(_._2.getValue().asInstanceOf[T]))
   }
   
   /**

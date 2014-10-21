@@ -57,7 +57,7 @@ class TezDelegate extends SparkListener with Logging {
 
   private[tez] val tezConfiguration = new TezConfiguration
 
-  private var tezClient: Option[TezClient] = None
+  private[tez] var tezClient: Option[TezClient] = None
  
   private var localResources:java.util.Map[String, LocalResource] = 
     new java.util.HashMap[String, LocalResource]()

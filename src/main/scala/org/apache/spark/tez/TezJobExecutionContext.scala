@@ -214,16 +214,23 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   private def doPersist[T: ClassTag](sc: SparkContext, rdd: RDD[T], newLevel: StorageLevel): RDD[T] = {
     val outputDirectory = "cache/cache_" + rdd.id
 
-    rdd.mapPartitions(iter => iter.grouped(10).map(_.toArray))
-      .map { x =>
+//    rdd.mapPartitions(iter => iter.grouped(2).map(_.toArray))
+//      .map { x =>
+//        val v = new ValueWritable()
+//        v.setValue(x)
+//        (NullWritable.get(), v)
+//      }
+//      .saveAsSequenceFile(outputDirectory)
+      
+    rdd.map { x =>
         val v = new ValueWritable()
-        v.setValue(x)
+        v.setValue(x.asInstanceOf[Object])
         (NullWritable.get(), v)
       }
       .saveAsSequenceFile(outputDirectory)
 
     val cachedRDD = new CacheRDD(sc, sc.appName + "/" + outputDirectory, new TezConfiguration)
-    cachedRDDs += cachedRDD.getPath
+    cachedRDDs += fs.makeQualified(cachedRDD.getPath)
     cachedRDD.asInstanceOf[RDD[T]]
   }
 

@@ -1,3 +1,19 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.spark.tez.io;
 
 import java.io.DataInput;
@@ -10,6 +26,9 @@ import java.nio.ByteBuffer;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
+/**
+ * 
+ */
 @SuppressWarnings("unchecked")
 public abstract class TypeAwareWritable<T> implements NewWritable<T> {
 	
@@ -17,24 +36,20 @@ public abstract class TypeAwareWritable<T> implements NewWritable<T> {
 	
 	private byte valueType;
 	
-	private Class<?> valueTypeClass;
-
 	private final ValueEncoder valueEncoder = new ValueEncoder();
 
+	/**
+	 * 
+	 */
 	public void setValue(T value) {
 		this.value = value;
 		this.determineValueType(value);
-		if (this.valueType == 0){
-			this.valueType = this.valueEncoder.valueType;
-			if (this.valueType != NULL){
-				this.valueTypeClass = value.getClass();
-			}
-		} else if (this.valueEncoder.valueType != this.valueType) {
-			throw new IllegalArgumentException("This instance of KeyWritable can not support " 
-					+ value.getClass() + " since it is already setup for " + this.valueTypeClass);
-		}
+		this.valueType = this.valueEncoder.valueType;
 	}
 	
+	/**
+	 * 
+	 */
 	public T getValue() {
 		return this.value;
 	}
@@ -83,8 +98,8 @@ public abstract class TypeAwareWritable<T> implements NewWritable<T> {
 	 */
 	@Override
 	public void write(DataOutput out) throws IOException {
-		if (this.valueEncoder.valueBytes != null){
-			out.writeByte(this.valueType);
+		out.writeByte(this.valueType);
+		if (this.valueType != NULL){
 			out.write(this.valueEncoder.valueBytes);
 		}
 	}
@@ -94,35 +109,37 @@ public abstract class TypeAwareWritable<T> implements NewWritable<T> {
 	 */
 	@Override
 	public void readFields(DataInput in) throws IOException {
-		if (this.valueEncoder.valueType != NULL) {
-			this.valueType = in.readByte();
-			switch (this.valueType) {
-			case INTEGER:
-				this.value = (T) Integer.valueOf(in.readInt());
-				break;
-			case LONG:
-				this.value = (T) Long.valueOf(in.readLong());
-				break;
-			case OBJECT:
-				try {
-					ObjectInputStream ois = new ObjectInputStream(
-							(DataInputStream) in);
-					T value = (T) ois.readObject();
-					this.value = (T) value;
-				} catch (Exception e) {
-					throw new IllegalStateException(
-							"Failed to deserialize value", e);
-				}
-
-				break;
-			default:
+		this.valueType = in.readByte();
+		switch (this.valueType) {
+		case INTEGER:
+			this.value = (T) Integer.valueOf(in.readInt());
+			break;
+		case LONG:
+			this.value = (T) Long.valueOf(in.readLong());
+			break;
+		case NULL:
+			this.value = null;
+			break;
+		case OBJECT:
+			try {
+				ObjectInputStream ois = new ObjectInputStream((DataInputStream) in);
+				T value = (T) ois.readObject();
+				this.value = (T) value;
+			} catch (Exception e) {
 				throw new IllegalStateException(
-						"Unsupported or unrecognized value type: "
-								+ this.valueType);
+						"Failed to deserialize value", e);
 			}
+			break;
+		default:
+			throw new IllegalStateException(
+					"Unsupported or unrecognized value type: "
+							+ this.valueType);
 		}
 	}
 	
+	/**
+	 * 
+	 */
 	@Override
 	public String toString(){
 		if (this.value == null){
@@ -144,5 +161,4 @@ public abstract class TypeAwareWritable<T> implements NewWritable<T> {
 		private byte valueType;
 		private byte[] valueBytes;
 	}
-	
 }

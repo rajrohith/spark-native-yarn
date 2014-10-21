@@ -20,6 +20,8 @@ import java.io.Serializable;
 
 import org.apache.hadoop.io.WritableComparable;
 
+import com.google.common.base.Preconditions;
+
 /**
  * This class represents a universal Writable with the goal of recognizing 
  * and properly writing/reading multiple types of data.
@@ -34,6 +36,12 @@ import org.apache.hadoop.io.WritableComparable;
  */
 @SuppressWarnings({ "rawtypes", "serial" }) 
 public class KeyWritable extends TypeAwareWritable<Comparable> implements WritableComparable<KeyWritable>, Serializable {
+	
+	@Override
+	public void setValue(Comparable value) {
+		Preconditions.checkState(value != null, "'value' for key must not be null");
+		super.setValue(value);
+	}
 	
 	@SuppressWarnings("unchecked")
 	@Override

@@ -68,13 +68,6 @@ public class KeyWritableTests {
 		assertEquals("extension", kwValues[11].getValue());
 	}
 	
-	@Test(expected=IllegalArgumentException.class)
-	public void validateFailureWithMultipleTypes(){
-		KeyWritable k = new KeyWritable();
-		k.setValue("hello");
-		k.setValue(23);
-	}
-	
 	@Test
 	public void validateReadWritesWithPrimitives() throws Exception {
 		int size = 10;
