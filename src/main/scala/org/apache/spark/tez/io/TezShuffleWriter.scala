@@ -45,10 +45,8 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
     handle: BaseShuffleHandle[K, V, C], 
     context: TaskContext, 
     combine:Boolean = true) extends ShuffleWriter[K, V] with Logging {
-  
-  private val EMPTY_STRING = ""
-  private val kvOutput = output.values.iterator().next()
-  private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
+
+  private val kvWriter = new MultiTargetKeyValueWriter(output)
   private val kw:KeyWritable = new KeyWritable
   private val vw:ValueWritable = new ValueWritable
   

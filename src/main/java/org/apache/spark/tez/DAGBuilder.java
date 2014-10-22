@@ -42,7 +42,6 @@ import org.apache.tez.dag.api.UserPayload;
 import org.apache.tez.dag.api.Vertex;
 import org.apache.tez.dag.api.client.DAGClient;
 import org.apache.tez.dag.api.client.DAGStatus;
-import org.apache.tez.mapreduce.hadoop.MRHelpers;
 import org.apache.tez.mapreduce.input.MRInput;
 import org.apache.tez.mapreduce.output.MROutput;
 import org.apache.tez.runtime.library.conf.OrderedPartitionedKVEdgeConfig;
@@ -111,10 +110,19 @@ class DAGBuilder {
 	
 	/**
 	 * 
+	 * @param stageId
+	 * @return
+	 */
+	public boolean containsVertexDescriptor(int stageId) {
+		return this.vertexes.containsKey(stageId);
+	}
+	
+	/**
+	 * 
 	 * @return
 	 */
 	public Map<Integer, VertexDescriptor> getVertexDescriptors() {
-		return Collections.unmodifiableMap(vertexes);
+		return Collections.unmodifiableMap(this.vertexes);
 	}
 	
 	/**
@@ -206,7 +214,7 @@ class DAGBuilder {
 			        .newBuilder("org.apache.spark.tez.io.KeyWritable", "org.apache.spark.tez.io.ValueWritable", 
 			        		SparkDelegatingPartitioner.class.getName(), null).build();
 		
-		int nameCreatingCounter = 0;
+		int nameCreatingCounter = 1000;
 		int counter = 0;
 		FileSystem fs = FileSystem.get(this.tezConfiguration);
 		for (Entry<Integer, VertexDescriptor> vertexDescriptorEntry : this.vertexes.entrySet()) {
@@ -221,7 +229,7 @@ class DAGBuilder {
 			}
 			//
 			
-			String vertexName = String.valueOf(nameCreatingCounter++);
+			String vertexName = String.valueOf(vertexDescriptor.getStageId());
 			UserPayload payload = TezHelper.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationName);
 
 			Vertex vertex = null;
@@ -233,6 +241,7 @@ class DAGBuilder {
 				String dataSourceName = String.valueOf(nameCreatingCounter++);
 				ProcessorDescriptor pd = ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload);
 				vertex = Vertex.create(vertexName, pd).addDataSource(dataSourceName, dataSource);	
+				
 				// For single stage vertex we need to add data sink
 				if (counter == this.vertexes.size()){
 					this.createDataSink(vertex, String.valueOf(nameCreatingCounter++), keyClass, valueClass, outputFormatClass, outputPath);
@@ -246,7 +255,7 @@ class DAGBuilder {
 				}
 				else {
 					ProcessorDescriptor pd = ProcessorDescriptor.create(SparkTaskProcessor.class.getName()).setUserPayload(payload);
-					vertex = Vertex.create(vertexName, pd, vertexDescriptor.getNumPartitions(), MRHelpers.getResourceForMRReducer(this.tezConfiguration));
+					vertex = Vertex.create(vertexName, pd, vertexDescriptor.getNumPartitions());
 				}
 			}
 			vertex.addTaskLocalFiles(this.localResources);	
@@ -290,14 +299,10 @@ class DAGBuilder {
 	 */
 	@SuppressWarnings("unchecked")
 	private void addEdges(VertexDescriptor vertexDescriptor, Vertex targetVertex, OrderedPartitionedKVEdgeConfig edgeConf){
-		if (!(vertexDescriptor.getInput() instanceof String)) {
-	    	for (int stageId : (Iterable<Integer>)vertexDescriptor.getInput()) {
-	    		VertexDescriptor vd = vertexes.get(stageId);
-		    	String vertexName =  vd.getVertexId() * 2 + "";
-		    	Vertex v = dag.getVertex(vertexName);
-		    	Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
-		    	this.dag.addEdge(edge);
-			}
-	    } 
+		for (int stageId : (Iterable<Integer>)vertexDescriptor.getInput()) {
+			Vertex v = this.dag.getVertex(stageId + "");
+			Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
+	    	this.dag.addEdge(edge);
+		}
 	}
 }

@@ -61,8 +61,17 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
    */
   private def doRun() = {
     logInfo("Executing processor for task: " + taskIndex + " for DAG " + dagName);
-    val inputs = this.toIntKey(this.getInputs()).asInstanceOf[java.util.Map[Integer, LogicalInput]]
-    val outputs = this.toIntKey(this.getOutputs()).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
+    val in = this.getInputs()
+    val out = this.getOutputs()
+    /*
+     * Input must always be present unless DAG was initiated from paralelize
+     * Investigate the same for output
+     */
+//    Preconditions.checkArgument(in.size() >= 1, "Processor contains no input. Must be a bug in DAG assembly. Please report!".asInstanceOf[Object]);
+//    Preconditions.checkArgument(out.size() >= 1, "Processor contains no output. Must be a bug in DAG assembly. Please report!".asInstanceOf[Object]);
+    val inputs = this.toIntKey(in).asInstanceOf[java.util.Map[Integer, LogicalInput]]
+    val outputs = this.toIntKey(out).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
+    
     
     val shufleManager = new TezShuffleManager(inputs, outputs)
     SparkUtils.createSparkEnv(shufleManager)
@@ -79,6 +88,7 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
     
     shufleManager.shuffleStage = task.isInstanceOf[VertexShuffleTask]
     SparkUtils.runTask(task, this.context.getTaskIndex());
+    logDebug("Finished task: " + this.context.getTaskVertexName() + " - " + this.context.getTaskIndex())
   }
   
   /**

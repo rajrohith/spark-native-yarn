@@ -79,7 +79,7 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
    */
   private def prepareDag(returnType:ClassTag[U], stage: Stage, dependentStage: Stage, func: (TaskContext, Iterator[T]) => U, keyClass:Class[_], valueClass:Class[_]) {
     if (stage.parents.size > 0) {
-      stage.parents.sortBy(_.id).foreach(prepareDag(returnType, _, stage, func, keyClass, valueClass))
+      stage.parents.filter(ps => !this.dagBuilder.containsVertexDescriptor(ps.id)).sortBy(_.id).foreach(prepareDag(returnType, _, stage, func, keyClass, valueClass))
     }
 
     this.addPartitionerToDAGIfAvailable(stage.rdd)
