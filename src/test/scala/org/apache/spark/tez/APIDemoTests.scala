@@ -120,27 +120,25 @@ class APIDemoTests {
     this.cleanUp(applicationName)
   }
   
-//  @Test
-//  def reduceByKeyNoKeyValue() {
-//    val applicationName = "reduceByKey"
-//    val sparkConf = this.buildSparkConf
-//    sparkConf.setAppName(applicationName)
-//    val sc = new SparkContext(sparkConf)
-//    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
-//
-//    // ===
-//    val r = source
-//      .flatMap(x => x.split(" "))
-//      .map(x => x).cache
-//    
-//    val result = r.collect
-//    // ===
-//    println(result.toList)
-//
-////    TestUtils.printSampleResults(applicationName, applicationName + "_out")
-//    sc.stop
-//    this.cleanUp(applicationName)
-//  }
+  @Test
+  def reduceByKeyNoKeyValue() {
+    val applicationName = "reduceByKey"
+    val sparkConf = this.buildSparkConf
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+
+    // ===
+    val r = source
+      .flatMap(x => x.split(" "))
+      .map(x => x).cache
+    
+    val result = r.collect
+    // ===
+    println(result.toList)
+    sc.stop
+    this.cleanUp(applicationName)
+  }
 
   @Test
   def count() {

@@ -69,6 +69,9 @@ import org.apache.spark.Partition
 import org.apache.hadoop.io.SequenceFile
 import scala.collection.mutable.ListBuffer
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import scala.reflect.runtime.universe._
+import scala.reflect.ManifestFactory
+import org.apache.spark.tez.utils.ReflectionUtils
 
 /**
  *
@@ -192,47 +195,51 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   /**
    *
    */
-  def persist(sc: SparkContext, rdd: RDD[_], newLevel: StorageLevel): rdd.type = {
+  def persist(sc: SparkContext, rdd: RDD[_], newLevel: StorageLevel):RDD[_] = {
     logDebug("Caching " + rdd)
+    
+
     val cachedRdd =
       if (rdd.name != null) {    
         val path = new Path(rdd.name)
         if (fs.exists(path)) {
           rdd
         } else {
-          this.doPersist[Any](sc, rdd.asInstanceOf[RDD[Any]], newLevel)
+          this.doPersist(sc, rdd, newLevel)
         }
       } else {
-        this.doPersist[Any](sc, rdd.asInstanceOf[RDD[Any]], newLevel)
+        this.doPersist(sc, rdd, newLevel)
       } 
-    cachedRdd.asInstanceOf[rdd.type]
+    cachedRdd
   }
 
   /**
-   * 
+   *
    */
-  private def doPersist[T: ClassTag](sc: SparkContext, rdd: RDD[T], newLevel: StorageLevel): RDD[T] = {
+  private def doPersist(sc: SparkContext, rdd: RDD[_], newLevel: StorageLevel): RDD[_] = {
     val outputDirectory = "cache/cache_" + rdd.id
 
-//    rdd.mapPartitions(iter => iter.grouped(2).map(_.toArray))
-//      .map { x =>
-//        val v = new ValueWritable()
-//        v.setValue(x)
-//        (NullWritable.get(), v)
-//      }
-//      .saveAsSequenceFile(outputDirectory)
-      
-    rdd.map { x =>
-        val v = new ValueWritable()
-        v.setValue(x.asInstanceOf[Object])
-        (NullWritable.get(), v)
-      }
-      .saveAsSequenceFile(outputDirectory)
+    //    rdd.mapPartitions(iter => iter.grouped(2).map(_.toArray))
+    //      .map { x =>
+    //        val v = new ValueWritable()
+    //        v.setValue(x)
+    //        (NullWritable.get(), v)
+    //      }
+    //      .saveAsSequenceFile(outputDirectory)
 
-    val cachedRDD = new CacheRDD(sc, sc.appName + "/" + outputDirectory, new TezConfiguration, classOf[SequenceFileInputFormat[_,_]])
+    rdd.map { x =>
+      val v = new ValueWritable()
+      v.setValue(x.asInstanceOf[Object])
+      (NullWritable.get(), v)
+    }.saveAsSequenceFile(outputDirectory)
+
+    val cachedRDD = new CacheRDD(sc, sc.appName + "/" + outputDirectory, 
+        this.tezDelegate.tezConfiguration, classOf[SequenceFileInputFormat[_, _]])(ReflectionUtils.rddClassTag(rdd))
     cachedRDDs += fs.makeQualified(cachedRDD.getPath)
-    cachedRDD.asInstanceOf[RDD[T]]
+    cachedRDD
   }
+  
+  
 
   /**
    * 

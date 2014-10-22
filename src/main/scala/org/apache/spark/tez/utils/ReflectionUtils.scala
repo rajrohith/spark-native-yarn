@@ -22,6 +22,7 @@ import scala.reflect.runtime.universe
 import org.apache.spark.JobExecutionContext
 import scala.reflect.ClassTag
 import java.lang.reflect.Field
+import org.apache.spark.rdd.RDD
 
 /**
  * 
@@ -57,17 +58,6 @@ object ReflectionUtils {
   /**
    * 
    */
-  private def doGetFieldValue(instance: Any, fieldName: String): Any = {
-    val field = this.findField(instance.getClass, fieldName, null)
-    if (field != null) {
-      field.setAccessible(true)
-      field.get(instance)
-    }
-  }
-
-  /**
-   * 
-   */
   def findField(clazz: Class[_], name: String, _type: Class[_]): Field = {
     var searchType = clazz
     while (!classOf[Object].equals(searchType) && searchType != null) {
@@ -80,5 +70,30 @@ object ReflectionUtils {
       searchType = searchType.getSuperclass();
     }
     null
+  }
+  
+  /**
+   * 
+   */
+  def rddClassTag(rdd:RDD[_]):ClassTag[_] = {
+    val classTags = classOf[RDD[_]].getDeclaredFields().filter(_.getType().isAssignableFrom(classOf[ClassTag[_]]))
+    if (classTags.length == 1){
+      val f = classTags(0)
+      f.setAccessible(true)
+      f.get(rdd).asInstanceOf[ClassTag[_]]
+    } else {
+      throw new IllegalStateException("Failed to determine ClassTag for " + rdd)
+    }
+  }
+  
+  /**
+   * 
+   */
+  private def doGetFieldValue(instance: Any, fieldName: String): Any = {
+    val field = this.findField(instance.getClass, fieldName, null)
+    if (field != null) {
+      field.setAccessible(true)
+      field.get(instance)
+    }
   }
 }
