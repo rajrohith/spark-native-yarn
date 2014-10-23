@@ -31,16 +31,17 @@ import org.apache.hadoop.io.LongWritable
 import org.apache.hadoop.conf.Configuration
 import org.apache.tez.dag.api.TezConfiguration
 import org.apache.spark.InterruptibleIterator
+import org.apache.spark.util.NextIterator
+import java.io.IOException
 
 /**
  * Implementation of Spark's ShuffleReader tailored for Tez which means its is aware of
  * two different readers provided by Tez; KeyValueReader and KeyValuesReader
  */
-class TezShuffleReader[K, C](input: Map[Integer, LogicalInput])
+class TezSourceReader[K, C](input: Map[Integer, LogicalInput])
   extends ShuffleReader[K, C] {
   private val inputIndex = input.keySet().iterator().next()
   private val reader = input.remove(this.inputIndex).getReader()
-
   /**
    *
    */
@@ -57,37 +58,58 @@ class TezShuffleReader[K, C](input: Map[Integer, LogicalInput])
  *
  */
 private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[Any, Any]] {
-
+  var hasNextNeverCalled = true
+  var containsNext = false;
+  var shoudlCheckHasNext = false;
+ 
   val (kvReader: Option[KeyValueReader], kvsReader: Option[KVSIterator]) =
     if (reader.isInstanceOf[KeyValueReader]) {
       (Some(reader.asInstanceOf[KeyValueReader]), None)
     } else {
       (None, new Some(new KVSIterator(reader.asInstanceOf[KeyValuesReader])))
     }
-
+  
   /**
    *
    */
   override def hasNext(): Boolean = {
-    if (this.kvReader.isDefined) {
-      this.kvReader.get.next
-    } else {
-      this.kvsReader.get.hasNext
+    if (this.hasNextNeverCalled || shoudlCheckHasNext) {
+      this.hasNextNeverCalled = false
+      this.containsNext = this.doHasNext
     }
+    this.containsNext
   }
 
   /**
    *
    */
   override def next(): Product2[Any, Any] = {
-    if (this.kvReader.isDefined) {
-      val k = this.kvReader.get.getCurrentKey()
-      val v = this.kvReader.get.getCurrentValue()
-      (k, v)
+    if (hasNextNeverCalled) {
+      this.hasNext
+    }
+    if (this.containsNext) {  
+      val result = if (this.kvReader.isDefined) {
+        (this.kvReader.get.getCurrentKey, this.kvReader.get.getCurrentValue)
+      } else {
+        (this.kvsReader.get.getCurrentKey, this.kvsReader.get.nextValue)
+      }
+      this.shoudlCheckHasNext = true
+      result
     } else {
-      val k = this.kvsReader.get.getCurrentKey
-      val v = this.kvsReader.get.nextValue
-      (k, v)
+      throw new IllegalStateException("Reached the end of the iterator. " + 
+          "Calling hasNext() prior to next() would avoid this exception")
+    }
+  }
+  
+  /**
+   * 
+   */
+  private def doHasNext():Boolean = {
+    this.shoudlCheckHasNext = false
+    if (this.kvReader.isDefined) {
+      this.kvReader.get.next
+    } else {
+      this.kvsReader.get.hasNext
     }
   }
 }

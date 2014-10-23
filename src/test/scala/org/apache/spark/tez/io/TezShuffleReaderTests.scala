@@ -38,7 +38,7 @@ class TezShuffleReaderTests  {
     val inMap = new java.util.HashMap[Integer, LogicalInput]()
     val uri = new File("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt").toURI
     inMap.put(0, new TestLogicalInput(uri))
-    val reader = new TezShuffleReader[Integer, String](inMap)
+    val reader = new TezSourceReader[Integer, String](inMap)
     val iter = reader.read
     assertEquals(3, iter.toList.size)
   }
@@ -48,7 +48,7 @@ class TezShuffleReaderTests  {
     val inMap = new java.util.HashMap[Integer, LogicalInput]()
     
     inMap.put(0, new TestLogicalInputWithKVsReader())
-    val reader = new TezShuffleReader[Integer, String](inMap)
+    val reader = new TezSourceReader[Integer, String](inMap)
     val iter = reader.read
     assertEquals(2, iter.toList.size)
   }
@@ -58,7 +58,7 @@ class TezShuffleReaderTests  {
     val inMap = new java.util.HashMap[Integer, LogicalInput]()
     val uri = new File("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt").toURI
     inMap.put(0, new TestLogicalInput(uri))
-    val reader = new TezShuffleReader[Integer, String](inMap)
+    val reader = new TezSourceReader[Integer, String](inMap)
     // ensure does not result in exception
     reader.stop
   }

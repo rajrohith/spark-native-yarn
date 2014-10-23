@@ -36,7 +36,7 @@ class TezShuffleManagerTests {
   
     val sm = new TezShuffleManager(inMap, outMap);
     sm.shuffleStage = false
-    assertTrue(sm.getReader(null, 0, 0, null).isInstanceOf[TezShuffleReader[_,_]])
+    assertTrue(sm.getReader(null, 0, 0, null).isInstanceOf[TezSourceReader[_,_]])
   }
 
   @Test

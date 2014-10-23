@@ -42,7 +42,7 @@ class APIDemoTests {
   @Test
   def collect() {
     val applicationName = "collect"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
@@ -63,7 +63,7 @@ class APIDemoTests {
   @Test
   def sample() {
     val applicationName = "sample"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
@@ -78,9 +78,38 @@ class APIDemoTests {
   }
   
   @Test
+  def mapPartitions() {
+    val applicationName = "mapPartitions"
+    val sparkConf = this.buildSparkConf()
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+
+    // ===
+    // greater then contents-in-file
+    val gtResult = source.mapPartitions{_.grouped(10).map{_.toArray}}.collect
+    gtResult.foreach{x => println("==="); x.foreach(println _)}
+    Assert.assertEquals(6, gtResult.flatten.length)
+    
+    // less then contents-in-file
+    val ltResult = source.mapPartitions{_.grouped(10).map{_.toArray}}.collect
+    ltResult.foreach{x => println("==="); x.foreach(println _)}
+    Assert.assertEquals(6, ltResult.flatten.length)
+    
+     // pre-cached
+    val cacheResult = source.cache.mapPartitions{_.grouped(10).map{_.toArray}}.collect
+    cacheResult.foreach{x => println("==="); x.foreach(println _)}
+    Assert.assertEquals(6, cacheResult.flatten.length)
+    // ===
+    
+    sc.stop
+    this.cleanUp(applicationName)
+  }
+  
+  @Test
   def saveAsTextFile() {
     val applicationName = "saveAsTextFile"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
@@ -101,7 +130,7 @@ class APIDemoTests {
   @Test
   def reduceByKey() {
     val applicationName = "reduceByKey"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
@@ -123,7 +152,7 @@ class APIDemoTests {
   @Test
   def reduceByKeyNoKeyValue() {
     val applicationName = "reduceByKey"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
@@ -131,11 +160,13 @@ class APIDemoTests {
     // ===
     val r = source
       .flatMap(x => x.split(" "))
-      .map(x => x).cache
+      .map(x => (x, 1)).mapValues(_ + 1).persist
     
-    val result = r.collect
+    
+//    products.setName(s"products-$iter").persist()
+//    val result = r.mapValues(_ + 1).collect
     // ===
-    println(result.toList)
+//    println(result.toList)
     sc.stop
     this.cleanUp(applicationName)
   }
@@ -143,7 +174,7 @@ class APIDemoTests {
   @Test
   def count() {
     val applicationName = "count"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
@@ -164,7 +195,7 @@ class APIDemoTests {
   @Test
   def sourceCount() {
     val applicationName = "sourceCount"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
@@ -182,7 +213,7 @@ class APIDemoTests {
     val file1 = "src/test/scala/org/apache/spark/tez/file1.txt"
     val file2 = "src/test/scala/org/apache/spark/tez/file2.txt"
     val applicationName = "join"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source1 = sc.textFile(file1)
@@ -216,7 +247,7 @@ class APIDemoTests {
   @Test
   def partitionBy() {
     val applicationName = "partitionBy"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/partitioning.txt")
@@ -248,7 +279,7 @@ class APIDemoTests {
   @Test
   def cache() {
     val applicationName = "cache"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
@@ -271,7 +302,7 @@ class APIDemoTests {
   @Test
   def parallelize() {
     val applicationName = "parallelize"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
     val source = sc.parallelize(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 0), 4)
@@ -283,7 +314,7 @@ class APIDemoTests {
   @Test
   def broadcast() {
     val applicationName = "broadcast"
-    val sparkConf = this.buildSparkConf
+    val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
 
@@ -306,8 +337,8 @@ class APIDemoTests {
   /**
    *
    */
-  def buildSparkConf(): SparkConf = {
-    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+  def buildSparkConf(masterUrl:String = "execution-context:" + classOf[TezJobExecutionContext].getName): SparkConf = {
+//    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
 //    val masterUrl = "local"
     val sparkConf = new SparkConf
     sparkConf.set("spark.ui.enabled", "false")
