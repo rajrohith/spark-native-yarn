@@ -61,9 +61,7 @@ abstract class HdfsSourceRDD[T:ClassTag](
    *
    */
   override def getPartitions: Array[Partition] = {
-    Array(new Partition {
-      override def index: Int = 0
-    })
+    Array(new HdfsSourceRDDPartition(0))
   }
   
   /**
@@ -78,4 +76,8 @@ abstract class HdfsSourceRDD[T:ClassTag](
     }
     hPath
   }
+}
+
+private[spark] class HdfsSourceRDDPartition(idx: Int) extends Partition {
+  val index = idx
 }

@@ -54,43 +54,18 @@ public abstract class TypeAwareWritable<T> implements NewWritable<T> {
 		return this.value;
 	}
 	
+	
+	
 	/**
-	 * NOTE: The below code is temporary and both conversion and ser/deser will be exposed through externally 
-	 * configurable framework!
 	 * 
-	 * @param value
-	 * @return
 	 */
-	private void determineValueType(Object value){
-		if (value instanceof Integer){
-			this.valueEncoder.valueType = INTEGER;
-			this.valueEncoder.valueBytes = ByteBuffer.allocate(4).putInt((Integer)value).array();
-		} 
-		else if (value instanceof Long) {
-			this.valueEncoder.valueType = LONG;
-			this.valueEncoder.valueBytes = ByteBuffer.allocate(8).putLong((Long)value).array();
+	@Override
+	public int hashCode() {
+		int hashCode = 0;
+		if (this.value != null){
+			hashCode = this.value.hashCode();
 		}
-		else if (value == null){
-			this.valueEncoder.valueType = NULL;
-		}
-		else {
-			ObjectOutputStream oos = null;
-			try {
-				ByteArrayOutputStream bos = new ByteArrayOutputStream();
-				oos = new ObjectOutputStream(bos);
-				oos.writeObject(value);
-				this.valueEncoder.valueType = OBJECT;
-				this.valueEncoder.valueBytes = bos.toByteArray();
-			} catch (Exception e) {
-				throw new IllegalStateException("Failed to serialize value: " + value, e);
-			} finally {
-				try {
-					if (oos != null){
-						oos.close();
-					}
-				} catch (Exception e2) {/*ignore*/}
-			}
-		}
+		return hashCode;
 	}
 	
 	/**
@@ -146,6 +121,45 @@ public abstract class TypeAwareWritable<T> implements NewWritable<T> {
 			return null;
 		} else {
 			return this.value.toString();
+		}
+	}
+	
+	/**
+	 * NOTE: The below code is temporary and both conversion and ser/deser will be exposed through externally 
+	 * configurable framework!
+	 * 
+	 * @param value
+	 * @return
+	 */
+	private void determineValueType(Object value){
+		if (value instanceof Integer){
+			this.valueEncoder.valueType = INTEGER;
+			this.valueEncoder.valueBytes = ByteBuffer.allocate(4).putInt((Integer)value).array();
+		} 
+		else if (value instanceof Long) {
+			this.valueEncoder.valueType = LONG;
+			this.valueEncoder.valueBytes = ByteBuffer.allocate(8).putLong((Long)value).array();
+		}
+		else if (value == null){
+			this.valueEncoder.valueType = NULL;
+		}
+		else {
+			ObjectOutputStream oos = null;
+			try {
+				ByteArrayOutputStream bos = new ByteArrayOutputStream();
+				oos = new ObjectOutputStream(bos);
+				oos.writeObject(value);
+				this.valueEncoder.valueType = OBJECT;
+				this.valueEncoder.valueBytes = bos.toByteArray();
+			} catch (Exception e) {
+				throw new IllegalStateException("Failed to serialize value: " + value, e);
+			} finally {
+				try {
+					if (oos != null){
+						oos.close();
+					}
+				} catch (Exception e2) {/*ignore*/}
+			}
 		}
 	}
 	

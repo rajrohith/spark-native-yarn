@@ -164,15 +164,13 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
       while (iter.hasNext() && partitionCounter < partitionSize) {
         val fStatus = iter.next()
         if (!fStatus.getPath().toString().endsWith("_SUCCESS")) {
-          if (operationName == "count" || operationName == "collect") {
-            val reader = new SequenceFile.Reader(conf, SequenceFile.Reader.file(fStatus.getPath()));
-            val kw = reader.getKeyClass().newInstance().asInstanceOf[org.apache.spark.tez.io.NewWritable[_]]
-            val vw = reader.getValueClass().newInstance().asInstanceOf[org.apache.spark.tez.io.NewWritable[_]]
-            reader.next(kw, vw)
-            val value = vw.getValue
-            resultHandler(partitionCounter, value.asInstanceOf[U])
-            reader.close()
-          }
+          val reader = new SequenceFile.Reader(conf, SequenceFile.Reader.file(fStatus.getPath()));
+          val kw = reader.getKeyClass().newInstance().asInstanceOf[org.apache.spark.tez.io.NewWritable[_]]
+          val vw = reader.getValueClass().newInstance().asInstanceOf[org.apache.spark.tez.io.NewWritable[_]]
+          reader.next(kw, vw)
+          val value = vw.getValue
+          resultHandler(partitionCounter, value.asInstanceOf[U])
+          reader.close()
           partitionCounter += 1
         }
       }

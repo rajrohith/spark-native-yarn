@@ -36,7 +36,7 @@ import org.apache.spark.ShuffleDependency
 import org.apache.spark.Partitioner
 import org.apache.hadoop.io.Writable
 import org.apache.spark.tez.io.TezResultWriter
-import org.apache.spark.tez.io.TezResultWriter
+import org.apache.spark.tez.utils.ReflectionUtils
 import scala.reflect.ClassTag
 import org.apache.hadoop.fs.FileSystem
 import org.apache.tez.dag.api.TezConfiguration
@@ -58,16 +58,16 @@ class VertexResultTask[T, U](
    * comply with Spark (see ShuffleRDD)
    */
   
-  var keyClass:Class[Writable] = null
-  var valueClass:Class[Writable] = null
+  private[tez] var keyClass:Class[Writable] = null
+  private[tez] var valueClass:Class[Writable] = null
   
   //TODO review. Need a cleaner way
-  def setKeyClass(keyClass:Class[Writable]) {
+  private[tez] def setKeyClass(keyClass:Class[Writable]) {
     this.keyClass = keyClass
   }
   
   //TODO review. Need a cleaner way
-  def setValueClass(valueClass:Class[Writable]) {
+  private[tez] def setValueClass(valueClass:Class[Writable]) {
     this.valueClass = valueClass
   }
 
@@ -78,6 +78,8 @@ class VertexResultTask[T, U](
     try {
       val partition = if (partitions.length == 1) partitions(0) else partitions(context.partitionId())
 
+      this.resetPartitionIndex(partition, context.partitionId())
+      
       if (func == null) {
         toHdfs(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])
       } else {
@@ -95,6 +97,22 @@ class VertexResultTask[T, U](
    *
    */
   override def toString = "ResultTask(" + stageId + ", " + partitionId + ")"
+  
+  /**
+   * 
+   */
+  private def resetPartitionIndex(partition:Partition, index:Int) {
+    var field = ReflectionUtils.findField(partition.getClass(), "index", classOf[Int])
+    if (field == null) {
+      field = ReflectionUtils.findField(partition.getClass(), "slice", classOf[Int]) // for ParallelCollectionPartition
+    }
+    if (field != null) {
+      field.setAccessible(true)
+      field.set(partition, index)
+    } else {
+      throw new IllegalStateException("Failed to determine index field for " + partition)
+    }
+  }
   
   /**
    * 
