@@ -42,7 +42,6 @@ import org.apache.tez.runtime.library.api.KeyValueReader
 import org.apache.tez.runtime.library.api.KeyValueWriter
 import org.apache.tez.runtime.library.api.KeyValuesReader
 import org.apache.hadoop.io.IntWritable
-import org.apache.spark.shuffle.ShuffleBlockManager
 import scala.reflect.runtime.universe._
 
 /**
@@ -91,12 +90,8 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
   }
 
   /** Remove a shuffle's metadata from the ShuffleManager. */
-  def unregisterShuffle(shuffleId: Int):Boolean = true
-  
-  /**
-   * 
-   */
-  def shuffleBlockManager: ShuffleBlockManager = null
+  def unregisterShuffle(shuffleId: Int){}
+
 
   /** Shut down this ShuffleManager. */
   def stop(): Unit = ()

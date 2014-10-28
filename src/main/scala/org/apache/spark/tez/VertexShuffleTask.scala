@@ -57,7 +57,7 @@ class VertexShuffleTask(
       if (partitions.length == 1){
         writer.write(rdd.iterator(partitions(0), context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
       } else {
-        writer.write(rdd.iterator(partitions(context.partitionId()), context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
+        writer.write(rdd.iterator(partitions(context.partitionId), context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
       }
       SparkEnv.get.cacheManager.asInstanceOf[TezCacheManager].close
       return writer.stop(success = true).get

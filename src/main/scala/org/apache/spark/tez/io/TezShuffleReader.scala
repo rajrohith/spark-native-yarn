@@ -123,16 +123,16 @@ private class ShuffleIterator[K, C](reader: Reader, var aggregatorFunction:Funct
               mergedValue = aggregatorFunction(mergedValue, v)
             }
           }
-          
-          val key = reader.getCurrentKey.asInstanceOf[KeyWritable].getValue()
-          val result = (key, mergedValue)
+          val key = reader.getCurrentKey.asInstanceOf[KeyWritable].getValue().asInstanceOf[Comparable[_]]
+          val result = (key, mergedValue.asInstanceOf[Object])
           this.shoudlCheckHasNext = true
           result
         } else {
           if (this.currentValues == null){
              this.currentValues = reader.getCurrentValues().iterator.asScala
           }
-          val result = (reader.getCurrentKey.asInstanceOf[KeyWritable].getValue(), this.currentValues.next.asInstanceOf[ValueWritable].getValue())
+          val key = reader.getCurrentKey.asInstanceOf[KeyWritable].getValue().asInstanceOf[Comparable[_]]
+          val result = (key, this.currentValues.next.asInstanceOf[ValueWritable].getValue())
           if (!this.currentValues.hasNext){
              this.shoudlCheckHasNext = true
              this.currentValues = null

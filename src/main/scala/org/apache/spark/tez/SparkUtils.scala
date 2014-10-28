@@ -43,7 +43,6 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.CacheManager
 import org.apache.spark.Partition
 import org.apache.spark.storage.StorageLevel
-import org.apache.spark.TaskContextImpl
 import org.apache.spark.tez.io.ValueWritable
 import org.apache.hadoop.io.NullWritable
 import org.apache.spark.ShuffleDependency
@@ -131,12 +130,11 @@ object SparkUtils {
    * 
    */
   def createSparkEnv(shuffleManager:TezShuffleManager, applicationName:String) {
-    this.setTaskContext
     val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];  
     val cacheManager = new TezCacheManager(blockManager, applicationName)
     val memoryManager = new ShuffleMemoryManager(20793262)
     val se = new SparkEnv("0", null, closueSerializer, closueSerializer, cacheManager, null, shuffleManager, 
-        null, null, blockManager, null, null, null, null, memoryManager, sparkConf)
+        null, blockManager, null, null, null, null, null, memoryManager, sparkConf)
     SparkEnv.set(se)
   }
   
@@ -144,16 +142,8 @@ object SparkUtils {
    * 
    */
   def runTask(task: Task[_], taskIndex:Int) = { 
-    val taskContext = new TaskContextImpl(0, taskIndex, 0)
+    val taskContext = new TaskContext(0, taskIndex, 0)
     task.runTask(taskContext)
-  }
-  
-  private def setTaskContext() {
-    val tm = new TaskMetrics
-    val tc = new TaskContextImpl(1, 1, 1, true, tm)
-    val m = classOf[TaskContext].getDeclaredMethod("setTaskContext", classOf[TaskContext])
-    m.setAccessible(true)
-    m.invoke(null, tc)
   }
 }
 /**
@@ -171,7 +161,7 @@ private[tez] class TezCacheManager(blockManager: BlockManager, applicationName: 
     storageLevel: StorageLevel): Iterator[T] = {
 
     val fs = FileSystem.get(new TezConfiguration)
-    val path = new Path(applicationName + "/cache/cache_" + rdd.id + "/part-" + context.partitionId())
+    val path = new Path(applicationName + "/cache/cache_" + rdd.id + "/part-" + context.partitionId)
     if (fs.exists(path)) {
       logDebug("Reading " + rdd + " from cache: " + path)
       is = new TypeAwareObjectInputStream(fs.open(path))

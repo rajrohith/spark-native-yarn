@@ -76,9 +76,9 @@ class VertexResultTask[T, U](
    */
   override def runTask(context: TaskContext): U = {
     try {
-      val partition = if (partitions.length == 1) partitions(0) else partitions(context.partitionId())
+      val partition = if (partitions.length == 1) partitions(0) else partitions(context.partitionId)
 
-      this.resetPartitionIndex(partition, context.partitionId())
+      this.resetPartitionIndex(partition, context.partitionId)
       
       if (func == null) {
         toHdfs(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])

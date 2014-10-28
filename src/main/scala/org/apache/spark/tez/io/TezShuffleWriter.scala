@@ -32,7 +32,6 @@ import org.apache.hadoop.io.Text
 import org.apache.spark.Logging
 import org.apache.spark.tez.SparkUtils
 import org.apache.spark.storage.BlockManagerId
-import org.apache.spark.scheduler.CompressedMapStatus
 import org.apache.hadoop.io.NullWritable
 
 /**
@@ -77,7 +76,7 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
    *
    */
   private def writeKeyValue(key: Any, value: Any) {
-    this.kw.setValue(key.asInstanceOf[Comparable[_]])
+    this.kw.setValue(key.asInstanceOf[Comparable[Object]])
     this.vw.setValue(value.asInstanceOf[Object])
     kvWriter.write(kw, vw)
   }
@@ -86,7 +85,7 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
    * 
    */
   def stop(success: Boolean): Option[MapStatus] = {
-    Some(SparkUtils.createUnsafeInstance(classOf[CompressedMapStatus]))
+    Some(SparkUtils.createUnsafeInstance(classOf[MapStatus]))
   }
   
   /**

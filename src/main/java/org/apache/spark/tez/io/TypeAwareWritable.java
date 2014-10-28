@@ -96,6 +96,7 @@ public abstract class TypeAwareWritable<T> implements NewWritable<T> {
 			this.value = null;
 			break;
 		case OBJECT:
+			//TODO: Add support for custom serializers for efficiency
 			try {
 				ObjectInputStream ois = new ObjectInputStream((DataInputStream) in);
 				T value = (T) ois.readObject();
