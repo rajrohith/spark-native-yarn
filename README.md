@@ -7,6 +7,7 @@
 the validity of the approach described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
 To get an idea of currently supported functionality please refer to 
 [APIDemoTests](https://github.com/hortonworks/spark-native-yarn/blob/master/src/test/scala/org/apache/spark/tez/APIDemoTests.scala)
+
 ==
 
 **_spark-native-yarn_** project represents an extension to [Apache Spark](https://spark.apache.org/) which enables DAGs assembled using SPARK API to run on [Apache Tez](http://tez.apache.org/),
