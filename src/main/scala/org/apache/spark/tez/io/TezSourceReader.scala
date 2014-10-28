@@ -33,20 +33,24 @@ import org.apache.tez.dag.api.TezConfiguration
 import org.apache.spark.InterruptibleIterator
 import org.apache.spark.util.NextIterator
 import java.io.IOException
+import scala.collection.JavaConverters._
 
 /**
- * Implementation of Spark's ShuffleReader tailored for Tez which means its is aware of
- * two different readers provided by Tez; KeyValueReader and KeyValuesReader
+ * Implementation of Spark's ShuffleReader which delegates it's read functionality to Tez
+ * This implementation is tailored for before-shuffle reads (e.g., Reading initial source)
  */
+//TODO: combine common functionality in TezShuffleReader into an abstract class
 class TezSourceReader[K, C](input: Map[Integer, LogicalInput])
   extends ShuffleReader[K, C] {
+
   private val inputIndex = input.keySet().iterator().next()
   private val reader = input.remove(this.inputIndex).getReader()
+
   /**
    *
    */
   override def read(): Iterator[Product2[K, C]] = {
-    new TezIterator(this.reader).asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
+    new SourceIterator(this.reader).asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
   }
 
   /**
@@ -57,18 +61,19 @@ class TezSourceReader[K, C](input: Map[Integer, LogicalInput])
 /**
  *
  */
-private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[Any, Any]] {
+private class SourceIterator[K, C](reader: Reader) extends Iterator[Product2[Any, Any]] {
   var hasNextNeverCalled = true
   var containsNext = false;
   var shoudlCheckHasNext = false;
- 
-  val (kvReader: Option[KeyValueReader], kvsReader: Option[KVSIterator]) =
-    if (reader.isInstanceOf[KeyValueReader]) {
-      (Some(reader.asInstanceOf[KeyValueReader]), None)
+  private var currentValues: Iterator[Object] = _
+
+  private val kvReader =
+    if (reader.isInstanceOf[KeyValuesReader]) {
+      reader.asInstanceOf[KeyValuesReader]
     } else {
-      (None, new Some(new KVSIterator(reader.asInstanceOf[KeyValuesReader])))
+      reader.asInstanceOf[KeyValueReader]
     }
-  
+
   /**
    *
    */
@@ -87,69 +92,26 @@ private class TezIterator[K, C](reader: Reader) extends Iterator[Product2[Any, A
     if (hasNextNeverCalled) {
       this.hasNext
     }
-    if (this.containsNext) {  
-      val result = if (this.kvReader.isDefined) {
-        (this.kvReader.get.getCurrentKey, this.kvReader.get.getCurrentValue)
-      } else {
-        (this.kvsReader.get.getCurrentKey, this.kvsReader.get.nextValue)
-      }
+    if (this.containsNext) {
+      val reader = this.kvReader.asInstanceOf[KeyValueReader]
+      val result = (reader.getCurrentKey, reader.getCurrentValue)
       this.shoudlCheckHasNext = true
       result
     } else {
-      throw new IllegalStateException("Reached the end of the iterator. " + 
-          "Calling hasNext() prior to next() would avoid this exception")
+      throw new IllegalStateException("Reached the end of the iterator. " +
+        "Calling hasNext() prior to next() would avoid this exception")
     }
   }
-  
+
   /**
-   * 
+   *
    */
-  private def doHasNext():Boolean = {
+  private def doHasNext(): Boolean = {
     this.shoudlCheckHasNext = false
-    if (this.kvReader.isDefined) {
-      this.kvReader.get.next
+    if (this.kvReader.isInstanceOf[KeyValuesReader]) {
+      this.kvReader.asInstanceOf[KeyValuesReader].next
     } else {
-      this.kvsReader.get.hasNext
+      this.kvReader.asInstanceOf[KeyValueReader].next
     }
-  }
-}
-
-/**
- * Wrapper over Tez's KeyValuesReader which uses semantics of java.util.Iterator
- * while giving you access to "current key" and "next value" contained in KeyValuesReader's ValuesIterator.
- */
-private class KVSIterator(kvReader: KeyValuesReader) {
-  var vIter:java.util.Iterator[_] = null
-
-  /**
-   * Checks if underlying reader contains more data to read.
-   */
-  def hasNext = {
-    if (vIter != null && vIter.hasNext()) {
-      true
-    } else {
-      if (kvReader.next()) {
-        vIter = kvReader.getCurrentValues().iterator()
-        true
-      } else {
-        false
-      }
-    }
-  }
-
-  /**
-   * Returns the next value in the current ValuesIterator
-   */
-  def nextValue() = {
-    vIter.next().asInstanceOf[TypeAwareWritable[_]].getValue()
-  }
-
-  /**
-   * For this case 'ket' will always be represented by TypeAwareWritable (KeyWritable)
-   * since its source is the result of YARN shuffle and the preceeding writer will
-   * write all intermediate outputs as TypeAwareWritable for both keys and values.
-   */
-  def getCurrentKey = {
-    kvReader.getCurrentKey().asInstanceOf[TypeAwareWritable[_]].getValue()
   }
 }

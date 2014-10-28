@@ -40,7 +40,7 @@ class VertexShuffleTask(
     stageId: Int,
     rdd:RDD[_], 
     val dep: Option[ShuffleDependency[Any, Any, Any]],
-    partitions:Array[Partition]) extends TezTask[MapStatus](stageId, 0) {
+    partitions:Array[Partition]) extends TezTask[MapStatus](stageId, 0, rdd) {
   
   /*
    * NOTE: While we are not really dependent on the Partition we need it to be non null to 
@@ -59,6 +59,7 @@ class VertexShuffleTask(
       } else {
         writer.write(rdd.iterator(partitions(context.partitionId()), context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
       }
+      SparkEnv.get.cacheManager.asInstanceOf[TezCacheManager].close
       return writer.stop(success = true).get
     } catch {
       case e: Exception =>

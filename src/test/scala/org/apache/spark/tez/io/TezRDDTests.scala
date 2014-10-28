@@ -125,7 +125,7 @@ class TezRDDTests extends Instrumentable {
     outMap.put(1, mock(classOf[LogicalOutput]))
     val sm = new TezShuffleManager(inMap, outMap);
     sm.shuffleStage = false
-    SparkUtils.createSparkEnv(sm)
+    SparkUtils.createSparkEnv(sm, "foo")
     val partition = mock(classOf[Partition])
     val tc = mock(classOf[TaskContext])
     val iterator = tezRdd.compute(partition, tc)

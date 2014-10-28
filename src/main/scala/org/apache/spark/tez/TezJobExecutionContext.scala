@@ -72,6 +72,10 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 import scala.reflect.runtime.universe._
 import scala.reflect.ManifestFactory
 import org.apache.spark.tez.utils.ReflectionUtils
+import scala.collection.mutable.HashMap
+import org.apache.spark.scheduler.TaskLocation
+import scala.collection.mutable.Stack
+import org.apache.spark.NarrowDependency
 
 /**
  *
@@ -90,6 +94,10 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   private val tezDelegate = new TezDelegate
 
   private val fs = FileSystem.get(tezDelegate.tezConfiguration)
+  
+  private val cacheLocs = new HashMap[Int, Array[Seq[TaskLocation]]]
+  
+  private val jobIds = new AtomicInteger
 
   /**
    *
@@ -144,10 +152,13 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     }
 
     val operationName = SparkUtils.getLastMethodName
-    val stage = this.caclulateStages(sc, rdd)
-
-    val outputPath = this.tezDelegate.submitApplication[T, U](returnType:ClassTag[U], stage: Stage, func: (TaskContext, Iterator[T]) => U)
     
+    val finalStage = this.caclulateStages(sc, rdd, jobIds.getAndIncrement())
+
+    val outputPath = this.tezDelegate.submitApplication[T, U](returnType:ClassTag[U], finalStage: Stage, func: (TaskContext, Iterator[T]) => U)
+    val shuffleToMapStage = ReflectionUtils.getFieldValue(sc.dagScheduler, "shuffleToMapStage").asInstanceOf[HashMap[_,_]]
+    shuffleToMapStage.clear
+
     this.processResult(sc, outputPath, partitions.size, operationName, returnType, resultHandler)
   }
 
@@ -182,12 +193,23 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   /**
    *
    */
-  private def caclulateStages(sc: SparkContext, rdd: RDD[_]): Stage = {
+  private def caclulateStages(sc: SparkContext, rdd: RDD[_], jobId:Int): Stage = {
     val ds = sc.dagScheduler
     val method = ds.getClass.getDeclaredMethod("newStage", classOf[RDD[_]], classOf[Int], classOf[Option[ShuffleDependency[_, _, _]]], classOf[Int], classOf[CallSite])
     method.setAccessible(true)
-    val stage = method.invoke(ds, rdd, new Integer(1), None, new Integer(0), sc.getCallSite).asInstanceOf[Stage]
+    val stage = method.invoke(ds, rdd, new Integer(rdd.partitions.size), None, new Integer(jobId), sc.getCallSite).asInstanceOf[Stage]
     stage
+  }
+  
+  /**
+   * 
+   */
+  private def getShuffleMapStage(shuffleDep: ShuffleDependency[_, _, _], stage: Stage): Stage = {
+    val ds = stage.rdd.context.dagScheduler
+    val method = ds.getClass.getDeclaredMethods().filter(_.getName().endsWith("getShuffleMapStage"))(0)
+    method.setAccessible(true)
+    val stages = method.invoke(ds, shuffleDep, stage.jobId.asInstanceOf[Object]).asInstanceOf[Stage]
+    stages
   }
 
   /**
@@ -196,7 +218,6 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   def persist(sc: SparkContext, rdd: RDD[_], newLevel: StorageLevel):RDD[_] = {
     logDebug("Caching " + rdd)
     
-
     val cachedRdd =
       if (rdd.name != null) {    
         val path = new Path(rdd.name)
@@ -215,45 +236,17 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
    *
    */
   private def doPersist(sc: SparkContext, rdd: RDD[_], newLevel: StorageLevel): RDD[_] = {
-    val outputDirectory = "cache/cache_" + rdd.id
-
-    //    rdd.mapPartitions(iter => iter.grouped(2).map(_.toArray))
-    //      .map { x =>
-    //        val v = new ValueWritable()
-    //        v.setValue(x)
-    //        (NullWritable.get(), v)
-    //      }
-    //      .saveAsSequenceFile(outputDirectory)
-
-    rdd.map { x =>
-      val v = new ValueWritable()
-      v.setValue(x.asInstanceOf[Object])
-      (NullWritable.get(), v)
-    }.saveAsSequenceFile(outputDirectory)
-
-    val cachedRDD = new CacheRDD(sc, sc.appName + "/" + outputDirectory, 
-        this.tezDelegate.tezConfiguration, classOf[SequenceFileInputFormat[_, _]])(ReflectionUtils.rddClassTag(rdd))
-    cachedRDDs += fs.makeQualified(cachedRDD.getPath)
-    cachedRDD
+    sc.persistRDD(rdd)
+    sc.cleaner.foreach(_.registerRDDForCleanup(rdd))
+    rdd
   }
   
-  
-
   /**
    * 
    */
   def unpersist(sc: SparkContext, rdd: RDD[_], blocking: Boolean = true): RDD[_] = {
-    val cachePath = rdd.name
-    if (cachePath != null) {
-      val path = fs.makeQualified(new Path(cachePath))
-      if (this.cachedRDDs.contains(path)) {
-        fs.delete(path, true)
-        logInfo("Un-Cached RDD: " + rdd + " from " + path)
-        cachedRDDs -= path
-      } else {
-        logInfo("Skipping un-caching as the RDD is not cached")
-      }
-    }
+    val path = new Path(sc.appName + "/cache/cache_" + rdd.id)
+    fs.delete(path, true)
     rdd
   }
 }

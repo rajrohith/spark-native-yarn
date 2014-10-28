@@ -299,10 +299,12 @@ class DAGBuilder {
 	 */
 	@SuppressWarnings("unchecked")
 	private void addEdges(VertexDescriptor vertexDescriptor, Vertex targetVertex, OrderedPartitionedKVEdgeConfig edgeConf){
-		for (int stageId : (Iterable<Integer>)vertexDescriptor.getInput()) {
-			Vertex v = this.dag.getVertex(stageId + "");
-			Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
-	    	this.dag.addEdge(edge);
+		if (vertexDescriptor.getInput() != null){
+			for (int stageId : (Iterable<Integer>)vertexDescriptor.getInput()) {
+				Vertex v = this.dag.getVertex(stageId + "");
+				Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
+		    	this.dag.addEdge(edge);
+			}
 		}
 	}
 }

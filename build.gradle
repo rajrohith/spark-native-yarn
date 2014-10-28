@@ -47,9 +47,10 @@ task sourceJar(type: Jar) {
 }
 
 repositories {
+    mavenLocal();
     mavenCentral()
-	mavenLocal();
-	maven { url 'http://repository.apache.org/snapshots/' }
+    maven { url 'http://repo.hortonworks.com/content/repositories/releases/' }
+	//maven { url 'http://repository.apache.org/snapshots/' }
 }
 
 configurations {

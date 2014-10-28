@@ -46,7 +46,7 @@ import java.util.HashMap
 import scala.collection.JavaConverters._
 import org.apache.spark.tez.io.TezRDD
 import org.apache.hadoop.io.NullWritable
-import org.apache.spark.tez.io.CacheRDD
+import org.apache.spark.storage.StorageLevel
 
 /**
  * Utility class used as a gateway to DAGBuilder and DAGTask
@@ -78,8 +78,24 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
    * 
    */
   private def prepareDag(returnType:ClassTag[U], stage: Stage, dependentStage: Stage, func: (TaskContext, Iterator[T]) => U, keyClass:Class[_], valueClass:Class[_]) {
-    if (stage.parents.size > 0) {
-      stage.parents.filter(ps => !this.dagBuilder.containsVertexDescriptor(ps.id)).sortBy(_.id).foreach(prepareDag(returnType, _, stage, func, keyClass, valueClass))
+    val mayHaveMissingStages = if (stage.rdd.getStorageLevel != StorageLevel.NONE) {
+      val appName = stage.rdd.context.appName
+      val id = stage.rdd.id
+      val cacheDir = appName + "/cache/cache_" + stage.rdd.id
+      if (fs.exists(new Path(cacheDir))) {
+        logDebug("RDD " + stage.rdd + " is cached in " + cacheDir)
+        false
+      } else {
+        logDebug("RDD " + stage.rdd + " is not cached")
+        true
+      }
+    } else {
+      true
+    }
+    
+    if (mayHaveMissingStages && stage.parents.size > 0) {
+      stage.parents.filter(ps => !this.dagBuilder.containsVertexDescriptor(ps.id)).sortBy(_.id).
+      	foreach{prepareDag(returnType, _, stage, func, keyClass, valueClass)}
     }
 
     this.addPartitionerToDAGIfAvailable(stage.rdd)
@@ -106,15 +122,15 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
           new VertexResultTask(stage.id, stage.rdd.asInstanceOf[RDD[T]], partitions, func)
         }
       }
-    
+
     var dependencies = stage.rdd.getNarrowAncestors.sortBy(_.id)
-   
-    val deps = 
-      if (stage.rdd.isInstanceOf[CacheRDD[_]]){
-        stage.rdd
-      } else {
-        if (dependencies.size == 0 || dependencies(0).name == null) (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0)
-      }
+
+    val deps = if (!mayHaveMissingStages) {
+      null
+    } else {
+      if (dependencies.size == 0 || dependencies(0).name == null) 
+    	  (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0)
+    }
 
     val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTask)
     vd.setNumPartitions(stage.numPartitions)

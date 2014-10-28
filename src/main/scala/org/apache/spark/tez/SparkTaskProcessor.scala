@@ -64,8 +64,8 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
     val in = this.getInputs()
     val out = this.getOutputs()
     /*
-     * Input must always be present unless DAG was initiated from paralelize
-     * Investigate the same for output
+     * Input must always be present unless DAG was initiated from parallelize
+     * TODO: Investigate the same for output
      */
 //    Preconditions.checkArgument(in.size() >= 1, "Processor contains no input. Must be a bug in DAG assembly. Please report!".asInstanceOf[Object]);
 //    Preconditions.checkArgument(out.size() >= 1, "Processor contains no output. Must be a bug in DAG assembly. Please report!".asInstanceOf[Object]);
@@ -74,7 +74,8 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
     
     
     val shufleManager = new TezShuffleManager(inputs, outputs)
-    SparkUtils.createSparkEnv(shufleManager)
+    val applicationName = this.context.getDAGName().split("_")(0)
+    SparkUtils.createSparkEnv(shufleManager, applicationName)
     
     val registry = this.context.getObjectRegistry()
     

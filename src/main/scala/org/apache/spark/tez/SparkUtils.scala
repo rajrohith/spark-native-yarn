@@ -44,6 +44,18 @@ import org.apache.spark.CacheManager
 import org.apache.spark.Partition
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.TaskContextImpl
+import org.apache.spark.tez.io.ValueWritable
+import org.apache.hadoop.io.NullWritable
+import org.apache.spark.ShuffleDependency
+import org.apache.spark.shuffle.BaseShuffleHandle
+import org.apache.tez.dag.api.TezConfiguration
+import java.io.ObjectOutputStream
+import java.io.ObjectInputStream
+import scala.io.Source
+import java.io.FileOutputStream
+import tachyon.client.OutStream
+import scala.collection.mutable.HashSet
+import org.apache.spark.tez.io.CacheReader
 
 /**
  * Utility functions related to Spark functionality.
@@ -118,12 +130,13 @@ object SparkUtils {
   /**
    * 
    */
-  def createSparkEnv(shuffleManager:TezShuffleManager) {
+  def createSparkEnv(shuffleManager:TezShuffleManager, applicationName:String) {
     this.setTaskContext
     val blockManager = unsafe.allocateInstance(classOf[BlockManager]).asInstanceOf[BlockManager];  
-    val cacheManager = new TezCacheManager(blockManager)
+    val cacheManager = new TezCacheManager(blockManager, applicationName)
     val memoryManager = new ShuffleMemoryManager(20793262)
-    val se = new SparkEnv("0", null, closueSerializer, closueSerializer, cacheManager, null, shuffleManager, null, null, blockManager, null, null, null, null, memoryManager, sparkConf)
+    val se = new SparkEnv("0", null, closueSerializer, closueSerializer, cacheManager, null, shuffleManager, 
+        null, null, blockManager, null, null, null, null, memoryManager, sparkConf)
     SparkEnv.set(se)
   }
   
@@ -142,19 +155,51 @@ object SparkUtils {
     m.setAccessible(true)
     m.invoke(null, tc)
   }
-  
-  
-  /**
-   * 
-   */
-  private class TezCacheManager(blockManager: BlockManager) extends CacheManager(blockManager) {
-    override def getOrCompute[T](
-      rdd: RDD[T],
-      partition: Partition,
-      context: TaskContext,
-      storageLevel: StorageLevel): Iterator[T] = {
-      
-      rdd.computeOrReadCheckpoint(partition, context)
+}
+/**
+ *
+ */
+private[tez] class TezCacheManager(blockManager: BlockManager, applicationName: String) extends CacheManager(blockManager) {
+  var is: ObjectInputStream = null
+
+  val outStreamSet = new HashSet[OutputStream]
+
+  override def getOrCompute[T](
+    rdd: RDD[T],
+    partition: Partition,
+    context: TaskContext,
+    storageLevel: StorageLevel): Iterator[T] = {
+
+    val fs = FileSystem.get(new TezConfiguration)
+    val path = new Path(applicationName + "/cache/cache_" + rdd.id + "/part-" + context.partitionId())
+    if (fs.exists(path)) {
+      logDebug("Reading " + rdd + " from cache: " + path)
+      is = new TypeAwareObjectInputStream(fs.open(path))
+      new Iterator[T] {
+        val cr = new CacheReader(path, fs)
+        def hasNext(): Boolean = {
+          cr.next
+        }
+        def next(): T = {
+          cr.getCurrentValue.asInstanceOf[T]
+        }
+      }
+    } else {
+      val os = new TypeAwareObjectOutputStream(fs.create(path))
+      outStreamSet.add(os)
+      rdd.computeOrReadCheckpoint(partition, context).map { obj =>
+        os.writeObject(obj)
+        logTrace("Caching: '" + obj + "' of " + rdd + " in " + path)
+        obj
+      }
+    }
+  }
+
+  def close() {
+    outStreamSet.foreach(_.close())
+    outStreamSet.clear
+    if (is != null) {
+      is.close()
     }
   }
 }

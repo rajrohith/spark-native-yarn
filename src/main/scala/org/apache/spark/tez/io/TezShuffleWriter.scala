@@ -74,7 +74,7 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   }
 
   /**
-   * 
+   *
    */
   private def writeKeyValue(key: Any, value: Any) {
     this.kw.setValue(key.asInstanceOf[Comparable[_]])

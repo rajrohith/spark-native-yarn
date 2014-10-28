@@ -51,7 +51,7 @@ class VertexResultTask[T, U](
   rdd: RDD[T],
   partitions:Array[Partition],
   func: (TaskContext, Iterator[T]) => U = null)
-  extends TezTask[U](stageId, 0) {
+  extends TezTask[U](stageId, 0, rdd) {
   
   /*
    * NOTE: While we are not really dependent on the Partition we need it to be non null to 
@@ -84,6 +84,7 @@ class VertexResultTask[T, U](
         toHdfs(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])
       } else {
         val result = func(context, rdd.iterator(partition, context))
+        SparkEnv.get.cacheManager.asInstanceOf[TezCacheManager].close
         val manager = SparkEnv.get.shuffleManager
         val iter = new InterruptibleIterator(context, Map(0 -> result).iterator)
         toHdfs(iter)

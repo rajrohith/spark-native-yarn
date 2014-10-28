@@ -1,4 +1,4 @@
-1 Oleg 3
-2 Nastia 1
-3 Seva 1
-4 Lilu 2
+1 Steve 3
+2 Bob 1
+3 John 1
+4 Jane 2

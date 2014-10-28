@@ -67,7 +67,7 @@ abstract class HdfsSourceRDD[T:ClassTag](
   /**
    *
    */
-  private def validatePath(path: String): Path = {
+  private[tez] def validatePath(path: String): Path = {
     val fs = FileSystem.get(conf)
     val hPath = new Path(path)
     logInfo("Creating instance of TezRDD for path: " + hPath)
@@ -78,6 +78,9 @@ abstract class HdfsSourceRDD[T:ClassTag](
   }
 }
 
+/**
+ * 
+ */
 private[spark] class HdfsSourceRDDPartition(idx: Int) extends Partition {
   val index = idx
 }

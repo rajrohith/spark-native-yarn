@@ -82,7 +82,12 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
    * Called on executors by reduce tasks.
    */
   def getReader[K, C](handle: ShuffleHandle, startPartition: Int, endPartition: Int, context: TaskContext): ShuffleReader[K, C] = {
-    new TezSourceReader(this.input)
+    if (shuffleStage){
+      new TezSourceReader(this.input)
+    }
+    else {
+      new TezShuffleReader(this.input, handle.asInstanceOf[BaseShuffleHandle[K, C, _]])
+    }
   }
 
   /** Remove a shuffle's metadata from the ShuffleManager. */

@@ -33,6 +33,7 @@ import org.apache.hadoop.io.NullWritable
 import org.mockito.Mockito
 import org.mockito.Matchers
 import java.util.concurrent.atomic.AtomicInteger
+import java.io.Serializable
 
 /**
  * Will run in Tez local mode
@@ -127,14 +128,10 @@ class APIDemoTests {
         elements.toList.iterator
       }
     }.collect
-      
-//    gtResult.foreach{x => println("==="); x.foreach(println _)}
-//    Assert.assertEquals(6, gtResult.flatten.length)
-    
     // ===
     
     sc.stop
-//    this.cleanUp(applicationName)
+    this.cleanUp(applicationName)
   }
   
   @Test
@@ -160,6 +157,9 @@ class APIDemoTests {
   
   @Test
   def reduceByKey() {
+    FileUtils.deleteDirectory(new File("reduceByKey"))
+    FileUtils.deleteDirectory(new File("cache"))
+    
     val applicationName = "reduceByKey"
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
@@ -168,21 +168,25 @@ class APIDemoTests {
 
     // ===
     val result = source
-      .flatMap(x => x.split(" "))
-      .map(x => (x, 1))
+      .flatMap{x => println(x); x.split(" ")}
+      .map{x => println("KV: " + (x, 1)); (x, 1)}
       .reduceByKey((x, y) => x + y)
-      .saveAsNewAPIHadoopFile(applicationName + "_out", classOf[Text],
-        classOf[IntWritable], classOf[TextOutputFormat[_, _]])
-    // ===
+      .cache
+      
+      println(result.collect.toList)
 
+      result.saveAsNewAPIHadoopFile(applicationName + "_out", classOf[Text],
+        classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+
+    // ===
     TestUtils.printSampleResults(applicationName, applicationName + "_out")
     sc.stop
     this.cleanUp(applicationName)
   }
   
   @Test
-  def reduceByKeyNoKeyValue() {
-    val applicationName = "reduceByKey"
+  def mapValues() {
+    val applicationName = "mapValues"
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -191,13 +195,10 @@ class APIDemoTests {
     // ===
     val r = source
       .flatMap(x => x.split(" "))
-      .map(x => (x, 1)).mapValues(_ + 1).persist
+      .map(x => (x, 1)).mapValues(_ + 1).collect
     
-    
-//    products.setName(s"products-$iter").persist()
-//    val result = r.mapValues(_ + 1).collect
-    // ===
-//    println(result.toList)
+    println(r.toList)
+
     sc.stop
     this.cleanUp(applicationName)
   }
@@ -256,24 +257,31 @@ class APIDemoTests {
      * So need to think if we jsut save as ValueWritable
      */
     // ===
-    val two = source2.map { x =>
+    val two = source2.distinct.map { x =>
       val s = x.split(" ")
       val key: Int = Integer.parseInt(s(0))
       (key, s(1))
-    }
+    }.cache
+    
+    println(two.collect.toList)
+    
     val result = source1.map { x =>
       val s = x.split(" ")
       val key: Int = Integer.parseInt(s(2))
       val t = (key, (s(0), s(1)))
       t
     }.join(two).reduceByKey { (x, y) => ((x._1.toString, y._1.toString), x._2)
-    }.saveAsNewAPIHadoopFile(applicationName + "_out", classOf[IntWritable], classOf[Text], classOf[TextOutputFormat[_, _]])
+    }.collect
+    
+    println(result.toList)
     // ===
 
     sc.stop
-    TestUtils.printSampleResults(applicationName, applicationName + "_out")
     this.cleanUp(applicationName)
   }
+  
+  
+ 
 
   @Test
   def partitionBy() {
@@ -330,6 +338,8 @@ class APIDemoTests {
 
   @Test
   def cache() {
+     FileUtils.deleteDirectory(new File("reduceByKey"))
+    FileUtils.deleteDirectory(new File("cache"))
     val applicationName = "cache"
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
@@ -337,20 +347,20 @@ class APIDemoTests {
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
 
     // ===
-    val result = source
-      .flatMap(x => x.split(" "))
+    val rdbRDD = source
+      .flatMap{x => println("###### RECOMPUTING"); x.split(" ")}
       .map(x => (x, 1))
-      .reduceByKey((x, y) => x + y)
-      .cache
+      .reduceByKey((x, y) => x + y, 2)
+      
+    val result = rdbRDD.cache
+      
     // ===
-//    Assert.assertTrue(new File(result.name).exists())
-//    Assert.assertEquals(51, result.count)
-    println(result.count)
-    println(result.count)
+    Assert.assertEquals(51, result.count)
+    // you should see no subsequent recompute 
+    Assert.assertEquals(51, result.count)
 
     sc.stop
     this.cleanUp(applicationName)
-    FileUtils.deleteDirectory(new File(applicationName + "_cache_4"))
   }
 
   @Test
@@ -389,11 +399,9 @@ class APIDemoTests {
   }
 
   /**
-   *
+   * To execute the same code via Spark, simply pass 'local' as an argument (e.g., buildSparkConf("local"))
    */
   def buildSparkConf(masterUrl:String = "execution-context:" + classOf[TezJobExecutionContext].getName): SparkConf = {
-//    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-//    val masterUrl = "local"
     val sparkConf = new SparkConf
     sparkConf.set("spark.ui.enabled", "false")
     sparkConf.setMaster(masterUrl)
@@ -411,5 +419,11 @@ class KeyPerPartitionOutputFormat extends MultipleTextOutputFormat[Any, Any] {
 
   override def generateFileNameForKeyValue(key: Any, value: Any, name: String): String = {
     key.toString
+  }
+}
+
+class Department(val id:Integer, val name:String) extends Serializable {
+  override def toString() = {
+    "ID:" + id + "; DEPT:" + name 
   }
 }
