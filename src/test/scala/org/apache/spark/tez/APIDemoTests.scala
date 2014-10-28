@@ -157,9 +157,6 @@ class APIDemoTests {
   
   @Test
   def reduceByKey() {
-    FileUtils.deleteDirectory(new File("reduceByKey"))
-    FileUtils.deleteDirectory(new File("cache"))
-    
     val applicationName = "reduceByKey"
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
@@ -168,8 +165,8 @@ class APIDemoTests {
 
     // ===
     val result = source
-      .flatMap{x => println(x); x.split(" ")}
-      .map{x => println("KV: " + (x, 1)); (x, 1)}
+      .flatMap{x => x.split(" ")}
+      .map{x => (x, 1)}
       .reduceByKey((x, y) => x + y)
       .cache
       
@@ -338,8 +335,6 @@ class APIDemoTests {
 
   @Test
   def cache() {
-     FileUtils.deleteDirectory(new File("reduceByKey"))
-    FileUtils.deleteDirectory(new File("cache"))
     val applicationName = "cache"
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
