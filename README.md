@@ -6,7 +6,8 @@
 > IMPORTANT: At the time or writing, the project represents a **_prototype_** with the goal of demonstrating 
 the validity of the approach described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
 To get an idea of currently supported functionality please refer to 
-[APIDemoTests](https://github.com/hortonworks/spark-native-yarn/blob/master/src/test/scala/org/apache/spark/tez/APIDemoTests.scala)
+[APIDemoTests](https://github.com/hortonworks/spark-native-yarn/blob/master/src/test/scala/org/apache/spark/tez/APIDemoTests.scala) as well as
+[Samples](https://github.com/hortonworks/spark-native-yarn-samples) project.
 
 ==
 
