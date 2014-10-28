@@ -19,6 +19,7 @@ Aside from enabling SPARK DAG execution to run on [Apache Tez](http://tez.apache
  * _transparent classpath management_ 
  * _seamless and simplified integration with mini-cluster environment_ 
  * _enhanced debugging capabilities ability to place and step thru the breakpoints in SPARK application code when using mini-cluster (see InJvmContainerExecutor provided with [mini-dev-cluster](https://github.com/hortonworks/mini-dev-cluster))_
+ * _ability to utilize [Tez local mode](http://tez.apache.org/localmode.html)
  
 At the moment of writing, _**spark-native-yarn**_ is dependent on modifications to SPARK code described in [SPARK-3561](https://issues.apache.org/jira/browse/SPARK-3561). 
 This means that to use it, one must have a custom build of Spark which incorporates pending [GitHub Pull Request](https://github.com/apache/spark/pull/2849).
@@ -28,7 +29,7 @@ You can build your own by following instructions below or you can download a pre
 version [branch 1.1.1](https://github.com/hortonworks/spark-native-yarn/tree/1.1.1).
 
 For those who want to take their chances with the latest Spark's snapshot, please follow instructions below, otherwise skip and go straight to 
-[build spark-native-yarn](https://github.com/hortonworks/spark-native-yarn/tree/1.1.1#clone-spark-native-yarn)
+[build spark-native-yarn](https://github.com/hortonworks/spark-native-yarn/tree/master#clone-spark-native-yarn)
 
 
 Below are the prerequisites and instructions on how to proceed.
