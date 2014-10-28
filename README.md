@@ -28,8 +28,9 @@ You can build your own by following instructions below or you can download a pre
 > IMPORTANT: If you opt out for a pre-build distribution keep in mind that it is based on Spark 1.1 release, which means you have to use a compatible **_spark-native-yarn_**
 version [branch 1.1.1](https://github.com/hortonworks/spark-native-yarn/tree/1.1.1).
 
-For those who want to take their chances with the latest Spark's snapshot, please follow instructions below, otherwise skip and go straight to 
-[build spark-native-yarn](https://github.com/hortonworks/spark-native-yarn/tree/master#clone-spark-native-yarn)
+For those who want to take their chances with the latest Spark's snapshot, please follow the instructions below, otherwise (for __pre-built__) skip and go straight to 
+[build spark-native-yarn](https://github.com/hortonworks/spark-native-yarn/tree/master#clone-spark-native-yarn) or follow the _pre-built_ 
+[spark-shell](https://github.com/hortonworks/spark-native-yarn/wiki/Spark-Shell) and/or [spark-submit](https://github.com/hortonworks/spark-native-yarn/wiki/Spark-Submit) instructions.
 
 
 Below are the prerequisites and instructions on how to proceed.
