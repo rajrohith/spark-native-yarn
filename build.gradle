@@ -18,7 +18,7 @@ log4jVersion = '1.2.12'
 slf4jVersion = '1.7.2'
 hadoopVersion = '2.4.0'
 scalaVersion = '2.10.4'
-sparkVersion = '1.1.0.2.1.5.0-701'
+sparkVersion = '1.1.0.2.1.5.0-702'
 tezVersion = '0.5.0'
 mockitoVersion = '1.8.4'
 
@@ -49,7 +49,8 @@ task sourceJar(type: Jar) {
 repositories {
     mavenLocal();
     mavenCentral()
-    maven { url 'http://repo.hortonworks.com/content/repositories/releases/' }
+    maven { url 'http://54.235.92.15/nexus/content/groups/public/' }
+    //maven { url 'http://repo.hortonworks.com/content/repositories/releases/' }
 }
 
 configurations {
@@ -104,9 +105,8 @@ dependencies {
 	compile ("org.apache.spark:spark-mllib_2.10:$sparkVersion") {
 		exclude group: 'org.apache.hadoop'
 	}
-	runtime ("org.apache.spark:spark-repl_2.10:1.1.0") {
+	runtime ("org.apache.spark:spark-repl_2.10:$sparkVersion") {
 		exclude group: 'org.apache.hadoop'
-		exclude group: 'org.apache.spark'
 	}
 	
 	compile "org.apache.tez:tez-common:$tezVersion"
