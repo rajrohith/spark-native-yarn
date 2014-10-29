@@ -132,7 +132,7 @@ compileTestScala {
 	compileTestScala.scalaCompileOptions.additionalParameters= ['-language:reflectiveCalls']
 }
 
-applicationDistribution.from('stark-conf') {
+applicationDistribution.from('mini-clust-conf') {
     into "/conf"
     from ('src/main/resources') {
        into "/conf"
