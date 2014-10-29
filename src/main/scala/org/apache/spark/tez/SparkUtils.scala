@@ -56,6 +56,8 @@ import java.io.FileOutputStream
 import tachyon.client.OutStream
 import scala.collection.mutable.HashSet
 import org.apache.spark.tez.io.CacheReader
+import scala.collection.mutable.HashMap
+import java.io.EOFException
 
 /**
  * Utility functions related to Spark functionality.
@@ -160,10 +162,11 @@ object SparkUtils {
  *
  */
 private[tez] class TezCacheManager(blockManager: BlockManager, applicationName: String) extends CacheManager(blockManager) {
-  var is: ObjectInputStream = null
+  private val outStreamSet = new HashMap[String, OutputStream]
 
-  val outStreamSet = new HashSet[OutputStream]
-
+  /**
+   * 
+   */
   override def getOrCompute[T](
     rdd: RDD[T],
     partition: Partition,
@@ -174,32 +177,58 @@ private[tez] class TezCacheManager(blockManager: BlockManager, applicationName: 
     val path = new Path(applicationName + "/cache/cache_" + rdd.id + "/part-" + context.partitionId())
     if (fs.exists(path)) {
       logDebug("Reading " + rdd + " from cache: " + path)
-      is = new TypeAwareObjectInputStream(fs.open(path))
+      val is = new TypeAwareObjectInputStream(fs.open(path))
       new Iterator[T] {
-        val cr = new CacheReader(path, fs)
+        var obj:Object = _
+        var keepReading = true
+        /**
+         * 
+         */
         def hasNext(): Boolean = {
-          cr.next
+          try {
+            obj = is.readObject()
+          } catch {
+            case e: EOFException =>
+              logDebug("Finished dehydrating RDD " + rdd + " from cache")
+              keepReading = false
+            case e: Exception => is.close(); throw new IllegalStateException(e)
+          }
+          keepReading
         }
+        /**
+         * 
+         */
         def next(): T = {
-          cr.getCurrentValue.asInstanceOf[T]
+          obj.asInstanceOf[T]
         }
       }
     } else {
       val os = new TypeAwareObjectOutputStream(fs.create(path))
-      outStreamSet.add(os)
+      this.outStreamSet += (path.toString() -> os)
       rdd.computeOrReadCheckpoint(partition, context).map { obj =>
-        os.writeObject(obj)
-        logTrace("Caching: '" + obj + "' of " + rdd + " in " + path)
+        try {
+          logTrace("Caching: '" + obj + "' of " + rdd + " in " + path)
+          os.writeObject(obj)
+        } catch {
+          case e: Exception =>
+            this.close
+            throw new IllegalStateException("Failed to cache RDD " + rdd, e)
+        }
         obj
       }
     }
   }
 
+  /**
+   * 
+   */
   def close() {
-    outStreamSet.foreach(_.close())
-    outStreamSet.clear
-    if (is != null) {
-      is.close()
+    this.outStreamSet.foreach { os =>
+      try {
+        os._2.close()
+      } catch {
+        case e: Exception => logWarning("Failed to close output stream for path: " + os._1)
+      }
     }
   }
 }

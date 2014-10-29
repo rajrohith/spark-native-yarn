@@ -24,6 +24,8 @@ import breeze.linalg.{ Vector, DenseVector, squaredDistance }
 import org.apache.hadoop.io.NullWritable
 import org.apache.spark.tez.io.KeyWritable
 import org.apache.commons.io.FileUtils
+import org.apache.hadoop.fs.FileUtil
+import java.io.File
 
 /**
  * Will run in Tez local mode
@@ -57,8 +59,10 @@ class ApplicationsDemoTests extends Serializable {
       bestIndex
     }
 
+    
     val conf = this.buildSparkConf
     conf.setAppName("kmeans")
+    FileUtils.deleteDirectory(new File("kmeans"))
     val sc = new SparkContext(conf)
 
     val lines = sc.textFile("src/test/scala/org/apache/spark/tez/kmeans_data.txt")
@@ -98,6 +102,7 @@ class ApplicationsDemoTests extends Serializable {
     println("Final centers:")
     kPoints.foreach(println)
     sc.stop()
+    FileUtils.deleteDirectory(new File("kmeans"))
   }
 
   /**

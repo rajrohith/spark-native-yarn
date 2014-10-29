@@ -71,6 +71,7 @@ class APIDemoTests {
 
     // ===
     val result = source.sample(true, 0.2, 2L).collect
+    println(result.toList)
     Assert.assertEquals(1, result.length)
     // ===
     
