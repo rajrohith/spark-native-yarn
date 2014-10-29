@@ -44,7 +44,7 @@ class TezSourceReader[K, C](input: Map[Integer, LogicalInput])
   extends ShuffleReader[K, C] {
 
   private val inputIndex = input.keySet().iterator().next()
-  private val reader = input.remove(this.inputIndex).getReader()
+  private val reader = input.remove(this.inputIndex).getReader().asInstanceOf[KeyValueReader]
 
   /**
    *
@@ -61,18 +61,11 @@ class TezSourceReader[K, C](input: Map[Integer, LogicalInput])
 /**
  *
  */
-private class SourceIterator[K, C](reader: Reader) extends Iterator[Product2[Any, Any]] {
+private class SourceIterator[K, C](reader: KeyValueReader) extends Iterator[Product2[Any, Any]] {
   var hasNextNeverCalled = true
   var containsNext = false;
   var shoudlCheckHasNext = false;
   private var currentValues: Iterator[Object] = _
-
-  private val kvReader =
-    if (reader.isInstanceOf[KeyValuesReader]) {
-      reader.asInstanceOf[KeyValuesReader]
-    } else {
-      reader.asInstanceOf[KeyValueReader]
-    }
 
   /**
    *
@@ -93,7 +86,6 @@ private class SourceIterator[K, C](reader: Reader) extends Iterator[Product2[Any
       this.hasNext
     }
     if (this.containsNext) {
-      val reader = this.kvReader.asInstanceOf[KeyValueReader]
       val result = (reader.getCurrentKey, reader.getCurrentValue)
       this.shoudlCheckHasNext = true
       result
@@ -108,10 +100,6 @@ private class SourceIterator[K, C](reader: Reader) extends Iterator[Product2[Any
    */
   private def doHasNext(): Boolean = {
     this.shoudlCheckHasNext = false
-    if (this.kvReader.isInstanceOf[KeyValuesReader]) {
-      this.kvReader.asInstanceOf[KeyValuesReader].next
-    } else {
-      this.kvReader.asInstanceOf[KeyValueReader].next
-    }
+      this.reader.next
   }
 }

@@ -88,19 +88,18 @@ object SparkToTezAdapter extends Logging {
     
     pairRddFunctions.getDeclaredMethods.collect{x =>
       x.getName() match {
-        case "saveAsNewAPIHadoopDataset" => this.swapPairRddFunctionsMethodBody(x, pairRddFunctionsAdapter)
-        case "saveAsHadoopDataset" => this.swapPairRddFunctionsMethodBody(x, pairRddFunctionsAdapter)
-        case "groupByKey" => this.swapPairRddFunctionsMethodBody(x, pairRddFunctionsAdapter)
+        case "saveAsNewAPIHadoopDataset" => this.swapMethodBody(x, pairRddFunctionsAdapter)
+        case "saveAsHadoopDataset" => this.swapMethodBody(x, pairRddFunctionsAdapter)
+        case "combineByKey" => this.swapMethodBody(x, pairRddFunctionsAdapter)
       }
-    }
-    
+    }    
     // This block will finally replace all references to 'org.apache.spark.tez.TezContext' with 'org.apache.spark.SparkContext'
     // to finalize SparkContext instrumentation
     // java.lang.NoSuchMethodError: org.apache.spark.tez.TezContext$$anonfun$textFile$1.<init>(Lorg/apache/spark/SparkContext;)V  
     pairRddFunctionsAdapter.getNestedClasses.foreach{x =>
         x.replaceClassName("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter", "org.apache.spark.rdd.PairRDDFunctions");
         x.toClass(cl, classOf[ClassPool].getProtectionDomain())
-    }
+    }    
     
     this.klass = pool.toClass(pairRddFunctions, cl, classOf[ClassPool].getProtectionDomain())
   }
@@ -108,7 +107,7 @@ object SparkToTezAdapter extends Logging {
   /**
    *
    */
-  private def swapPairRddFunctionsMethodBody(targetMethod: CtMethod, sourceClass: CtClass) {
+  private def swapMethodBody(targetMethod: CtMethod, sourceClass: CtClass) {
     val desc = targetMethod.getMethodInfo().getDescriptor()
     try {
       val sourceMethod = sourceClass.getMethod(targetMethod.getName(), desc)

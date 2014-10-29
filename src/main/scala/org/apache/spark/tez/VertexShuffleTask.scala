@@ -32,6 +32,9 @@ import org.apache.hadoop.io.IntWritable
 import org.apache.spark.shuffle.BaseShuffleHandle
 import org.apache.spark.TaskContext
 import org.apache.spark.Partitioner
+import org.apache.spark.tez.utils.ReflectionUtils
+import org.apache.spark.rdd.CoGroupPartition
+import org.apache.spark.rdd.NarrowCoGroupSplitDep
 
 /**
  * Tez vertex Task modeled after Spark's ShufleMapTask
@@ -55,12 +58,17 @@ class VertexShuffleTask(
     val handle = new BaseShuffleHandle(0, 0, dep.get)
     var writer: ShuffleWriter[Any, Any] = manager.getWriter(handle, 0, context)
     
+    
+    
     try {
       val partition = if (partitions.length == 1) partitions(0) else partitions(context.partitionId)
+      this.resetPartitionIndex(partition, context.partitionId())
+      
       writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
       return writer.stop(success = true).get
     } finally {
       writer.stop(success = false)
     }
   }
+  
 }

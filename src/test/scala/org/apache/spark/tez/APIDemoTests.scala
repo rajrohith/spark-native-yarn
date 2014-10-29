@@ -34,6 +34,13 @@ import org.mockito.Mockito
 import org.mockito.Matchers
 import java.util.concurrent.atomic.AtomicInteger
 import java.io.Serializable
+import java.io.DataOutputStream
+import java.io.FileOutputStream
+import java.io.DataInputStream
+import java.io.FileInputStream
+import scala.io.Source
+import java.nio.ByteBuffer
+import java.io.InputStream
 
 /**
  * Will run in Tez local mode
@@ -82,12 +89,13 @@ class APIDemoTests {
  
   @Test
   def mapPartitions() {
+  
     val applicationName = "mapPartitions"
     this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
-    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt", 4)
 
     // ===
     // greater then contents-in-file
@@ -117,26 +125,33 @@ class APIDemoTests {
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
-    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
-
+    val source = sc.textFile("sample-data/mapPartitionWithIndex")
     // ===
     // greater then contents-in-file
-    val grouped = source.flatMap(_.split(" ")).map((_, 1)).partitionBy(new HashPartitioner(4))
-    val gtResult = grouped.mapPartitionsWithIndex { (blockId, elements) => {
+    val grouped = source.map(x => (x, 1)).partitionBy(new HashPartitioner(4))
+    .mapPartitionsWithIndex { (blockId, elements) => {
         println("BLOCKID: " + blockId)
-        val ratings = elements.map { x =>
-          println("MAP ELEMENT: " + x)
-          x._2
-        }.toArray
-        println("RATINGS: " + ratings.toList)
-        elements.toList.iterator
+        val f = new File(applicationName + "/invocations")
+        val os = new DataOutputStream(new FileOutputStream(f, true))
+        os.writeInt(blockId)
+        os.close()
+        elements
       }
-    }.collect
+    }.saveAsTextFile("foo")
+   
+    val is = new DataInputStream(new FileInputStream(new File(applicationName + "/invocations")))
+    var counter = 0
+    Iterator.continually(is.available()).takeWhile(x => x != 0).foreach{_ => is.readInt; counter += 1}
+    is.close()
+    Assert.assertEquals(4, counter)
     // ===
-    
+//    println("RESULT: " + gtResult.toList)
     sc.stop
     this.cleanUp(applicationName)
   }
+  
+  def inputStreamToByteArray(is: InputStream): Array[Byte] =
+  Iterator continually is.read takeWhile (-1 !=) map (_.toByte) toArray
   
   @Test
   def saveAsTextFile() {
@@ -167,7 +182,7 @@ class APIDemoTests {
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
-    val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
+    val source = sc.textFile("sample-data/reduceBy")
 
     // ===
     val result = source
@@ -354,19 +369,30 @@ class APIDemoTests {
     val sc = new SparkContext(sparkConf)
     val source = sc.textFile("src/test/scala/org/apache/spark/tez/sample.txt")
 
+    val ts = System.currentTimeMillis()
     // ===
     val rdbRDD = source
        // emulating long running computation
       .flatMap{x => println("###### COMPUTING"); Thread.sleep(50); x.split(" ")}
       .map(x => (x, 1))
-      .reduceByKey((x, y) => x + y, 2)
+      .reduceByKey{(x, y) => 
+        println("###### REDUCING");
+        val f = new File(applicationName + ts) // marker file to validate that function was invoked
+        f.createNewFile()
+        f.deleteOnExit()
+        x + y
+      }
       
     val result = rdbRDD.cache
       
     // ===
-    Assert.assertEquals(292, result.count) // should take much longer thenthe next call
+    Assert.assertEquals(292, result.count) // should take much longer then the next call
+    Assert.assertTrue(new File(applicationName + ts).exists())
+    new File(applicationName + ts).delete()
+    Assert.assertFalse(new File(applicationName + ts).exists())
     // you should see no subsequent recompute 
     Assert.assertEquals(292, result.count)
+    Assert.assertFalse("Recompute happened even though RDD was cached", new File(applicationName + ts).exists())
 
     sc.stop
     this.cleanUp(applicationName)

@@ -42,6 +42,7 @@ import org.apache.hadoop.fs.FileSystem
 import org.apache.tez.dag.api.TezConfiguration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.NullWritable
+import org.apache.spark.rdd.NarrowCoGroupSplitDep
 
 /**
  * Tez vertex Task modeled after Spark's ResultTask
@@ -70,6 +71,8 @@ class VertexResultTask[T, U](
   private[tez] def setValueClass(valueClass:Class[Writable]) {
     this.valueClass = valueClass
   }
+  
+  def hasFunction():Boolean = func != null
 
   /**
    *
@@ -81,12 +84,12 @@ class VertexResultTask[T, U](
       this.resetPartitionIndex(partition, context.partitionId())
       
       if (func == null) {
-        this.toHdfs(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])
+        this.toHdfs(partition.index, rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])
       } else {
         val result = func(context, rdd.iterator(partition, context))
         val manager = SparkEnv.get.shuffleManager
-        val iter = new InterruptibleIterator(context, Map(0 -> result).iterator)
-        this.toHdfs(iter)
+        val iter = new InterruptibleIterator(context, Map(partition.index -> result).iterator)
+        this.toHdfs(partition.index, iter)
       }
     } catch {
       case e: Exception => e.printStackTrace(); throw new IllegalStateException(e)
@@ -99,33 +102,17 @@ class VertexResultTask[T, U](
   override def toString = "ResultTask(" + stageId + ", " + partitionId + ")"
   
   /**
-   * 
-   */
-  private def resetPartitionIndex(partition:Partition, index:Int) {
-    var field = ReflectionUtils.findField(partition.getClass(), "index", classOf[Int])
-    if (field == null) {
-      field = ReflectionUtils.findField(partition.getClass(), "slice", classOf[Int]) // for ParallelCollectionPartition
-    }
-    if (field != null) {
-      field.setAccessible(true)
-      field.set(partition, index)
-    } else {
-      throw new IllegalStateException("Failed to determine index field for " + partition)
-    }
-  }
-
-  /**
    *
    */
-  private def toHdfs(iter: Iterator[Product2[Any, Any]]): U = {
+  private def toHdfs(index:Int, iter: Iterator[Product2[Any, Any]]): U = {
     val manager = SparkEnv.get.shuffleManager
     val dependency = if (rdd.dependencies.size > 0) rdd.dependencies.head else null
     val handle = if (dependency != null && dependency.isInstanceOf[ShuffleDependency[_, _, _]]) {
-      new BaseShuffleHandle(0, 0, dependency.asInstanceOf[ShuffleDependency[_, _, _]])
+      new BaseShuffleHandle(index, 0, dependency.asInstanceOf[ShuffleDependency[_, _, _]])
     } else {
       null
     }
-    val writer = manager.getWriter(handle, 0, context).asInstanceOf[TezResultWriter[Any, Any, _]]
+    val writer = manager.getWriter(handle, index, context).asInstanceOf[TezResultWriter[Any, Any, _]]
     writer.setKeyClass(this.keyClass)
     writer.setValueClass(this.valueClass)
     writer.write(iter)
