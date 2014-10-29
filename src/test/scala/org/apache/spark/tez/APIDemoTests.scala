@@ -43,6 +43,7 @@ class APIDemoTests {
   @Test
   def collect() {
     val applicationName = "collect"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -56,7 +57,7 @@ class APIDemoTests {
       .filter(_._2 > 3)
       .collect
     // ===
-    Assert.assertEquals(2, result.length)
+    Assert.assertEquals(26, result.length)
     sc.stop
     this.cleanUp(applicationName)
   }
@@ -64,6 +65,7 @@ class APIDemoTests {
   @Test
   def sample() {
     val applicationName = "sample"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -71,8 +73,7 @@ class APIDemoTests {
 
     // ===
     val result = source.sample(true, 0.2, 2L).collect
-    println(result.toList)
-    Assert.assertEquals(1, result.length)
+    Assert.assertTrue(result.length > 0)
     // ===
     
     sc.stop
@@ -82,6 +83,7 @@ class APIDemoTests {
   @Test
   def mapPartitions() {
     val applicationName = "mapPartitions"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -91,17 +93,17 @@ class APIDemoTests {
     // greater then contents-in-file
     val gtResult = source.mapPartitions{_.grouped(10).map{_.toArray}}.collect
     gtResult.foreach{x => println("==="); x.foreach(println _)}
-    Assert.assertEquals(6, gtResult.flatten.length)
+    Assert.assertEquals(28, gtResult.flatten.length)
     
     // less then contents-in-file
     val ltResult = source.mapPartitions{_.grouped(2).map{_.toArray}}.collect
     ltResult.foreach{x => println("==="); x.foreach(println _)}
-    Assert.assertEquals(6, ltResult.flatten.length)
+    Assert.assertEquals(28, ltResult.flatten.length)
     
      // pre-cached
     val cacheResult = source.cache.mapPartitions{_.grouped(10).map{_.toArray}}.collect
     cacheResult.foreach{x => println("==="); x.foreach(println _)}
-    Assert.assertEquals(6, cacheResult.flatten.length)
+    Assert.assertEquals(28, cacheResult.flatten.length)
     // ===
     
     sc.stop
@@ -111,6 +113,7 @@ class APIDemoTests {
   @Test
   def mapPartitionsWithIndex() {
     val applicationName = "mapPartitionsWithIndex"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -138,6 +141,7 @@ class APIDemoTests {
   @Test
   def saveAsTextFile() {
     val applicationName = "saveAsTextFile"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -158,10 +162,8 @@ class APIDemoTests {
   
   @Test
   def reduceByKey() {
-    FileUtils.deleteDirectory(new File("reduceByKey"))
-    FileUtils.deleteDirectory(new File("cache"))
-    
     val applicationName = "reduceByKey"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -169,9 +171,9 @@ class APIDemoTests {
 
     // ===
     val result = source
-      .flatMap{x => println(x); x.split(" ")}
-      .map{x => println("KV: " + (x, 1)); (x, 1)}
-      .reduceByKey((x, y) => x + y)
+      .flatMap(_.split(" "))
+      .map((_, 1))
+      .reduceByKey(_+_)
       .cache
       
       println(result.collect.toList)
@@ -188,6 +190,7 @@ class APIDemoTests {
   @Test
   def mapValues() {
     val applicationName = "mapValues"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -207,6 +210,7 @@ class APIDemoTests {
   @Test
   def count() {
     val applicationName = "count"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -220,7 +224,7 @@ class APIDemoTests {
       .count
     // ===  
 
-    Assert.assertEquals(51, result)
+    Assert.assertEquals(292, result)
     sc.stop
     this.cleanUp(applicationName)
   }
@@ -228,6 +232,7 @@ class APIDemoTests {
   @Test
   def sourceCount() {
     val applicationName = "sourceCount"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -236,7 +241,7 @@ class APIDemoTests {
     // ===
     val result = source.count     
     // ===  
-    Assert.assertEquals(6, result)
+    Assert.assertEquals(28, result)
     sc.stop
     this.cleanUp(applicationName)
   }
@@ -246,6 +251,7 @@ class APIDemoTests {
     val file1 = "src/test/scala/org/apache/spark/tez/file1.txt"
     val file2 = "src/test/scala/org/apache/spark/tez/file2.txt"
     val applicationName = "join"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -287,6 +293,7 @@ class APIDemoTests {
   @Test
   def partitionBy() {
     val applicationName = "partitionBy"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -319,6 +326,7 @@ class APIDemoTests {
   @Test
   def collectPartitions() {
     val applicationName = "collectPartitions"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -339,9 +347,8 @@ class APIDemoTests {
 
   @Test
   def cache() {
-     FileUtils.deleteDirectory(new File("reduceByKey"))
-    FileUtils.deleteDirectory(new File("cache"))
     val applicationName = "cache"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -349,16 +356,17 @@ class APIDemoTests {
 
     // ===
     val rdbRDD = source
-      .flatMap{x => println("###### RECOMPUTING"); x.split(" ")}
+       // emulating long running computation
+      .flatMap{x => println("###### COMPUTING"); Thread.sleep(50); x.split(" ")}
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y, 2)
       
     val result = rdbRDD.cache
       
     // ===
-    Assert.assertEquals(51, result.count)
+    Assert.assertEquals(292, result.count) // should take much longer thenthe next call
     // you should see no subsequent recompute 
-    Assert.assertEquals(51, result.count)
+    Assert.assertEquals(292, result.count)
 
     sc.stop
     this.cleanUp(applicationName)
@@ -367,6 +375,7 @@ class APIDemoTests {
   @Test
   def parallelize() {
     val applicationName = "parallelize"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
@@ -379,6 +388,7 @@ class APIDemoTests {
   @Test
   def broadcast() {
     val applicationName = "broadcast"
+    this.cleanUp(applicationName)
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)

@@ -55,7 +55,6 @@ import scala.io.Source
 import java.io.FileOutputStream
 import tachyon.client.OutStream
 import scala.collection.mutable.HashSet
-import org.apache.spark.tez.io.CacheReader
 import scala.collection.mutable.HashMap
 import java.io.EOFException
 
@@ -186,20 +185,20 @@ private[tez] class TezCacheManager(blockManager: BlockManager, applicationName: 
          */
         def hasNext(): Boolean = {
           try {
-            obj = is.readObject()
+            this.obj = is.readObject()
           } catch {
             case e: EOFException =>
               logDebug("Finished dehydrating RDD " + rdd + " from cache")
               keepReading = false
             case e: Exception => is.close(); throw new IllegalStateException(e)
           }
-          keepReading
+          this.keepReading
         }
         /**
          * 
          */
         def next(): T = {
-          obj.asInstanceOf[T]
+          this.obj.asInstanceOf[T]
         }
       }
     } else {

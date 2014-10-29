@@ -29,6 +29,7 @@ import java.net.URLClassLoader
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.fs.FileSystem
 import org.apache.tez.dag.api.TezConfiguration
+import org.apache.spark.SparkEnv
 
 /**
  * Universal Tez processor which aside from providing access to Tez's native readers and writers will also create
@@ -53,6 +54,8 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
       case e: Exception =>
         e.printStackTrace();
         throw new IllegalStateException("Failed to execute processor for Vertex " + this.getContext().getTaskVertexIndex(), e);
+    } finally {
+      SparkEnv.get.cacheManager.asInstanceOf[TezCacheManager].close
     }
   }
 

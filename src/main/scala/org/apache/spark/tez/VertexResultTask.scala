@@ -51,7 +51,7 @@ class VertexResultTask[T, U](
   rdd: RDD[T],
   partitions:Array[Partition],
   func: (TaskContext, Iterator[T]) => U = null)
-  extends TezTask[U](stageId, 0, rdd) {
+  	extends TezTask[U](stageId, 0, rdd) {
   
   /*
    * NOTE: While we are not really dependent on the Partition we need it to be non null to 
@@ -81,13 +81,12 @@ class VertexResultTask[T, U](
       this.resetPartitionIndex(partition, context.partitionId())
       
       if (func == null) {
-        toHdfs(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])
+        this.toHdfs(rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])
       } else {
         val result = func(context, rdd.iterator(partition, context))
-        SparkEnv.get.cacheManager.asInstanceOf[TezCacheManager].close
         val manager = SparkEnv.get.shuffleManager
         val iter = new InterruptibleIterator(context, Map(0 -> result).iterator)
-        toHdfs(iter)
+        this.toHdfs(iter)
       }
     } catch {
       case e: Exception => e.printStackTrace(); throw new IllegalStateException(e)
@@ -114,22 +113,21 @@ class VertexResultTask[T, U](
       throw new IllegalStateException("Failed to determine index field for " + partition)
     }
   }
-  
+
   /**
-   * 
+   *
    */
-  private def toHdfs(iter: Iterator[Product2[_, _]]):U = {
+  private def toHdfs(iter: Iterator[Product2[Any, Any]]): U = {
     val manager = SparkEnv.get.shuffleManager
     val dependency = if (rdd.dependencies.size > 0) rdd.dependencies.head else null
-    val handle =
-      if (dependency != null && dependency.isInstanceOf[ShuffleDependency[_, _, _]]) {
-        new BaseShuffleHandle(0, 0, dependency.asInstanceOf[ShuffleDependency[_, _, _]])
-      } else {
-        null
-      }
-    val writer = manager.getWriter[Any, Any](handle, 0, context)
-    writer.asInstanceOf[TezResultWriter[_, _, _]].setKeyClass(this.keyClass)
-    writer.asInstanceOf[TezResultWriter[_, _, _]].setValueClass(this.valueClass)
+    val handle = if (dependency != null && dependency.isInstanceOf[ShuffleDependency[_, _, _]]) {
+      new BaseShuffleHandle(0, 0, dependency.asInstanceOf[ShuffleDependency[_, _, _]])
+    } else {
+      null
+    }
+    val writer = manager.getWriter(handle, 0, context).asInstanceOf[TezResultWriter[Any, Any, _]]
+    writer.setKeyClass(this.keyClass)
+    writer.setValueClass(this.valueClass)
     writer.write(iter)
     ().asInstanceOf[U]
   }
