@@ -22,7 +22,7 @@ import org.apache.tez.runtime.library.partitioner.HashPartitioner
  * the actual Partitioner de-serialized and injected by SparkTaskProcessor
  */
 private[tez] object SparkDelegatingPartitioner {
-  private var sparkPartitioner:org.apache.spark.Partitioner = null
+  private var sparkPartitioner:org.apache.spark.Partitioner = _
   
   /**
    * 

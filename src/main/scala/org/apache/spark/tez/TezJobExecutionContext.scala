@@ -246,6 +246,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
    * 
    */
   def unpersist(sc: SparkContext, rdd: RDD[_], blocking: Boolean = true): RDD[_] = {
+    sc.unpersistRDD(rdd.id, blocking)
     val path = new Path(sc.appName + "/cache/cache_" + rdd.id)
     fs.delete(path, true)
     rdd
