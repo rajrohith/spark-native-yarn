@@ -64,7 +64,7 @@ class ApplicationsDemoTests extends Serializable {
     conf.setAppName(appName)
     val sc = new SparkContext(conf)
 
-    val lines = sc.textFile("/Users/ozhurakousky/dev/fork/stark/src/test/scala/org/apache/spark/tez/kmeans_data.txt")
+    val lines = sc.textFile("src/test/scala/org/apache/spark/tez/kmeans_data.txt")
 
     val data = lines.map(parseVector _).cache
 
