@@ -130,7 +130,9 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
    *
    */
   def broadcast[T: ClassTag](sc: SparkContext, value: T): Broadcast[T] = {
-    new TezBroadcast(value, sc.appName)
+    val tezBroadcast = new TezBroadcast(value, sc.appName)
+    tezBroadcast.broadcast
+    tezBroadcast
   }
 
   /**

@@ -27,19 +27,26 @@ import java.net.URL
 import java.io.FileOutputStream
 import java.io.Closeable
 import java.io.InputStream
+
 /**
- * 
+ * Tez specific implementation of Broadcast which uses HDFS as its broadcasting mechanism.
  */
-class TezBroadcast[T: ClassTag](@transient var broadcastedValue: T, applicationName:String) extends Broadcast[T](0L) {
-  
-  val bid = UUID.randomUUID().toString()
-  
-  var path:String = null;
-  
-  this.saveToHdfs()
+class TezBroadcast[T: ClassTag](@transient var broadcastedValue: T, applicationName: String) extends Broadcast[T](0L) {
+
+  private val path: String = applicationName + "/broadcast/" + UUID.randomUUID().toString() + ".ser"
 
   /**
-   * 
+   *
+   */
+  private[tez] def broadcast() {
+    val fs = FileSystem.get(new TezConfiguration)
+    if (!fs.exists(new Path(path))) {
+      this.saveToHdfs()
+    }
+  }
+
+  /**
+   *
    */
   override protected def getValue() = {
     if (this.broadcastedValue == null) {
@@ -51,26 +58,32 @@ class TezBroadcast[T: ClassTag](@transient var broadcastedValue: T, applicationN
   }
 
   /**
-   * 
+   *
    */
   override protected def doUnpersist(blocking: Boolean) {
-	  // TODO: Implement
+    this.remove
   }
 
   /**
-   * 
+   *
    */
   override protected def doDestroy(blocking: Boolean) {
-     // TODO: Implement
+    this.remove
   }
-  
+
   /**
-   * 
+   *
    */
-  private def saveToHdfs(){
-    val config = new TezConfiguration
-    val fs = FileSystem.get(config)
-    path = applicationName + "/broadcast/" + bid + ".ser"
+  private def remove() {
+    val fs = FileSystem.get(new TezConfiguration)
+    fs.delete(new Path(path))
+  }
+
+  /**
+   *
+   */
+  private def saveToHdfs() {
+    val fs = FileSystem.get(new TezConfiguration)
     SparkUtils.serializeToFs(value, fs, new Path(path))
   }
 }

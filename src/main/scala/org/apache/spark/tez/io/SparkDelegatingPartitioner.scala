@@ -21,7 +21,7 @@ import org.apache.tez.runtime.library.partitioner.HashPartitioner
  * A companion object of SparkDelegatingPartitioner which maintains an instance of 
  * the actual Partitioner de-serialized and injected by SparkTaskProcessor
  */
-object SparkDelegatingPartitioner {
+private[tez] object SparkDelegatingPartitioner {
   private var sparkPartitioner:org.apache.spark.Partitioner = null
   
   /**
@@ -39,7 +39,7 @@ object SparkDelegatingPartitioner {
  * The awareness is maintained by caching the actual instance in the companion object. The instance will
  * be injected into companion object after its being de-serialized in SparkTaskProcessor.
  */
-class SparkDelegatingPartitioner extends HashPartitioner {
+private[tez] class SparkDelegatingPartitioner extends HashPartitioner {
   /**
    * 
    */
