@@ -15,9 +15,11 @@
  * limitations under the License.
  */
 package org.apache.spark.tez.io
+
 import org.apache.tez.runtime.library.partitioner.HashPartitioner
 /**
- * 
+ * A companion object of SparkDelegatingPartitioner which maintains an instance of 
+ * the actual Partitioner de-serialized and injected by SparkTaskProcessor
  */
 object SparkDelegatingPartitioner {
   private var sparkPartitioner:org.apache.spark.Partitioner = null
@@ -25,24 +27,25 @@ object SparkDelegatingPartitioner {
   /**
    * 
    */
-  def setSparkPartitioner(sparkPartitioner:org.apache.spark.Partitioner) {
+  private[tez] def setSparkPartitioner(sparkPartitioner:org.apache.spark.Partitioner) {
     this.sparkPartitioner = sparkPartitioner
-  }
-  
-  /**
-   * 
-   */
-  def getPartitioner:org.apache.spark.Partitioner = {
-    sparkPartitioner
   }
 }
 /**
+ * A special implementation of the Partitioner which maintains awareness of an actual 
+ * instance of the Partitioner created during Spark's DAG assembly to enable existing Spark's 
+ * capabilities of supplying an instance of the Partitioner against Tez's class of the Partitioner.
  * 
+ * The awareness is maintained by caching the actual instance in the companion object. The instance will
+ * be injected into companion object after its being de-serialized in SparkTaskProcessor.
  */
 class SparkDelegatingPartitioner extends HashPartitioner {
+  /**
+   * 
+   */
   override def getPartition(key:Object, value:Object, numPartitions:Int):Int = {
-    if (SparkDelegatingPartitioner.getPartitioner != null){
-      SparkDelegatingPartitioner.getPartitioner.getPartition(key)
+    if (SparkDelegatingPartitioner.sparkPartitioner != null){
+      SparkDelegatingPartitioner.sparkPartitioner.getPartition(key)
     }
     else {
       super.getPartition(key, value, numPartitions)
