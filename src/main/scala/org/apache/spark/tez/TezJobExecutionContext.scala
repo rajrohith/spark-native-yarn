@@ -64,7 +64,6 @@ import java.util.ArrayList
 import java.util.Arrays
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat
 import org.apache.hadoop.io.NullWritable
-import org.apache.spark.tez.io.CacheRDD
 import org.apache.spark.Partition
 import org.apache.hadoop.io.SequenceFile
 import scala.collection.mutable.ListBuffer

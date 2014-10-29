@@ -28,7 +28,7 @@ import org.apache.commons.io.FileUtils
 /**
  * Will run in Tez local mode
  */
-class MllibDemoTests extends Serializable {
+class ApplicationsDemoTests extends Serializable {
 
   @Test
   def kmeans() {
@@ -61,7 +61,7 @@ class MllibDemoTests extends Serializable {
     conf.setAppName("kmeans")
     val sc = new SparkContext(conf)
 
-    val lines = sc.textFile("/Users/ozhurakousky/dev/fork/stark/src/test/scala/org/apache/spark/tez/kmeans_data.txt")
+    val lines = sc.textFile("src/test/scala/org/apache/spark/tez/kmeans_data.txt")
 
     val data = lines.map(parseVector _).cache
 
