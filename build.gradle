@@ -32,7 +32,6 @@ publishing {
             maven(MavenPublication) {
                 groupId 'org.apache.spark.tez'
                 artifactId 'spark-native-yarn'
-                version '$version'
                 from components.java
                 artifact sourceJar {
                     classifier "sources"
