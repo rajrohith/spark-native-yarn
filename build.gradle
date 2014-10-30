@@ -32,7 +32,7 @@ publishing {
             maven(MavenPublication) {
                 groupId 'org.apache.spark.tez'
                 artifactId 'spark-native-yarn'
-                version '0.1-PREVIEW-1.1.1'
+                version '$version'
                 from components.java
                 artifact sourceJar {
                     classifier "sources"
@@ -49,8 +49,7 @@ task sourceJar(type: Jar) {
 repositories {
     mavenLocal();
     mavenCentral()
-    maven { url 'http://54.235.92.15/nexus/content/groups/public/' }
-    //maven { url 'http://repo.hortonworks.com/content/repositories/releases/' }
+    maven { url 'http://repo.hortonworks.com/content/repositories/releases/' }
 }
 
 configurations {
