@@ -1,6 +1,9 @@
 ### spark-native-yarn 
 
 #### Native YARN integration with Apache Spark
+
+For _**feedback**_ and _**suggestions**_ please use this project's [Issues](https://github.com/hortonworks/spark-native-yarn/issues) feature.
+
 ============
 
 > IMPORTANT: At the time or writing, the project represents a **_prototype_** with the goal of demonstrating 
