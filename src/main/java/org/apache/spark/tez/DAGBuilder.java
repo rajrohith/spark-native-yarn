@@ -236,6 +236,7 @@ class DAGBuilder {
 			if (vertexDescriptor.getInput() instanceof HdfsSourceRDD) {
 				String inputPath = ((HdfsSourceRDD<?>)vertexDescriptor.getInput()).getPath().toString();
 				Class<?> inputFormatClass = ((HdfsSourceRDD<?>)vertexDescriptor.getInput()).inputFormatClass();
+				
 				DataSourceDescriptor dataSource = MRInput.createConfigBuilder(new Configuration(this.tezConfiguration), inputFormatClass, inputPath).build();			
 				
 				String dataSourceName = String.valueOf(nameCreatingCounter++);

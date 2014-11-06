@@ -75,6 +75,11 @@ import scala.collection.mutable.HashMap
 import org.apache.spark.scheduler.TaskLocation
 import scala.collection.mutable.Stack
 import org.apache.spark.NarrowDependency
+import org.apache.spark.rdd.CoGroupedRDD
+import org.apache.spark.ShuffleDependency
+import org.apache.spark.SparkContext._
+import org.apache.spark.OneToOneDependency
+import org.apache.spark.util.collection.CompactBuffer
 
 /**
  *
@@ -153,10 +158,9 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
     }
 
     val operationName = SparkUtils.getLastMethodName
-    
-    val finalStage = this.caclulateStages(sc, rdd, jobIds.getAndIncrement())
+    val finalStage = this.caclulateStages(rdd, jobIds.getAndIncrement())
 
-    val outputPath = this.tezDelegate.submitApplication[T, U](returnType:ClassTag[U], finalStage: Stage, func: (TaskContext, Iterator[T]) => U)
+    val outputPath = this.tezDelegate.submitApplication[T, U](returnType, finalStage, func)
     val shuffleToMapStage = ReflectionUtils.getFieldValue(sc.dagScheduler, "shuffleToMapStage").asInstanceOf[HashMap[_,_]]
     shuffleToMapStage.clear
 
@@ -194,11 +198,11 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   /**
    *
    */
-  private def caclulateStages(sc: SparkContext, rdd: RDD[_], jobId:Int): Stage = {
-    val ds = sc.dagScheduler
+  private def caclulateStages(rdd: RDD[_], jobId:Int): Stage = {
+    val ds = rdd.context.dagScheduler
     val method = ds.getClass.getDeclaredMethod("newStage", classOf[RDD[_]], classOf[Int], classOf[Option[ShuffleDependency[_, _, _]]], classOf[Int], classOf[CallSite])
     method.setAccessible(true)
-    val stage = method.invoke(ds, rdd, new Integer(rdd.partitions.size), None, new Integer(jobId), sc.getCallSite).asInstanceOf[Stage]
+    val stage = method.invoke(ds, rdd, new Integer(rdd.partitions.size), None, new Integer(jobId), rdd.context.getCallSite).asInstanceOf[Stage]
     stage
   }
   

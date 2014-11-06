@@ -83,34 +83,22 @@ class TezRDDTests extends Instrumentable {
     assertNotNull(partitions)
     assertTrue(partitions.size == 1)
   }
-  
-  @Test
-  def validateToString() = {
-    val sc = mock(classOf[SparkContext])
+
+  @Test 
+  def validatePersistAndUnpersist() = {
+    val appName = "validatePersistAndUnpersist"
+    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
+    val sc = new SparkContext(masterUrl, appName)
+    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TezClientMocker.noOpTezClientWithSuccessfullSubmit(appName)))
     val tezRdd = new TezRDD("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", sc, classOf[TextInputFormat],
       classOf[Text], classOf[IntWritable], new TezConfiguration)
-    assertEquals("name:src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt; " + 
-        "path:src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", tezRdd.toString)
-  }
 
-//  @Test FIX!
-//  def validatePersistAndUnpersist() = {
-//    val appName = "validatePersistAndUnpersist"
-//    val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-//    val sc = new SparkContext(masterUrl, appName)
-//    ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TezClientMocker.noOpTezClientWithSuccessfullSubmit(appName)))
-//    val tezRdd = new TezRDD("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", sc, classOf[TextInputFormat],
-//      classOf[Text], classOf[IntWritable], new TezConfiguration)
-//
-//    val file = new File( appName + "/cache_" + tezRdd.id)
-//    file.mkdirs()
-//    
-//    val persistedRdd = tezRdd.cache
-//    assertTrue(file.exists())
-//    persistedRdd.unpersist()
-//    assertFalse(file.exists())
-//    TestUtils.cleanup(appName)
-//  }
+    val persistedRdd = tezRdd.cache
+    var sl = persistedRdd.getStorageLevel
+    assertTrue(persistedRdd.getStorageLevel.useMemory)
+    persistedRdd.unpersist()
+    assertFalse(persistedRdd.getStorageLevel.useMemory)
+  }
 
   @Test
   def validateCompute() {

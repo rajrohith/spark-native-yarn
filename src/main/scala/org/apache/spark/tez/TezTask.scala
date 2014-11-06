@@ -20,10 +20,14 @@ import org.apache.spark.scheduler.Task
 import org.apache.spark.Partitioner
 import org.apache.spark.Logging
 import org.apache.spark.rdd.RDD
+import org.apache.spark.Partition
+import org.apache.spark.tez.utils.ReflectionUtils
+import org.apache.spark.rdd.CoGroupPartition
+import org.apache.spark.rdd.NarrowCoGroupSplitDep
 /**
  * 
  */
-private[tez] abstract class TezTask[U](stageId: Int, partitionId: Int, val rdd:RDD[_]) extends Task[U](stageId, 0) with Logging {
+private[tez] abstract class TezTask[U](stageId: Int, partitionId: Int, val rdd:RDD[_]) extends Task[U](stageId, partitionId) with Logging {
 
   var partitioner:Partitioner = null
   
@@ -32,5 +36,34 @@ private[tez] abstract class TezTask[U](stageId: Int, partitionId: Int, val rdd:R
    */
   private[tez] def setPartitioner(partitioner:Partitioner) {
     this.partitioner = partitioner
+  }
+  
+  /**
+   * 
+   */
+  private[tez] def resetPartitionIndex(partition:Partition, index:Int) {
+    var field = ReflectionUtils.findField(partition.getClass(), "index", classOf[Int])
+    if (field == null) {
+      field = ReflectionUtils.findField(partition.getClass(), "slice", classOf[Int]) // for ParallelCollectionPartition
+    }
+    if (field != null) {
+      field.setAccessible(true)
+      field.set(partition, index)
+    } else {
+      throw new IllegalStateException("Failed to determine index field for " + partition)
+    }
+
+    if (partition.isInstanceOf[CoGroupPartition]) {
+      partition.asInstanceOf[CoGroupPartition].deps.filter(_.isInstanceOf[NarrowCoGroupSplitDep]).foreach { x =>
+        val split = x.asInstanceOf[NarrowCoGroupSplitDep].split
+        var idxField = ReflectionUtils.findField(split.getClass(), "index", classOf[Int])
+        if (idxField != null) {
+          idxField.setAccessible(true)
+          idxField.set(split, index)
+        } else {
+          throw new IllegalStateException("Failed to determine index field for " + partition)
+        }
+      }
+    }
   }
 }

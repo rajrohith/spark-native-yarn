@@ -49,26 +49,19 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   private val kvWriter = new MultiTargetKeyValueWriter(output)
   private val kw:KeyWritable = new KeyWritable
   private val vw:ValueWritable = new ValueWritable
-  
+ 
   /**
    * 
    */
-  def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
-    val (iter, mergeFunction) = {
-      val comb = this.buildCombinedIterator(records, combine)
-      (comb._1, comb._2)
-    }
-
-    this.sinkKeyValuesIterator(iter, mergeFunction)
+  override def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
+    this.sinkKeyValuesIterator(records.asInstanceOf[Iterator[Product2[Comparable[_], Object]]])
   }
 
   /**
    *
    */
-  private def sinkKeyValuesIterator(keyValues: Iterator[_ <: Product2[K, V]], mergeFunction: Function2[Any, Any, Any]) {
-    var previousKey: Any = null
-    var mergedValue: Any = null
-    for (keyValue <- keyValues) {    
+  private def sinkKeyValuesIterator(keyValues: Iterator[Product2[Comparable[_], Object]]) {
+    for (keyValue <- keyValues) {
       this.writeKeyValue(keyValue._1, keyValue._2)
     }
   }
@@ -76,9 +69,9 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   /**
    *
    */
-  private def writeKeyValue(key: Any, value: Any) {
-    this.kw.setValue(key.asInstanceOf[Comparable[_]])
-    this.vw.setValue(value.asInstanceOf[Object])
+  private def writeKeyValue(key: Comparable[_], value: Object) {
+    this.kw.setValue(key)
+    this.vw.setValue(value)
     kvWriter.write(kw, vw)
   }
 
@@ -87,33 +80,5 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
    */
   def stop(success: Boolean): Option[MapStatus] = {
     Some(SparkUtils.createUnsafeInstance(classOf[CompressedMapStatus]))
-  }
-  
-  /**
-   *
-   */
-  private def buildCombinedIterator(records: Iterator[_ <: Product2[K, V]], combine: Boolean): Tuple2[Iterator[_ <: Product2[K, V]], Function2[Any, Any, Any]] = {
-    if (handle != null && handle.dependency.aggregator.isDefined) {
-      val aggregator = handle.dependency.aggregator.get
-
-      val mergeValueFunction = aggregator.mergeValue.asInstanceOf[Function2[Any, Any, Any]]
-      if (combine) {
-        val combiners = new HashMap[Any, Any]
-        for (record <- records) {
-          if (combiners.contains(record._1)) {
-            val v1 = combiners.get(record._1).get
-            val mergedValue = mergeValueFunction(v1, record._2)
-            combiners.put(record._1, mergedValue)
-          } else {
-            combiners += record.asInstanceOf[Tuple2[K, V]]
-          }
-        }
-        (combiners.iterator.asInstanceOf[Iterator[_ <: Product2[K, V]]], null)
-      } else {
-        (records, mergeValueFunction)
-      }
-    } else {
-      (records, null)
-    }
   }
 }

@@ -30,6 +30,10 @@ import org.apache.commons.io.IOUtils
 import org.apache.hadoop.fs.FileSystem
 import org.apache.tez.dag.api.TezConfiguration
 import org.apache.spark.SparkEnv
+import java.util.Collections
+import akka.util.Collections
+import java.util.Collections
+import java.util.Comparator
 
 /**
  * Universal Tez processor which aside from providing access to Tez's native readers and writers will also create
@@ -75,7 +79,6 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
     val inputs = this.toIntKey(in).asInstanceOf[java.util.Map[Integer, LogicalInput]]
     val outputs = this.toIntKey(out).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
     
-    
     val shufleManager = new TezShuffleManager(inputs, outputs)
     val applicationName = this.context.getDAGName().split("_")(0)
     SparkUtils.createSparkEnv(shufleManager, applicationName)
@@ -99,7 +102,14 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
    * 
    */
   private def toIntKey(map: java.util.Map[String, _]): java.util.Map[Integer, _] = {
-    val resultMap = new java.util.TreeMap[Integer, Any]();
+    /*
+     * TODO:
+     * Need to revisit how inputs are treated by CoGroupedRDD. It seems like the order is being swapped so
+     * reversing it fixes the issue, but need to better understand what's going on
+     */ 
+    val comp = java.util.Collections.reverseOrder().asInstanceOf[Comparator[Integer]]
+    val resultMap = new java.util.TreeMap[Integer, Any](comp);
+    
     val iter = map.keySet().iterator()
     while (iter.hasNext()) {
       val indexString = iter.next()

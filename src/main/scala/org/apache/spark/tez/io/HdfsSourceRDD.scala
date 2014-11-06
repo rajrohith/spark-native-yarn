@@ -48,11 +48,6 @@ abstract class HdfsSourceRDD[T:ClassTag](
   /**
    * 
    */
-  override def toString = "name:" + this.name + "; path:" + this.validatedPath
-
-  /**
-   * 
-   */
   def getPath(): Path = {
     this.validatedPath
   }

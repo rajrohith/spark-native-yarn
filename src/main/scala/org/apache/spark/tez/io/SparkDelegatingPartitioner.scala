@@ -44,11 +44,12 @@ private[tez] class SparkDelegatingPartitioner extends HashPartitioner {
    * 
    */
   override def getPartition(key:Object, value:Object, numPartitions:Int):Int = {
-    if (SparkDelegatingPartitioner.sparkPartitioner != null){
+    val p = if (SparkDelegatingPartitioner.sparkPartitioner != null){
       SparkDelegatingPartitioner.sparkPartitioner.getPartition(key)
     }
     else {
       super.getPartition(key, value, numPartitions)
     }
+    p
   }
 }

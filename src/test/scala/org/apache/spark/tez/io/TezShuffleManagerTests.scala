@@ -30,14 +30,14 @@ import org.junit.runner.RunWith
  */
 class TezShuffleManagerTests {
   
-//  @Test FIX
-//  def validateReaderReturned() {
-//    val (inMap, outMap) = this.createInOutInputMaps
-//  
-//    val sm = new TezShuffleManager(inMap, outMap);
-//    sm.shuffleStage = false
-//    assertTrue(sm.getReader(null, 0, 0, null).isInstanceOf[TezSourceReader[_,_]])
-//  }
+  @Test
+  def validateReaderReturned() {
+    val (inMap, outMap) = this.createInOutInputMaps
+  
+    val sm = new TezShuffleManager(inMap, outMap);
+    sm.shuffleStage = false
+    assertTrue(sm.getReader(null, 0, 0, null).isInstanceOf[TezSourceReader[_,_]])
+  }
 
   @Test
   def validateAppropriateWriterReturned() {

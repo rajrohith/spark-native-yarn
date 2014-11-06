@@ -20,8 +20,10 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 import static org.mockito.Mockito.mock;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
@@ -41,6 +43,10 @@ public class DAGBuilderTests extends Instrumentable {
 	@SuppressWarnings("unchecked")
 	@Test(expected=IllegalStateException.class)
 	public void failWithappNameNull() {
+		TreeMap<Integer, String> map = new TreeMap<Integer, String>(Collections.reverseOrder());
+		
+		
+		
 		new DAGBuilder(null, mock(Map.class), mock(Configuration.class));
 	}
 	

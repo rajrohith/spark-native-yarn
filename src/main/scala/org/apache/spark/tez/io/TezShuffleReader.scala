@@ -34,38 +34,30 @@ import org.apache.spark.InterruptibleIterator
 import org.apache.spark.util.NextIterator
 import java.io.IOException
 import scala.collection.JavaConverters._
+import org.apache.spark.TaskContextImpl
+import org.apache.spark.serializer.Serializer
+import org.apache.spark.Logging
+import org.apache.spark.Aggregator
 
 /**
  * Implementation of Spark's ShuffleReader which delegates it's read functionality to Tez
  * This implementation is tailored for after-shuffle reads (e.g., ResultTask)
  */
- //TODO: combine common functionality in TezSourceReader into an abstract class
-class TezShuffleReader[K, C](input: Map[Integer, LogicalInput], handle: BaseShuffleHandle[K, C, _])
+class TezShuffleReader[K, C](input: Map[Integer, LogicalInput], val handle: BaseShuffleHandle[K, _, C])
   extends ShuffleReader[K, C] {
   private val inputIndex = input.keySet().iterator().next()
-  private val reader = input.remove(this.inputIndex).getReader()
-  
-  val aggregatorFunction:Function2[Any, Any, Any] = {
-    if (handle == null || handle.dependency == null && handle.dependency.aggregator == null){
-      null
-    }
-    else {
-      if (handle.dependency.aggregator.isDefined){
-        handle.dependency.aggregator.get.mergeValue.asInstanceOf[Function2[Any, Any, Any]]
-      }
-      else {
-        null
-      }
-    }
-  }
-  
+  private val reader = input.remove(this.inputIndex).getReader().asInstanceOf[KeyValuesReader]
+  private val dep = handle.dependency
+
   /**
    *
    */
   override def read(): Iterator[Product2[K, C]] = {
-    new ShuffleIterator(this.reader, aggregatorFunction).asInstanceOf[Iterator[Product2[K, C]]].map(pair => (pair._1, pair._2))
+    val dep = handle.dependency
+    val aggregator = if (dep.aggregator.isDefined) dep.aggregator.get else null
+    new ShuffleIterator(this.reader, aggregator.asInstanceOf[Aggregator[Any, Any, Any]]).asInstanceOf[Iterator[Product2[K,C]]].map(pair => (pair._1, pair._2))
   }
-
+  
   /**
    *
    */
@@ -75,20 +67,12 @@ class TezShuffleReader[K, C](input: Map[Integer, LogicalInput], handle: BaseShuf
 /**
  *
  */
-private class ShuffleIterator[K, C](reader: Reader, var aggregatorFunction:Function2[Any, Any, Any]) extends Iterator[Product2[Any, Any]] {
-  var hasNextNeverCalled = true
-  var containsNext = false;
-  var shoudlCheckHasNext = false;
-  
-  private val kvReader =
-    if (reader.isInstanceOf[KeyValuesReader]) {
-      reader.asInstanceOf[KeyValuesReader]
-    } else {
-      reader.asInstanceOf[KeyValueReader]
-    }
-  
-  private var currentValues:Iterator[Object] = _
-  
+private class ShuffleIterator[K, C](reader: KeyValuesReader, aggregator:Aggregator[Any,Any,Any]) extends Iterator[Product2[Any, Any]] {
+  private var hasNextNeverCalled = true
+  private var containsNext = false;
+  private var shoudlCheckHasNext = false;
+  private var currentValues: Iterator[Object] = _
+
   /**
    *
    */
@@ -107,48 +91,44 @@ private class ShuffleIterator[K, C](reader: Reader, var aggregatorFunction:Funct
     if (hasNextNeverCalled) {
       this.hasNext
     }
-    
+
+    /*
+     * Unlike Spark native we don't need to maintain a map with spill capabilities to perform the 
+     * aggregation of the entire iterator. We only aggregate on the per-key basis since we can rely 
+     * on the result of the YARN shuffle which gives us KV entries sorted by key.
+     */
     if (this.containsNext) {
-      if (reader.isInstanceOf[KeyValuesReader]) {
-        val reader = this.kvReader.asInstanceOf[KeyValuesReader]
-        if (aggregatorFunction != null) {       
-          this.currentValues = reader.getCurrentValues().iterator.asScala
-          var mergedValue: Any = null
-          for (value <- this.currentValues) {
-            val vw = value.asInstanceOf[ValueWritable]
-            val v = vw.getValue()
-            if (mergedValue == null){
-              mergedValue = v
-            } else {
-              mergedValue = aggregatorFunction(mergedValue, v)
-            }
+      if (aggregator != null) {
+        this.currentValues = this.reader.getCurrentValues().iterator.asScala
+        var mergedValue: Any = null
+        for (value <- this.currentValues) {
+          val vw = value.asInstanceOf[ValueWritable]
+          val v = vw.getValue()
+          if (mergedValue == null) {
+            mergedValue = aggregator.createCombiner(v)
+          } else {
+            mergedValue = aggregator.mergeValue(mergedValue, v)
           }
-          val key = reader.getCurrentKey.asInstanceOf[KeyWritable].getValue().asInstanceOf[Comparable[_]]
-          val result = (key, mergedValue.asInstanceOf[Object])
-          this.shoudlCheckHasNext = true
-          result
-        } else {
-          if (this.currentValues == null){
-             this.currentValues = reader.getCurrentValues().iterator.asScala
-          }
-          val key = reader.getCurrentKey.asInstanceOf[KeyWritable].getValue().asInstanceOf[Comparable[_]]
-          val result = (key, this.currentValues.next.asInstanceOf[ValueWritable].getValue())
-          if (!this.currentValues.hasNext){
-             this.shoudlCheckHasNext = true
-             this.currentValues = null
-          }
-          result
-        }   
-      } else {
-        val reader = this.kvReader.asInstanceOf[KeyValueReader]
-        val result = (reader.getCurrentKey, reader.getCurrentValue)
+        }
+        val key = this.reader.getCurrentKey.asInstanceOf[KeyWritable].getValue().asInstanceOf[Comparable[_]]
+        val result = (key, mergedValue.asInstanceOf[Object])
         this.shoudlCheckHasNext = true
         result
+      } else {
+        if (this.currentValues == null) {
+          this.currentValues = this.reader.getCurrentValues().iterator.asScala
+        }
+        val key = this.reader.getCurrentKey.asInstanceOf[KeyWritable].getValue().asInstanceOf[Comparable[_]]
+        val result = (key, this.currentValues.next.asInstanceOf[ValueWritable].getValue())
+        if (!this.currentValues.hasNext) {
+          this.shoudlCheckHasNext = true
+          this.currentValues = null
+        }
+        result
       }
-      
     } else {
-      throw new IllegalStateException("Reached the end of the iterator. " + 
-          "Calling hasNext() prior to next() would avoid this exception")
+      throw new IllegalStateException("Reached the end of the iterator. " +
+        "Calling hasNext() prior to next() would avoid this exception")
     }
   }
 
@@ -157,11 +137,7 @@ private class ShuffleIterator[K, C](reader: Reader, var aggregatorFunction:Funct
    */
   private def doHasNext(): Boolean = {
     this.shoudlCheckHasNext = false
-    if (this.kvReader.isInstanceOf[KeyValuesReader]) {
-      this.kvReader.asInstanceOf[KeyValuesReader].next
-    } else {
-      this.kvReader.asInstanceOf[KeyValueReader].next
-    }
+    this.reader.next
   }
 }
 
@@ -170,7 +146,7 @@ private class ShuffleIterator[K, C](reader: Reader, var aggregatorFunction:Funct
  * while giving you access to "current key" and "next value" contained in KeyValuesReader's ValuesIterator.
  */
 private class KVSIterator(kvReader: KeyValuesReader) {
-  var vIter:java.util.Iterator[_] = null
+  var vIter: java.util.Iterator[TypeAwareWritable[_]] = _
 
   /**
    * Checks if underlying reader contains more data to read.
@@ -180,7 +156,7 @@ private class KVSIterator(kvReader: KeyValuesReader) {
       true
     } else {
       if (kvReader.next()) {
-        vIter = kvReader.getCurrentValues().iterator()
+        vIter = kvReader.getCurrentValues().iterator().asInstanceOf[java.util.Iterator[TypeAwareWritable[_]]]
         true
       } else {
         false
@@ -192,7 +168,7 @@ private class KVSIterator(kvReader: KeyValuesReader) {
    * Returns the next value in the current ValuesIterator
    */
   def nextValue() = {
-    vIter.next().asInstanceOf[TypeAwareWritable[_]].getValue()
+    vIter.next().getValue()
   }
 
   /**

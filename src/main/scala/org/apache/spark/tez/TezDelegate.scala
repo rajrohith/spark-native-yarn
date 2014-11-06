@@ -112,6 +112,9 @@ class TezDelegate extends SparkListener with Logging {
     this.tezClient = new Some(TezClient.create(appName, new TezConfiguration))
   }
   
+  /**
+   * 
+   */
   private def createLocalResources(appName: String){
     val fs = FileSystem.get(tezConfiguration)
     val classpathDir = new Path(appName + "/" + TezConstants.CLASSPATH_PATH)

@@ -35,7 +35,9 @@ import org.apache.spark.scheduler.CompressedMapStatus
 import org.apache.hadoop.io.NullWritable
 
 /**
- * 
+ * Represents a writer that writes the result to HDFS.
+ * Since all computation functions are invoked on reading iterators, this writer will not perform
+ * any computation and will simply write KV pairs to HDFS.
  */
 class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], handle: BaseShuffleHandle[K, V, C], context: TaskContext) extends ShuffleWriter[K, V] with Logging {
   
@@ -49,47 +51,11 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
    *
    */
   def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
-//    val mergeValueFunction: Function2[Any, Any, Any] =
-//      if (handle != null && handle.dependency.aggregator.isDefined) {
-//        val aggregator = handle.dependency.aggregator.get
-//        aggregator.mergeValue.asInstanceOf[Function2[Any, Any, Any]]
-//      } else {
-//        null
-//      }
-    
-    records.foreach(record => this.write(record._1, record._2))
-
-//    this.sinkKeyValuesIterator(records, mergeValueFunction)
+    records.foreach{record => 
+      this.write(record._1, record._2)
+    }
   }
-  
-//  /**
-//   * 
-//   */
-//  private def sinkKeyValuesIterator(records: Iterator[_ <: Product2[K, V]], mergeFunction:Function2[Any,Any,Any]) {
-//    var previousKey:Any = null
-//    var mergedValue: Any = null
-//    for (record <- records) {
-//      if (mergeFunction != null) {
-//        if (previousKey == null) {     
-//          previousKey = record._1
-//          mergedValue = record._2
-//        } else if (previousKey == record._1) {
-//          mergedValue = mergeFunction(mergedValue, record._2)
-//        } else {
-//          kvWriter.write(previousKey, mergedValue)
-//          previousKey = record._1
-//          mergedValue = record._2
-//        }
-//      } else {
-//        this.write(record._1, record._2)
-//      }
-//    }
-//    // last element need to be flushed
-//    if (previousKey != null) {
-//      this.write(previousKey, mergedValue)
-//    }
-//  }
-
+ 
   /**
    * 
    */
