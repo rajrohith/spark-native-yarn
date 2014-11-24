@@ -141,10 +141,6 @@ class TezDelegate extends SparkListener with Logging {
 
     conf.clear()
     if (!new URI(outputPath).isAbsolute()) {
-      if (outputPath != null && outputPath.startsWith("/")) {
-        val fs = FileSystem.get(new TezConfiguration).getWorkingDirectory().toString()
-        outputPath = outputPath.replace(fs, "").substring(1)
-      }
       outputPath = appName + "/" + outputPath
     }
     if (outputPath == null || outputFormat == null || keyType == null) {
