@@ -137,7 +137,8 @@ class APIDemoTests {
         os.close()
         elements
       }
-    }.saveAsTextFile("foo")
+    }.saveAsNewAPIHadoopFile("foo", classOf[Text],
+      classOf[IntWritable], classOf[TextOutputFormat[_, _]])
    
     val is = new DataInputStream(new FileInputStream(new File(applicationName + "/invocations")))
     var counter = 0
@@ -167,7 +168,7 @@ class APIDemoTests {
       .flatMap(x => x.split(" "))
       .map(x => (x, 1))
       .reduceByKey((x, y) => x + y)
-      .saveAsTextFile(applicationName + "_out")
+      .saveAsTextFile(applicationName + "/" + applicationName + "_out")
     // ===
 
     TestUtils.printSampleResults(applicationName, applicationName + "_out")
@@ -329,7 +330,8 @@ class APIDemoTests {
     val result = source
       .map { s => val split = s.split("\\s+", 2); (split(0).replace(":", "_"), split(1)) }
       .partitionBy(partitioner)
-      .saveAsHadoopFile(applicationName + "_out", classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
+      .saveAsHadoopFile(applicationName +  "/" + applicationName + "_out",
+        classOf[Text], classOf[Text], classOf[KeyPerPartitionOutputFormat])
     // ===
 
     Assert.assertTrue(new File(applicationName + "_executed").exists())
