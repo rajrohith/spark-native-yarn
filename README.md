@@ -92,7 +92,7 @@ To switch to 1.1.1 branch:
 ```
 $> git fetch --all
 $> git branch --track 1.1.1 origin/1.1.1
-$> git checkout SH-1
+$> git checkout 1.1.1
 ```
 
 This completes the pre-requisite required to run STARK and you can now 
