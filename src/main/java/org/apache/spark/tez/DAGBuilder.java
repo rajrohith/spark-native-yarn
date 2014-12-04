@@ -229,16 +229,17 @@ class DAGBuilder {
 			}
 			//
 			
-			String vertexName = null;
-			
+			/*
+			 * Will incorporate shuffle id in Vertex name so they could be correlated properly
+			 * during joins when figuring out shuffle input (see TezShuffleManager.getReader)
+			 */
+			String vertexName = null;	
 			if (task instanceof VertexShuffleTask){
 				vertexName = vertexDescriptor.getStageId() + "_" + ((VertexShuffleTask)task).getShuffleId();
 			} else {
 				vertexName = String.valueOf(vertexDescriptor.getStageId());
 			}
-			
-			
-			//String vertexName = String.valueOf(vertexDescriptor.getStageId());
+		
 			UserPayload payload = TezHelper.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationName);
 
 			Vertex vertex = null;
@@ -315,12 +316,8 @@ class DAGBuilder {
 					if (Integer.parseInt(v.getName().split("_")[0]) == stageId){
 						Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
 						this.dag.addEdge(edge);
-						//return;
 					}
 				}
-//				Vertex v = this.dag.getVertex(stageId + "");
-//				Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
-//		    	this.dag.addEdge(edge);
 			}
 		}
 	}

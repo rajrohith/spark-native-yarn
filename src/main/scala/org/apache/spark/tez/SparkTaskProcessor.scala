@@ -71,12 +71,7 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
     logInfo("Executing processor for task: " + taskIndex + " for DAG " + dagName);
     val in = this.getInputs()
     val out = this.getOutputs()
-    /*
-     * Input must always be present unless DAG was initiated from parallelize
-     * TODO: Investigate the same for output
-     */
-//    Preconditions.checkArgument(in.size() >= 1, "Processor contains no input. Must be a bug in DAG assembly. Please report!".asInstanceOf[Object]);
-//    Preconditions.checkArgument(out.size() >= 1, "Processor contains no output. Must be a bug in DAG assembly. Please report!".asInstanceOf[Object]);
+  
     val inputs = this.toIntKey(in).asInstanceOf[java.util.Map[Integer, LogicalInput]]
     val outputs = this.toIntKey(out).asInstanceOf[java.util.Map[Integer, LogicalOutput]]
     
@@ -103,18 +98,16 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
    * 
    */
   private def toIntKey(map: java.util.Map[String, _]): java.util.Map[Integer, _] = {
-    /*
-     * TODO:
-     * Need to revisit how inputs are treated by CoGroupedRDD. It seems like the order is being swapped so
-     * reversing it fixes the issue, but need to better understand what's going on
-     */ 
-    val comp = java.util.Collections.reverseOrder().asInstanceOf[Comparator[Integer]]
     val resultMap = new java.util.TreeMap[Integer, Any]();
     
     val iter = map.keySet().iterator()
     while (iter.hasNext()) {
       val indexString = iter.next()
       try {
+        /*
+         * Non-numeric input identifiers contain shuffleId encoding (e.g., 0_1 where 0 is vertex name and 1 is shuffleId)
+         * For such cases TezShuffleManager will use shuffleId to link TezShuffleReader to the right input
+         */
         if (!StringUtils.isNumeric(indexString)) {
           val shuffleId = Integer.parseInt(indexString.split("_")(1))
           resultMap.put(shuffleId, map.get(indexString));

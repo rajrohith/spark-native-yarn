@@ -43,10 +43,7 @@ import org.apache.spark.Aggregator
  * Implementation of Spark's ShuffleReader which delegates it's read functionality to Tez
  * This implementation is tailored for after-shuffle reads (e.g., ResultTask)
  */
-class TezShuffleReader[K, C](reader: KeyValuesReader, val handle: BaseShuffleHandle[K, _, C])
-  extends ShuffleReader[K, C] {
-//  private val inputIndex = input.keySet().iterator().next()
-//  private val reader = input.remove(this.inputIndex).getReader().asInstanceOf[KeyValuesReader]
+class TezShuffleReader[K, C](reader: KeyValuesReader, val handle: BaseShuffleHandle[K, _, C]) extends ShuffleReader[K, C] {
   private val dep = handle.dependency
 
   /**
@@ -138,45 +135,5 @@ private class ShuffleIterator[K, C](reader: KeyValuesReader, aggregator:Aggregat
   private def doHasNext(): Boolean = {
     this.shoudlCheckHasNext = false
     this.reader.next
-  }
-}
-
-/**
- * Wrapper over Tez's KeyValuesReader which uses semantics of java.util.Iterator
- * while giving you access to "current key" and "next value" contained in KeyValuesReader's ValuesIterator.
- */
-private class KVSIterator(kvReader: KeyValuesReader) {
-  var vIter: java.util.Iterator[TypeAwareWritable[_]] = _
-
-  /**
-   * Checks if underlying reader contains more data to read.
-   */
-  def hasNext = {
-    if (vIter != null && vIter.hasNext()) {
-      true
-    } else {
-      if (kvReader.next()) {
-        vIter = kvReader.getCurrentValues().iterator().asInstanceOf[java.util.Iterator[TypeAwareWritable[_]]]
-        true
-      } else {
-        false
-      }
-    }
-  }
-
-  /**
-   * Returns the next value in the current ValuesIterator
-   */
-  def nextValue() = {
-    vIter.next().getValue()
-  }
-
-  /**
-   * For this case 'ket' will always be represented by TypeAwareWritable (KeyWritable)
-   * since its source is the result of YARN shuffle and the preceeding writer will
-   * write all intermediate outputs as TypeAwareWritable for both keys and values.
-   */
-  def getCurrentKey = {
-    kvReader.getCurrentKey().asInstanceOf[TypeAwareWritable[_]].getValue()
   }
 }

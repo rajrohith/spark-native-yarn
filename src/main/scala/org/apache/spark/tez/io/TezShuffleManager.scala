@@ -84,7 +84,7 @@ class TezShuffleManager(val input:Map[Integer, LogicalInput], val output:Map[Int
   def getReader[K, C](handle: ShuffleHandle, startPartition: Int, endPartition: Int, context: TaskContext): ShuffleReader[K, C] = {
     if (handle != null) {
       val reader = this.input.get(handle.shuffleId).getReader()
-       new TezShuffleReader(reader.asInstanceOf[KeyValuesReader], handle.asInstanceOf[BaseShuffleHandle[K, _, C]])
+      new TezShuffleReader(reader.asInstanceOf[KeyValuesReader], handle.asInstanceOf[BaseShuffleHandle[K, _, C]])
     } else {
       new TezSourceReader(this.input)
     }

@@ -96,41 +96,6 @@ object PairRDDFunctionsAdapter {
 
     self.context.runJob(self, (context: TaskContext, iter: Iterator[_]) => ())
   }
-  
-  /**
-   * 
-   */
-  def combineByKey[K, C,V](prdd:PairRDDFunctions[_,_],
-    createCombiner: V => C,
-    mergeValue: (C, V) => C,
-    mergeCombiners: (C, C) => C,
-    partitioner: Partitioner,
-    mapSideCombine: Boolean = true,
-    serializer: Serializer = null): RDD[(K, C)] = {
-    require(mergeCombiners != null, "mergeCombiners must be defined") // required as of Spark 0.9.0
-
-    val fields = prdd.getClass().getDeclaredFields().filter(_.getName().endsWith("self"))
-    val field = fields(0)
-    field.setAccessible(true)
-    val self: RDD[Product2[K, V]] = field.get(prdd).asInstanceOf[RDD[Product2[K, V]]]
-
-    val aggregator = new Aggregator[K, V, C](createCombiner, mergeValue, mergeCombiners)
-//    if (self.partitioner == Some(partitioner)) {
-//      self.mapPartitions(iter => {
-//        val context = TaskContext.get()
-//        new InterruptibleIterator(context, aggregator.combineValuesByKey(iter, context))
-//      }, preservesPartitioning = true)
-//    } else {
-      new ShuffledRDD[K, V, C](self, partitioner)
-        .setSerializer(serializer)
-        .setAggregator(aggregator)
-        .setMapSideCombine(mapSideCombine)
-//    }
-//    new ShuffledRDD[K, V, C](self, partitioner)
-//      .setSerializer(serializer)
-//      .setAggregator(aggregator)
-//      .setMapSideCombine(mapSideCombine)
-  }
 }
 
 /**
@@ -151,18 +116,5 @@ class PairRDDFunctionsAdapter[K, V] extends Logging {
    */
   def saveAsHadoopDataset(conf: JobConf) {
     PairRDDFunctionsAdapter.saveAsHadoopDataset(conf, this.asInstanceOf[PairRDDFunctions[_,_]])
-  }
-
-  /**
-   * 
-   */
-  def combineByKey[C](createCombiner: V => C,
-    mergeValue: (C, V) => C,
-    mergeCombiners: (C, C) => C,
-    partitioner: Partitioner,
-    mapSideCombine: Boolean = true,
-    serializer: Serializer = null): RDD[(K, C)] = {
-    PairRDDFunctionsAdapter.combineByKey(this.asInstanceOf[PairRDDFunctions[_,_]], createCombiner, 
-        mergeValue, mergeCombiners, partitioner, mapSideCombine, serializer)
   }
 }
