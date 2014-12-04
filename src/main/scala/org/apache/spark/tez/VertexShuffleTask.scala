@@ -49,6 +49,10 @@ class VertexShuffleTask(
    * NOTE: While we are not really dependent on the Partition we need it to be non null to 
    * comply with Spark (see ShuffleRDD)
    */
+  
+  def getShuffleId():Int = {
+    dep.get.shuffleId
+  }
 
   /**
    * 

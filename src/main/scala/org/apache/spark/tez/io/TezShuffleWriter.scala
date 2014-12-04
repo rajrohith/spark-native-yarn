@@ -49,29 +49,42 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   private val kvWriter = new MultiTargetKeyValueWriter(output)
   private val kw:KeyWritable = new KeyWritable
   private val vw:ValueWritable = new ValueWritable
+  private val dep = handle.dependency
  
   /**
    * 
    */
   override def write(records: Iterator[_ <: Product2[K, V]]): Unit = {
-    this.sinkKeyValuesIterator(records.asInstanceOf[Iterator[Product2[Comparable[_], Object]]])
+    this.sinkKeyValuesIterator(records.asInstanceOf[Iterator[Product2[K, V]]])
   }
 
   /**
    *
    */
-  private def sinkKeyValuesIterator(keyValues: Iterator[Product2[Comparable[_], Object]]) {
-    for (keyValue <- keyValues) {
-      this.writeKeyValue(keyValue._1, keyValue._2)
+  private def sinkKeyValuesIterator(keyValues: Iterator[_ <: Product2[K, V]]) {
+    val iter = if (dep.aggregator.isDefined) {
+      if (dep.mapSideCombine) {
+        dep.aggregator.get.combineValuesByKey(keyValues, context)
+      } else {
+        keyValues
+      }
+    } else if (dep.aggregator.isEmpty && dep.mapSideCombine) {
+      throw new IllegalStateException("Aggregator is empty for map-side combine")
+    } else {
+      keyValues
+    }
+    
+    for (keyValue <- iter) {
+      this.writeKeyValue(keyValue._1, keyValue._2.asInstanceOf[V])
     }
   }
 
   /**
    *
    */
-  private def writeKeyValue(key: Comparable[_], value: Object) {
+  private def writeKeyValue(key: K, value: V) {
     this.kw.setValue(key)
-    this.vw.setValue(value)
+    this.vw.setValue(value.asInstanceOf[Object])
     kvWriter.write(kw, vw)
   }
 

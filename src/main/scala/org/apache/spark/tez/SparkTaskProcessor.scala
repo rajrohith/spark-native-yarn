@@ -34,6 +34,7 @@ import java.util.Collections
 import akka.util.Collections
 import java.util.Collections
 import java.util.Comparator
+import org.apache.commons.lang.StringUtils
 
 /**
  * Universal Tez processor which aside from providing access to Tez's native readers and writers will also create
@@ -108,13 +109,18 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
      * reversing it fixes the issue, but need to better understand what's going on
      */ 
     val comp = java.util.Collections.reverseOrder().asInstanceOf[Comparator[Integer]]
-    val resultMap = new java.util.TreeMap[Integer, Any](comp);
+    val resultMap = new java.util.TreeMap[Integer, Any]();
     
     val iter = map.keySet().iterator()
     while (iter.hasNext()) {
       val indexString = iter.next()
       try {
-        resultMap.put(Integer.parseInt(indexString), map.get(indexString));
+        if (!StringUtils.isNumeric(indexString)) {
+          val shuffleId = Integer.parseInt(indexString.split("_")(1))
+          resultMap.put(shuffleId, map.get(indexString));
+        } else {
+          resultMap.put(Integer.parseInt(indexString), map.get(indexString));
+        }
       } catch {
         case e: NumberFormatException =>
           throw new IllegalArgumentException("Vertex name must be parsable to Integer. Was: '" + indexString + "'", e);

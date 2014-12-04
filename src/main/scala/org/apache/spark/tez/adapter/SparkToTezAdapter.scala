@@ -90,7 +90,7 @@ object SparkToTezAdapter extends Logging {
       x.getName() match {
         case "saveAsNewAPIHadoopDataset" => this.swapMethodBody(x, pairRddFunctionsAdapter)
         case "saveAsHadoopDataset" => this.swapMethodBody(x, pairRddFunctionsAdapter)
-        case "combineByKey" => this.swapMethodBody(x, pairRddFunctionsAdapter)
+//        case "combineByKey" => this.swapMethodBody(x, pairRddFunctionsAdapter)
       }
     }    
     // This block will finally replace all references to 'org.apache.spark.tez.TezContext' with 'org.apache.spark.SparkContext'

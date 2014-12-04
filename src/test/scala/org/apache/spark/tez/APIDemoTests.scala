@@ -263,50 +263,6 @@ class APIDemoTests {
   }
 
   @Test
-  def join() {
-    val file1 = "src/test/scala/org/apache/spark/tez/file1.txt"
-    val file2 = "src/test/scala/org/apache/spark/tez/file2.txt"
-    val applicationName = "join"
-    this.cleanUp(applicationName)
-    val sparkConf = this.buildSparkConf()
-    sparkConf.setAppName(applicationName)
-    val sc = new SparkContext(sparkConf)
-    val source1 = sc.textFile(file1)
-    val source2 = sc.textFile(file2)
-
-    /*
-     * The issue is that now with ResultWriter we recognize types.
-     * But in this case we have two different types for value - String(1) and Tuple2(2)
-     * So need to think if we jsut save as ValueWritable
-     */
-    // ===
-    val two = source2.distinct.map { x =>
-      val s = x.split(" ")
-      val key: Int = Integer.parseInt(s(0))
-      (key, s(1))
-    }.cache
-    
-    println(two.collect.toList)
-    
-    val result = source1.map { x =>
-      val s = x.split(" ")
-      val key: Int = Integer.parseInt(s(2))
-      val t = (key, (s(0), s(1)))
-      t
-    }.join(two).reduceByKey { (x, y) => ((x._1.toString, y._1.toString), x._2)
-    }.collect
-    
-    println(result.toList)
-    // ===
-
-    sc.stop
-    this.cleanUp(applicationName)
-  }
-  
-  
- 
-
-  @Test
   def partitionBy() {
     val applicationName = "partitionBy"
     this.cleanUp(applicationName)

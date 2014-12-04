@@ -35,10 +35,10 @@ import com.google.common.base.Preconditions;
  * This class is not public nor it is meant/designed as thread-safe.
  */
 @SuppressWarnings({ "rawtypes", "serial" }) 
-public class KeyWritable extends TypeAwareWritable<Comparable> implements WritableComparable<KeyWritable>, Serializable {
+public class KeyWritable extends TypeAwareWritable<Object> implements WritableComparable<KeyWritable>, Serializable {
 	
 	@Override
-	public void setValue(Comparable value) {
+	public void setValue(Object value) {
 		Preconditions.checkState(value != null, "'value' for key must not be null");
 		super.setValue(value);
 	}
@@ -46,6 +46,9 @@ public class KeyWritable extends TypeAwareWritable<Comparable> implements Writab
 	@SuppressWarnings("unchecked")
 	@Override
 	public int compareTo(KeyWritable o) {
-		return this.value.compareTo(o.value);
+		if (this.value instanceof Comparable<?>){
+			return ((Comparable) this.value).compareTo((Comparable) o.value);
+		}
+		return 0;
 	}
 }

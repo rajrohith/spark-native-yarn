@@ -61,7 +61,7 @@ class MllibDemoTests extends Serializable {
     
     val model = new ALS()
       .setRank(2)
-      .setIterations(1)
+      .setIterations(2)
       .setLambda(0.3)
       .setImplicitPrefs(true)
       .setUserBlocks(2)

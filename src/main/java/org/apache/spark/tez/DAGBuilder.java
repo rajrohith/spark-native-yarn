@@ -229,7 +229,16 @@ class DAGBuilder {
 			}
 			//
 			
-			String vertexName = String.valueOf(vertexDescriptor.getStageId());
+			String vertexName = null;
+			
+			if (task instanceof VertexShuffleTask){
+				vertexName = vertexDescriptor.getStageId() + "_" + ((VertexShuffleTask)task).getShuffleId();
+			} else {
+				vertexName = String.valueOf(vertexDescriptor.getStageId());
+			}
+			
+			
+			//String vertexName = String.valueOf(vertexDescriptor.getStageId());
 			UserPayload payload = TezHelper.serializeTask(vertexDescriptor, vertexName, fs, this.getNextPartitioner(), this.applicationName);
 
 			Vertex vertex = null;
@@ -302,9 +311,16 @@ class DAGBuilder {
 	private void addEdges(VertexDescriptor vertexDescriptor, Vertex targetVertex, OrderedPartitionedKVEdgeConfig edgeConf){
 		if (vertexDescriptor.getInput() != null){
 			for (int stageId : (Iterable<Integer>)vertexDescriptor.getInput()) {
-				Vertex v = this.dag.getVertex(stageId + "");
-				Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
-		    	this.dag.addEdge(edge);
+				for (Vertex v : this.dag.getVertices()) {
+					if (Integer.parseInt(v.getName().split("_")[0]) == stageId){
+						Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
+						this.dag.addEdge(edge);
+						//return;
+					}
+				}
+//				Vertex v = this.dag.getVertex(stageId + "");
+//				Edge edge = Edge.create(v, targetVertex, edgeConf.createDefaultEdgeProperty());
+//		    	this.dag.addEdge(edge);
 			}
 		}
 	}

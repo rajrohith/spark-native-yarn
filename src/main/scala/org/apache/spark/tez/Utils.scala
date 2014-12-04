@@ -132,7 +132,7 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
       null
     } else {
         if (dependencies.size == 0 || dependencies(0).name == null) 
-          (for (parent <- stage.parents) yield parent.id).reverse.asJavaCollection else dependencies(0)
+          (for (parent <- stage.parents) yield parent.id).asJavaCollection else dependencies(0)
     }
     
     val vd = new VertexDescriptor(stage.id, vertexId, deps, vertexTask)

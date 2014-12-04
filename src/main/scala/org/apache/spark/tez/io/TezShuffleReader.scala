@@ -43,10 +43,10 @@ import org.apache.spark.Aggregator
  * Implementation of Spark's ShuffleReader which delegates it's read functionality to Tez
  * This implementation is tailored for after-shuffle reads (e.g., ResultTask)
  */
-class TezShuffleReader[K, C](input: Map[Integer, LogicalInput], val handle: BaseShuffleHandle[K, _, C])
+class TezShuffleReader[K, C](reader: KeyValuesReader, val handle: BaseShuffleHandle[K, _, C])
   extends ShuffleReader[K, C] {
-  private val inputIndex = input.keySet().iterator().next()
-  private val reader = input.remove(this.inputIndex).getReader().asInstanceOf[KeyValuesReader]
+//  private val inputIndex = input.keySet().iterator().next()
+//  private val reader = input.remove(this.inputIndex).getReader().asInstanceOf[KeyValuesReader]
   private val dep = handle.dependency
 
   /**

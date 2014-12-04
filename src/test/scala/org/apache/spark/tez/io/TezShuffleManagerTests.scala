@@ -24,6 +24,7 @@ import java.util.Map
 import org.apache.spark.tez.test.utils.TestLogicalOutput
 import org.junit.Assert._
 import org.junit.runner.RunWith
+import org.apache.spark.shuffle.BaseShuffleHandle
 
 /**
  * 
@@ -48,7 +49,8 @@ class TezShuffleManagerTests {
     assertTrue(smForResultTask.getWriter(null, 0, null).isInstanceOf[TezResultWriter[_,_,_]])
     
     val smForShuffleTask = new TezShuffleManager(inMap, outMap);
-    assertTrue(smForShuffleTask.getWriter(null, 0, null).isInstanceOf[TezShuffleWriter[_,_,_]])
+    val handle = new BaseShuffleHandle(0, 0, null)
+    assertTrue(smForShuffleTask.getWriter(handle, 0, null).isInstanceOf[TezShuffleWriter[_,_,_]])
   }
   
   @Test
