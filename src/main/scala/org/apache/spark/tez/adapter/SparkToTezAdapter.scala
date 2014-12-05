@@ -86,6 +86,9 @@ object SparkToTezAdapter extends Logging {
     val pairRddFunctionsAdapter = pool.get("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter")
     val pairRddFunctions = pool.get("org.apache.spark.rdd.PairRDDFunctions")
     
+    val orderedRddFunctionsAdapter = pool.get("org.apache.spark.tez.adapter.OrderedRDDFunctionsAdapter")
+    val orderedRddFunctions = pool.get("org.apache.spark.rdd.OrderedRDDFunctions")
+    
     pairRddFunctions.getDeclaredMethods.collect{x =>
       x.getName() match {
         case "saveAsNewAPIHadoopDataset" => this.swapMethodBody(x, pairRddFunctionsAdapter)
@@ -98,8 +101,18 @@ object SparkToTezAdapter extends Logging {
     pairRddFunctionsAdapter.getNestedClasses.foreach{x =>
         x.replaceClassName("org.apache.spark.tez.adapter.PairRDDFunctionsAdapter", "org.apache.spark.rdd.PairRDDFunctions");
         x.toClass(cl, classOf[ClassPool].getProtectionDomain())
-    }    
+    } 
     
+    orderedRddFunctions.getDeclaredMethods.collect{x =>
+      x.getName() match {
+        case "sortByKey" => this.swapMethodBody(x, orderedRddFunctionsAdapter)
+      }
+    }    
+    orderedRddFunctionsAdapter.getNestedClasses.foreach{x =>
+        x.replaceClassName("org.apache.spark.tez.adapter.OrderedRDDFunctionsAdapter", "org.apache.spark.rdd.OrderedRDDFunctions");
+        x.toClass(cl, classOf[ClassPool].getProtectionDomain())
+    } 
+    pool.toClass(orderedRddFunctions, cl, classOf[ClassPool].getProtectionDomain())
     this.klass = pool.toClass(pairRddFunctions, cl, classOf[ClassPool].getProtectionDomain())
   }
 

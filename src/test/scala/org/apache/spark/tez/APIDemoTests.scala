@@ -202,6 +202,66 @@ class APIDemoTests {
     sc.stop
     this.cleanUp(applicationName)
   }
+
+  @Test
+  def sortByKeyAscending() {
+    val applicationName = "sortByKeyAscending"
+    this.cleanUp(applicationName)
+    val sparkConf = this.buildSparkConf()
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("sample-data/reduceBy")
+
+    // ===
+    val result = source
+      .flatMap(_.split(" "))
+      .map((_, 1))
+      .sortByKey(true)
+
+    val results = result.collect
+    Assert.assertEquals(("Nastia",1) , results(0))
+    Assert.assertEquals(("Nastia",1) , results(1))
+    Assert.assertEquals(("Oleg",1) , results(2))
+    Assert.assertEquals(("Oleg",1) , results(3))
+
+    result.saveAsNewAPIHadoopFile(applicationName + "_out", classOf[Text],
+      classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+//
+//    // ===
+    TestUtils.printSampleResults(applicationName, applicationName + "_out")
+    sc.stop
+    this.cleanUp(applicationName)
+  }
+  
+   @Test
+  def sortByKeyDescending() {
+    val applicationName = "sortByKeyDescending"
+    this.cleanUp(applicationName)
+    val sparkConf = this.buildSparkConf()
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.textFile("sample-data/reduceBy")
+
+    // ===
+    val result = source
+      .flatMap(_.split(" "))
+      .map((_, 1))
+      .sortByKey(false)
+
+    val results = result.collect
+    Assert.assertEquals(("Zhurakousky",1) , results(0))
+    Assert.assertEquals(("Zhurakousky",1) , results(1))
+    Assert.assertEquals(("Tysh",1) , results(2))
+    Assert.assertEquals(("Tysh",1) , results(3))
+
+    result.saveAsNewAPIHadoopFile(applicationName + "_out", classOf[Text],
+      classOf[IntWritable], classOf[TextOutputFormat[_, _]])
+
+    // ===
+    TestUtils.printSampleResults(applicationName, applicationName + "_out")
+    sc.stop
+    this.cleanUp(applicationName)
+  }
   
   @Test
   def mapValues() {

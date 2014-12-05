@@ -50,6 +50,10 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   private val kw:KeyWritable = new KeyWritable
   private val vw:ValueWritable = new ValueWritable
   private val dep = handle.dependency
+  
+  if (dep != null && dep.keyOrdering.isDefined){
+    KeyWritable.setAscending(false)
+  }
  
   /**
    * 

@@ -37,6 +37,8 @@ import com.google.common.base.Preconditions;
 @SuppressWarnings({ "rawtypes", "serial" }) 
 public class KeyWritable extends TypeAwareWritable<Object> implements WritableComparable<KeyWritable>, Serializable {
 	
+	private static boolean ascending = true;
+
 	@Override
 	public void setValue(Object value) {
 		Preconditions.checkState(value != null, "'value' for key must not be null");
@@ -47,8 +49,16 @@ public class KeyWritable extends TypeAwareWritable<Object> implements WritableCo
 	@Override
 	public int compareTo(KeyWritable o) {
 		if (this.value instanceof Comparable<?>){
-			return ((Comparable) this.value).compareTo((Comparable) o.value);
+			int cmp = ((Comparable) this.value).compareTo((Comparable) o.value);
+			if (!ascending){
+				cmp = cmp * (-1);
+			}
+			return cmp;
 		}
 		return 0;
+	}
+	
+	protected static void setAscending(boolean ascending) {
+		KeyWritable.ascending = ascending;
 	}
 }

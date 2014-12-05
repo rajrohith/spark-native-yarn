@@ -38,6 +38,8 @@ import org.apache.spark.TaskContextImpl
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.Logging
 import org.apache.spark.Aggregator
+import org.apache.spark.util.collection.ExternalSorter
+import org.apache.spark.SparkEnv
 
 /**
  * Implementation of Spark's ShuffleReader which delegates it's read functionality to Tez
@@ -52,7 +54,8 @@ class TezShuffleReader[K, C](reader: KeyValuesReader, val handle: BaseShuffleHan
   override def read(): Iterator[Product2[K, C]] = {
     val dep = handle.dependency
     val aggregator = if (dep.aggregator.isDefined) dep.aggregator.get else null
-    new ShuffleIterator(this.reader, aggregator.asInstanceOf[Aggregator[Any, Any, Any]]).asInstanceOf[Iterator[Product2[K,C]]].map(pair => (pair._1, pair._2))
+    val iter = new ShuffleIterator(this.reader, aggregator.asInstanceOf[Aggregator[Any, Any, Any]]).asInstanceOf[Iterator[Product2[K,C]]]
+    iter
   }
   
   /**
