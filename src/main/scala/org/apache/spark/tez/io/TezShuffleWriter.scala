@@ -47,8 +47,8 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
     combine:Boolean = true) extends ShuffleWriter[K, V] with Logging {
   
   private val kvWriter = new MultiTargetKeyValueWriter(output)
-  private val kw:KeyWritable = new KeyWritable
-  private val vw:ValueWritable[Any] = new ValueWritable[Any]
+  private val kw = new KeyWritable
+  private val vw = new ValueWritable[Any]
   private val dep = handle.dependency
   
   KeyWritable.setAscending(dep == null || !dep.keyOrdering.isDefined)
@@ -78,9 +78,6 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
       }
     
     iter.foreach(keyValue => this.writeKeyValue(keyValue._1, keyValue._2))
-//    for (keyValue <- iter) {
-//      this.writeKeyValue(keyValue._1, keyValue._2.asInstanceOf[V])
-//    }
   }
 
   /**

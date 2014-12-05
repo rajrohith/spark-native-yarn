@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 /**
  * Writer which writes Key/Value pairs to as many outputs as declared in the Map
  */
-class MultiTargetKeyValueWriter(outputs: java.util.Map[Integer, LogicalOutput]) {
+private[tez] class MultiTargetKeyValueWriter(outputs: java.util.Map[Integer, LogicalOutput]) {
   private val writers = 
     for (logicalOutput <- outputs.values().asScala) yield logicalOutput.getWriter().asInstanceOf[KeyValueWriter]
 
