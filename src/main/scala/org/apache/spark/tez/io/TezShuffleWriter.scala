@@ -45,15 +45,13 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
     handle: BaseShuffleHandle[K, V, C], 
     context: TaskContext, 
     combine:Boolean = true) extends ShuffleWriter[K, V] with Logging {
-
+  
   private val kvWriter = new MultiTargetKeyValueWriter(output)
   private val kw:KeyWritable = new KeyWritable
-  private val vw:ValueWritable = new ValueWritable
+  private val vw:ValueWritable[Any] = new ValueWritable[Any]
   private val dep = handle.dependency
   
-  if (dep != null && dep.keyOrdering.isDefined){
-    KeyWritable.setAscending(false)
-  }
+  KeyWritable.setAscending(dep == null || !dep.keyOrdering.isDefined)
  
   /**
    * 
@@ -63,32 +61,34 @@ class TezShuffleWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput],
   }
 
   /**
-   *
+   * Will write key/values to shuffle output while handling map-side combine
    */
   private def sinkKeyValuesIterator(keyValues: Iterator[_ <: Product2[K, V]]) {
-    val iter = if (dep.aggregator.isDefined) {
-      if (dep.mapSideCombine) {
-        dep.aggregator.get.combineValuesByKey(keyValues, context)
+    val iter =
+      if (dep.aggregator.isDefined) {
+        if (dep.mapSideCombine) {
+          dep.aggregator.get.combineValuesByKey(keyValues, context)
+        } else {
+          keyValues
+        }
+      } else if (dep.aggregator.isEmpty && dep.mapSideCombine) {
+        throw new IllegalStateException("Aggregator is empty for map-side combine")
       } else {
         keyValues
       }
-    } else if (dep.aggregator.isEmpty && dep.mapSideCombine) {
-      throw new IllegalStateException("Aggregator is empty for map-side combine")
-    } else {
-      keyValues
-    }
     
-    for (keyValue <- iter) {
-      this.writeKeyValue(keyValue._1, keyValue._2.asInstanceOf[V])
-    }
+    iter.foreach(keyValue => this.writeKeyValue(keyValue._1, keyValue._2))
+//    for (keyValue <- iter) {
+//      this.writeKeyValue(keyValue._1, keyValue._2.asInstanceOf[V])
+//    }
   }
 
   /**
    *
    */
-  private def writeKeyValue(key: K, value: V) {
+  private def writeKeyValue(key: K, value: Any) {
     this.kw.setValue(key)
-    this.vw.setValue(value.asInstanceOf[Object])
+    this.vw.setValue(value)
     kvWriter.write(kw, vw)
   }
 

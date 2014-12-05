@@ -136,7 +136,7 @@ class TezDelegate extends SparkListener with Logging {
   private def extractOutputMetedata[T, U](conf: Configuration, appName: String): Tuple4[Class[_ <:Writable], Class[_ <:Writable], Class[_], String] = {
     val outputFormat = conf.getClass("mapreduce.job.outputformat.class", classOf[SequenceFileOutputFormat[_, _]])
     val keyType = conf.getClass("mapreduce.job.output.key.class", classOf[KeyWritable], classOf[Writable])
-    val valueType = conf.getClass("mapreduce.job.output.value.class", classOf[ValueWritable], classOf[Writable])
+    val valueType = conf.getClass("mapreduce.job.output.value.class", classOf[ValueWritable[_]], classOf[Writable])
     var outputPath = conf.get("mapred.output.dir", "out")
 
     conf.clear()

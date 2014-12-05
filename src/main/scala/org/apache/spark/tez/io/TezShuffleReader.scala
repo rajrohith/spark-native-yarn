@@ -40,21 +40,20 @@ import org.apache.spark.Logging
 import org.apache.spark.Aggregator
 import org.apache.spark.util.collection.ExternalSorter
 import org.apache.spark.SparkEnv
+import org.apache.spark.ShuffleDependency
 
 /**
  * Implementation of Spark's ShuffleReader which delegates it's read functionality to Tez
  * This implementation is tailored for after-shuffle reads (e.g., ResultTask)
  */
-class TezShuffleReader[K, C](reader: KeyValuesReader, val handle: BaseShuffleHandle[K, _, C]) extends ShuffleReader[K, C] {
+class TezShuffleReader[K, C](reader: KeyValuesReader, handle: BaseShuffleHandle[K, C, C]) extends ShuffleReader[K, C] {
   private val dep = handle.dependency
 
   /**
    *
    */
   override def read(): Iterator[Product2[K, C]] = {
-    val dep = handle.dependency
-    val aggregator = if (dep.aggregator.isDefined) dep.aggregator.get else null
-    val iter = new ShuffleIterator(this.reader, aggregator.asInstanceOf[Aggregator[Any, Any, Any]]).asInstanceOf[Iterator[Product2[K,C]]]
+    val iter = new ShuffleIterator(this.reader, this.dep).asInstanceOf[Iterator[Product2[K,C]]]
     iter
   }
   
@@ -67,11 +66,11 @@ class TezShuffleReader[K, C](reader: KeyValuesReader, val handle: BaseShuffleHan
 /**
  *
  */
-private class ShuffleIterator[K, C](reader: KeyValuesReader, aggregator:Aggregator[Any,Any,Any]) extends Iterator[Product2[Any, Any]] {
+private class ShuffleIterator[K, C](reader: KeyValuesReader, dependency: ShuffleDependency[K, C, C]) extends Iterator[Product2[Any, Any]] {
   private var hasNextNeverCalled = true
   private var containsNext = false;
   private var shoudlCheckHasNext = false;
-  private var currentValues: Iterator[Object] = _
+  private var currentValues: Iterator[ValueWritable[C]] = _
 
   /**
    *
@@ -88,7 +87,7 @@ private class ShuffleIterator[K, C](reader: KeyValuesReader, aggregator:Aggregat
    *
    */
   override def next(): Product2[Any, Any] = {
-    if (hasNextNeverCalled) {
+    if (this.hasNextNeverCalled) {
       this.hasNext
     }
 
@@ -98,28 +97,24 @@ private class ShuffleIterator[K, C](reader: KeyValuesReader, aggregator:Aggregat
      * on the result of the YARN shuffle which gives us KV entries sorted by key.
      */
     if (this.containsNext) {
-      if (aggregator != null) {
-        this.currentValues = this.reader.getCurrentValues().iterator.asScala
-        var mergedValue: Any = null
-        for (value <- this.currentValues) {
-          val vw = value.asInstanceOf[ValueWritable]
-          val v = vw.getValue()
-          if (mergedValue == null) {
-            mergedValue = aggregator.createCombiner(v)
-          } else {
-            mergedValue = aggregator.mergeValue(mergedValue, v)
-          }
+      val key = this.reader.getCurrentKey.asInstanceOf[KeyWritable].getValue()
+      if (dependency.aggregator.isDefined) {
+        val aggregator = dependency.aggregator.get
+        this.currentValues = this.reader.getCurrentValues().iterator.asScala.asInstanceOf[Iterator[ValueWritable[C]]]
+
+        var mergedValue = aggregator.createCombiner(this.currentValues.next.getValue()) 
+        while (this.currentValues.hasNext) {
+          mergedValue = aggregator.mergeValue(mergedValue, this.currentValues.next.getValue())
         }
-        val key = this.reader.getCurrentKey.asInstanceOf[KeyWritable].getValue().asInstanceOf[Comparable[_]]
-        val result = (key, mergedValue.asInstanceOf[Object])
+        
+        val result = (key, mergedValue)
         this.shoudlCheckHasNext = true
         result
       } else {
         if (this.currentValues == null) {
-          this.currentValues = this.reader.getCurrentValues().iterator.asScala
+          this.currentValues = this.reader.getCurrentValues().iterator.asScala.asInstanceOf[Iterator[ValueWritable[C]]]
         }
-        val key = this.reader.getCurrentKey.asInstanceOf[KeyWritable].getValue().asInstanceOf[Comparable[_]]
-        val result = (key, this.currentValues.next.asInstanceOf[ValueWritable].getValue())
+        val result = (key, this.currentValues.next.getValue())
         if (!this.currentValues.hasNext) {
           this.shoudlCheckHasNext = true
           this.currentValues = null

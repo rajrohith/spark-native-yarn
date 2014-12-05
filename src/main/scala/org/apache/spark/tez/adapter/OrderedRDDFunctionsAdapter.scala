@@ -49,23 +49,26 @@ class OrderedRDDFunctionsAdapter[K : Ordering : ClassTag,
                           P <: Product2[K, V] : ClassTag] extends Logging {
 
   /**
+   * Unlike spark-native this version of 'sortByKey' will not use RangePartitioner as shuffle partitioner
+   * and instead will fall back to using HashPartitioner only for shuffle purposes.
    * 
+   * Further, in TezShuffleReader, there won't be any sorting step (e.g., using any kind of ExternalSorter) 
+   * since sorting is already a side-effect of YARN shuffle and the only thing that needs to be controlled is 
+   * ascending/descending order, which will be handled by TezShuffleWriter by setting appropriate KeyWritable flag.
    */
   def sortByKey(ascending: Boolean = true, numPartitions: Int = 1): RDD[(K, V)] = {
     val ordd = this.asInstanceOf[OrderedRDDFunctions[K, V, P]]
-    var fields = ordd.getClass().getDeclaredFields().filter(_.getName().endsWith("self"))
-    var field = fields(0)
+    var field = ordd.getClass().getDeclaredFields().filter(_.getName().endsWith("self"))(0)
     field.setAccessible(true)
     val self: RDD[P] = field.get(ordd).asInstanceOf[RDD[P]]
     
-    if (ascending){
-      new ShuffledRDD[K, V, V](self, new HashPartitioner(numPartitions))
-    } else {
-      fields = ordd.getClass().getDeclaredFields().filter(_.getName().endsWith("ordering"))
-      field = fields(0)
+    val rdd = new ShuffledRDD[K, V, V](self, new HashPartitioner(numPartitions))
+    if (!ascending) {
+      field = ordd.getClass().getDeclaredFields().filter(_.getName().endsWith("ordering"))(0)
       field.setAccessible(true)
       val ordering = field.get(ordd).asInstanceOf[Ordering[K]]
-      new ShuffledRDD[K, V, V](self, new HashPartitioner(numPartitions)).setKeyOrdering(ordering)
+      rdd.setKeyOrdering(ordering)
     }
+    rdd
   }
 }

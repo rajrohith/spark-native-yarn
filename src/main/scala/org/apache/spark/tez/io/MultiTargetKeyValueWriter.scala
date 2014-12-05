@@ -21,7 +21,7 @@ import org.apache.tez.runtime.library.api.KeyValueWriter
 import scala.collection.JavaConverters._
 
 /**
- * 
+ * Writer which writes Key/Value pairs to as many outputs as declared in the Map
  */
 class MultiTargetKeyValueWriter(outputs: java.util.Map[Integer, LogicalOutput]) {
   private val writers = 
@@ -30,7 +30,7 @@ class MultiTargetKeyValueWriter(outputs: java.util.Map[Integer, LogicalOutput]) 
   /**
    * 
    */
-  def write(key: KeyWritable, value: ValueWritable) {
+  def write(key: KeyWritable, value: ValueWritable[_]) {
     writers.foreach(_.write(key, value))
   }
 }

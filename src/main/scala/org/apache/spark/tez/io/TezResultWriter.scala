@@ -103,7 +103,7 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
       new NewWritable.NewTextWritable
     } else if (wClass.isAssignableFrom(classOf[KeyWritable])){
       new KeyWritable
-    } else if (wClass.isAssignableFrom(classOf[ValueWritable])){
+    } else if (wClass.isAssignableFrom(classOf[ValueWritable[_]])){
       new ValueWritable
     } else if (wClass.isAssignableFrom(classOf[NullWritable])){
       NullWritable.get
