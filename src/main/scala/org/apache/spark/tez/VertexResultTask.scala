@@ -54,11 +54,6 @@ class VertexResultTask[T, U](
   func: (TaskContext, Iterator[T]) => U = null)
   	extends TezTask[U](stageId, 0, rdd) {
   
-  /*
-   * NOTE: While we are not really dependent on the Partition we need it to be non null to 
-   * comply with Spark (see ShuffleRDD)
-   */
-  
   private[tez] var keyClass:Class[Writable] = null
   private[tez] var valueClass:Class[Writable] = null
   
@@ -71,8 +66,6 @@ class VertexResultTask[T, U](
   private[tez] def setValueClass(valueClass:Class[Writable]) {
     this.valueClass = valueClass
   }
-  
-  def hasFunction():Boolean = func != null
 
   /**
    *
@@ -82,15 +75,14 @@ class VertexResultTask[T, U](
       val partition = if (partitions.length == 1) partitions(0) else partitions(context.partitionId())
 
       this.resetPartitionIndex(partition, context.partitionId())
-      
-      if (func == null) {
-        this.toHdfs(partition.index, rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]])
+
+      val iterator = if (func == null) {
+        rdd.iterator(partition, context).asInstanceOf[Iterator[Product2[_, _]]]
       } else {
         val result = func(context, rdd.iterator(partition, context))
-        val manager = SparkEnv.get.shuffleManager
-        val iter = new InterruptibleIterator(context, Map(partition.index -> result).iterator)
-        this.toHdfs(partition.index, iter)
-      }
+        new InterruptibleIterator(context, Map(partition.index -> result).iterator)
+      } 
+      this.toHdfs(partition.index, iterator)
     } catch {
       case e: Exception => e.printStackTrace(); throw new IllegalStateException(e)
     }
@@ -99,19 +91,19 @@ class VertexResultTask[T, U](
   /**
    *
    */
-  override def toString = "ResultTask(" + stageId + ", " + partitionId + ")"
+  override def toString = "VertexResultTask(" + stageId + ", " + partitionId + ")"
   
   /**
    *
    */
   private def toHdfs(index:Int, iter: Iterator[Product2[Any, Any]]): U = {
     val manager = SparkEnv.get.shuffleManager
-    val dependency = if (rdd.dependencies.size > 0) rdd.dependencies.head else null
-    val handle = if (dependency != null && dependency.isInstanceOf[ShuffleDependency[_, _, _]]) {
-      new BaseShuffleHandle(index, 0, dependency.asInstanceOf[ShuffleDependency[_, _, _]])
-    } else {
-      null
-    }
+    val handle =
+      if (rdd.dependencies.head.isInstanceOf[ShuffleDependency[_, _, _]]) {
+        new BaseShuffleHandle(index, 0, rdd.dependencies.head.asInstanceOf[ShuffleDependency[_, _, _]])
+      } else {
+        null
+      }
     val writer = manager.getWriter(handle, index, context).asInstanceOf[TezResultWriter[Any, Any, _]]
     writer.setKeyClass(this.keyClass)
     writer.setValueClass(this.valueClass)

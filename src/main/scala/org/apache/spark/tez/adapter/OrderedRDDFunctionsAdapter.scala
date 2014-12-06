@@ -60,7 +60,7 @@ class OrderedRDDFunctionsAdapter[K : Ordering : ClassTag,
     val ordd = this.asInstanceOf[OrderedRDDFunctions[K, V, P]]
     var field = ordd.getClass().getDeclaredFields().filter(_.getName().endsWith("self"))(0)
     field.setAccessible(true)
-    val self: RDD[P] = field.get(ordd).asInstanceOf[RDD[P]]
+    val self = field.get(ordd).asInstanceOf[RDD[P]]
     
     val rdd = new ShuffledRDD[K, V, V](self, new HashPartitioner(numPartitions))
     if (!ascending) {

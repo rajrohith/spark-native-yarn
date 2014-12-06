@@ -114,7 +114,6 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
 
     val vertexTask =
       if (stage.isShuffleMap) {
-        logInfo(stage.shuffleDep.get.toString)
         logInfo("STAGE Shuffle: " + stage + " vertex: " + this.vertexId)
         new VertexShuffleTask(stage.id, stage.rdd, stage.shuffleDep.asInstanceOf[Option[ShuffleDependency[Any, Any, Any]]], partitions)
       } else {

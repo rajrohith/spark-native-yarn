@@ -176,6 +176,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
       val conf = new TezConfiguration
       val outputPath = new Path(out)
       val iter = fs.listFiles(outputPath, false)
+      
       var partitionCounter = 0
       while (iter.hasNext() && partitionCounter < partitionSize) {
         val fStatus = iter.next()

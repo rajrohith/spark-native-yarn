@@ -81,7 +81,7 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
     
     val registry = this.context.getObjectRegistry()
     
-    var task = registry.get(vertexName).asInstanceOf[TezTask[_]]
+    var task = registry.get(this.vertexName).asInstanceOf[TezTask[_]]
     if (task == null) {
       val fs = FileSystem.get(new TezConfiguration)
       task = TezHelper.deserializeTask(context, fs)
@@ -108,12 +108,14 @@ class SparkTaskProcessor(context: ProcessorContext) extends SimpleMRProcessor(co
          * Non-numeric input identifiers contain shuffleId encoding (e.g., 0_1 where 0 is vertex name and 1 is shuffleId)
          * For such cases TezShuffleManager will use shuffleId to link TezShuffleReader to the right input
          */
-        if (!StringUtils.isNumeric(indexString)) {
-          val shuffleId = Integer.parseInt(indexString.split("_")(1))
-          resultMap.put(shuffleId, map.get(indexString));
-        } else {
-          resultMap.put(Integer.parseInt(indexString), map.get(indexString));
-        }
+        val key =
+          if (!StringUtils.isNumeric(indexString)) {
+            Integer.parseInt(indexString.split("_")(1))
+          } else {
+            Integer.parseInt(indexString)
+          }
+        
+        resultMap.put(key, map.get(indexString));
       } catch {
         case e: NumberFormatException =>
           throw new IllegalArgumentException("Vertex name must be parsable to Integer. Was: '" + indexString + "'", e);

@@ -39,25 +39,35 @@ public class KeyWritable extends TypeAwareWritable<Object> implements WritableCo
 	
 	private static boolean ascending = true;
 
+	/**
+	 * 
+	 */
 	@Override
 	public void setValue(Object value) {
 		Preconditions.checkState(value != null, "'value' for key must not be null");
 		super.setValue(value);
 	}
 	
+	/**
+	 * 
+	 */
 	@SuppressWarnings("unchecked")
 	@Override
 	public int compareTo(KeyWritable o) {
 		if (this.value instanceof Comparable<?>){
 			int cmp = ((Comparable) this.value).compareTo((Comparable) o.value);
 			if (!ascending){
-				cmp = cmp * (-1);
+				cmp *= -1;
 			}
 			return cmp;
 		}
 		return 0;
 	}
 	
+	/**
+	 * 
+	 * @param ascending
+	 */
 	protected static void setAscending(boolean ascending) {
 		KeyWritable.ascending = ascending;
 	}

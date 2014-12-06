@@ -39,10 +39,11 @@ import org.apache.hadoop.io.NullWritable
  * Since all computation functions are invoked on reading iterators, this writer will not perform
  * any computation and will simply write KV pairs to HDFS.
  */
-class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], handle: BaseShuffleHandle[K, V, C], context: TaskContext) extends ShuffleWriter[K, V] with Logging {
+class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], handle: BaseShuffleHandle[K, V, C], 
+    context: TaskContext) extends ShuffleWriter[K, V] with Logging {
   
-  private val kvOutput = output.values.iterator().next()
-  private val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
+  private[tez] val kvOutput = output.values.iterator().next()
+  private[tez] val kvWriter = kvOutput.getWriter().asInstanceOf[KeyValueWriter]
   
   private[tez] var keyWritable:Writable = null
   private[tez] var valueWritable:Writable = null
@@ -81,7 +82,7 @@ class TezResultWriter[K, V, C](output:java.util.Map[Integer, LogicalOutput], han
    * 
    */
   private def write(key:Any, value:Any) {
-   if (key.isInstanceOf[Writable] && value.isInstanceOf[Writable]){
+   if (key.isInstanceOf[Writable]) {// at this point both Key/Value must be Writable
      kvWriter.write(key, value)
    }
    else {
