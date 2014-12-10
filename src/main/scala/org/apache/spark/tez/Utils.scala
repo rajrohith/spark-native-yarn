@@ -107,6 +107,8 @@ class Utils[T, U: ClassTag](stage: Stage, func: (TaskContext, Iterator[T]) => U,
       val narrowAncestors = stage.rdd.getNarrowAncestors.sortBy(_.id)
       if (narrowAncestors.size > 0 && narrowAncestors.head.isInstanceOf[ParallelCollectionRDD[_]]) {
         stage.rdd.partitions
+      } else if (narrowAncestors == Nil && stage.rdd.isInstanceOf[ParallelCollectionRDD[_]]) {
+        stage.rdd.partitions
       } else {
         Array(stage.rdd.partitions(0))
       }

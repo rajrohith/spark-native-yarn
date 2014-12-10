@@ -99,7 +99,7 @@ class VertexResultTask[T, U](
   private def toHdfs(index:Int, iter: Iterator[Product2[Any, Any]]): U = {
     val manager = SparkEnv.get.shuffleManager
     val handle =
-      if (rdd.dependencies.head.isInstanceOf[ShuffleDependency[_, _, _]]) {
+      if (rdd.dependencies != Nil && rdd.dependencies.head.isInstanceOf[ShuffleDependency[_, _, _]]) {
         new BaseShuffleHandle(index, 0, rdd.dependencies.head.asInstanceOf[ShuffleDependency[_, _, _]])
       } else {
         null

@@ -428,6 +428,19 @@ class APIDemoTests {
     Assert.assertEquals(5, count)
     this.cleanUp(applicationName)
   }
+  
+   @Test
+  def parallelize2() {
+    val applicationName = "parallelize2"
+    this.cleanUp(applicationName)
+    val sparkConf = this.buildSparkConf()
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source = sc.parallelize(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 0), 3)
+    val count = source.count
+    println(count)
+    this.cleanUp(applicationName)
+  }
 
   @Test
   def broadcast() {
@@ -459,6 +472,8 @@ class APIDemoTests {
   def buildSparkConf(masterUrl:String = "execution-context:" + classOf[TezJobExecutionContext].getName): SparkConf = {
     val sparkConf = new SparkConf
     sparkConf.set("spark.ui.enabled", "false")
+    sparkConf.set("spark.driver.allowMultipleContexts", "true")
+    
     sparkConf.setMaster(masterUrl)
     sparkConf
   }

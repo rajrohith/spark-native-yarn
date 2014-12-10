@@ -63,6 +63,8 @@ class SparkTaskProcessorTests {
     val applicationName = "reduceByKey"
     val sparkConf = new SparkConf
     sparkConf.set("spark.ui.enabled", "false")
+    sparkConf.set("spark.driver.allowMultipleContexts", "true")
+    
     sparkConf.setAppName(applicationName);
     sparkConf.setMaster(masterUrl)
     val sc = new SparkContext(sparkConf)
