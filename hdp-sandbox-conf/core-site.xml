@@ -1,0 +1,7 @@
+<configuration>
+	<property>
+		<name>fs.defaultFS</name>
+		<value>hdfs://sandbox.hortonworks.com:8020</value>
+		<description>NameNode URI</description>
+	</property>
+</configuration>

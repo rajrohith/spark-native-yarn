@@ -184,6 +184,7 @@ class JoinTests {
   def buildSparkConf(masterUrl:String = "execution-context:" + classOf[TezJobExecutionContext].getName): SparkConf = {
     val sparkConf = new SparkConf
     sparkConf.set("spark.ui.enabled", "false")
+    sparkConf.set("spark.driver.allowMultipleContexts", "true")
     sparkConf.setMaster(masterUrl)
     sparkConf
   }

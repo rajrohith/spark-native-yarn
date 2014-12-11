@@ -12,7 +12,8 @@
 		<value>true</value>
 	</property>
 	<property>
-		<name>tez.am.session.min.held-containers</name>
-		<value>2</value>
+		<name>tez.ignore.lib.uris</name>
+		<value>true</value>
+		<description>ignore tez libs</description>
 	</property>
 </configuration>

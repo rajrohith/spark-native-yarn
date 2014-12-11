@@ -1,0 +1,19 @@
+<configuration>
+	<property>
+		<name>tez.ignore.lib.uris</name>
+		<value>true</value>
+		<description>ignore tez libs</description>
+	</property>
+	<property>
+		<name>tez.am.mode.session</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>tez.task.resource.memory.mb</name>
+		<value>512</value>
+	</property>
+	<property>
+		<name>tez.am.resource.memory.mb</name>
+		<value>512</value>
+	</property>
+</configuration>
