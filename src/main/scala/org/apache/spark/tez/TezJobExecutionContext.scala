@@ -92,7 +92,7 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   try {
     logInfo("FileSystem: " + new TezConfiguration().get("fs.defaultFS"))
   } catch {
-    case e:Exception => {
+    case e:Error => {
       val confLoadLocation = classOf[Configuration].getProtectionDomain().getCodeSource().getLocation()
       val tezConfLoadLocation = classOf[TezConfiguration].getProtectionDomain().getCodeSource().getLocation()
       logError("Error while accessing configuration. Possible cause - 'version missmatch'\n" + 
