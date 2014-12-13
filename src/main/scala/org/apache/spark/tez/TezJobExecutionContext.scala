@@ -89,7 +89,20 @@ class TezJobExecutionContext extends JobExecutionContext with Logging {
   
   val hadoopConf = System.getenv().get("HADOOP_CONF_DIR")
   logInfo("Config dir: " + hadoopConf)
-  logInfo("FileSystem: " + new TezConfiguration().get("fs.default.name"))
+  try {
+    logInfo("FileSystem: " + new TezConfiguration().get("fs.defaultFS"))
+  } catch {
+    case e:Exception => {
+      val confLoadLocation = classOf[Configuration].getProtectionDomain().getCodeSource().getLocation()
+      val tezConfLoadLocation = classOf[TezConfiguration].getProtectionDomain().getCodeSource().getLocation()
+      logError("Error while accessing configuration. Possible cause - 'version missmatch'\n" + 
+    		 "org.apache.hadoop.conf.Configuration is loaded from " + confLoadLocation + "\n" + 
+    		 "org.apache.tez.dag.api.TezConfiguration is loaded from " + tezConfLoadLocation)
+      e.printStackTrace()
+    }
+  }
+  
+  
   
   private val cachedRDDs = new HashSet[Path]
 
