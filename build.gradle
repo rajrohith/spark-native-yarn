@@ -13,18 +13,6 @@ mainClassName="org.apache.spark.tez.Main"
 sourceCompatibility=1.6
 targetCompatibility=1.6
 
-<<<<<<< HEAD
-junitVersion = '4.8.2'
-log4jVersion = '1.2.12'
-slf4jVersion = '1.7.2'
-hadoopVersion = '2.6.0'
-scalaVersion = '2.10.4'
-sparkVersion = '1.2.1'
-tezVersion = '0.5.2.2.2.0.0-2041'
-mockitoVersion = '1.8.4'
-
-=======
->>>>>>> mv version properties into gradle.properties
 sourceSets.main.scala.srcDir "src/main/java"
 sourceSets.main.java.srcDirs = []
 sourceSets.test.scala.srcDir "src/test/java"
