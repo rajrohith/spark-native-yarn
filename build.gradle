@@ -133,6 +133,9 @@ dependencies {
 	compile "com.google.guava:guava:14.0.1"
 	
 	compile "javassist:javassist:3.12.1.GA"
+        compile "org.codehaus.jackson:jackson-core-asl:1.9.5"
+        compile "org.codehaus.jackson:jackson-xc:1.9.5"
+        compile "org.codehaus.jackson:jackson-jaxrs:1.9.5"
 	
 	testCompile "org.scalanlp:breeze_2.10:0.9"
 	testCompile "junit:junit-dep:$junitVersion"
