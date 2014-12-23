@@ -110,8 +110,7 @@ dependencies {
         compile "org.codehaus.jackson:jackson-core-asl:1.9.5"
         compile "org.codehaus.jackson:jackson-xc:1.9.5"
         compile "org.codehaus.jackson:jackson-jaxrs:1.9.5"
-        compile "com.sun.jersey:jersey-client:1.9"
-        compile "com.sun.jersey:jersey-json:1.9"
+        compile "com.sun.jersey:jersy-bundle:1.9"
 
         testCompile "org.scalanlp:breeze_2.10:0.9"
 	testCompile "junit:junit-dep:$junitVersion"
