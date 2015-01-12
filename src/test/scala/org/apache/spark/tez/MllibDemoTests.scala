@@ -50,26 +50,47 @@ class MllibDemoTests extends Serializable {
     
     val implicitPrefs = true
 
-    val training = sc.textFile("src/test/scala/org/apache/spark/tez/sample_movielens_data.txt").map { line =>
+    val ratings = sc.textFile("src/test/scala/org/apache/spark/tez/sample_movielens_data.txt").map { line =>
       val fields = line.split("::")
       if (implicitPrefs) {
         Rating(fields(0).toInt, fields(1).toInt, fields(2).toDouble - 2.5)
       } else {
         Rating(fields(0).toInt, fields(1).toInt, fields(2).toDouble)
       }
-    }
+    }.cache()
     
+    val numRatings = ratings.count()
+    val numUsers = ratings.map(_.user).distinct().count()
+    val numMovies = ratings.map(_.product).distinct().count()
+
+    println(s"Got $numRatings ratings from $numUsers users on $numMovies movies.")
+
+    val splits = ratings.randomSplit(Array(0.8, 0.2))
+    val training = splits(0).cache()
+    val test = if (implicitPrefs) {
+      
+      splits(1).map(x => Rating(x.user, x.product, if (x.rating > 0) 1.0 else 0.0))
+    } else {
+      splits(1)
+    }.cache()
+
+    val numTraining = training.count()
+    val numTest = test.count()
+    println(s"Training: $numTraining, test: $numTest.")
+
+    ratings.unpersist(blocking = false)
+
     val model = new ALS()
-      .setRank(2)
-      .setIterations(2)
-      .setLambda(0.3)
-      .setImplicitPrefs(true)
-      .setUserBlocks(2)
-      .setProductBlocks(3)
+      .setRank(10)
+      .setIterations(3)
+      .setLambda(1.0)
+      .setImplicitPrefs(implicitPrefs)
+      .setUserBlocks(-1)
+      .setProductBlocks(-1)
       .run(training)
 
     Assert.assertEquals(100, model.productFeatures.collect.toList.size)
-    Assert.assertEquals(2, model.rank)
+    Assert.assertEquals(10, model.rank)
     Assert.assertEquals(30, model.userFeatures.collect.toList.size)
    
     sc.stop()
