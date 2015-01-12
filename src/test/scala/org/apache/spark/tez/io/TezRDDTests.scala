@@ -47,6 +47,7 @@ import org.apache.spark.tez.test.utils.TestUtils
 import org.apache.tez.client.TezClient
 import org.apache.spark.tez.TezDelegate
 import org.mockito.Mockito
+import org.apache.spark.SparkConf
 /** 
  * 
  */
@@ -88,7 +89,13 @@ class TezRDDTests extends Instrumentable {
   def validatePersistAndUnpersist() = {
     val appName = "validatePersistAndUnpersist"
     val masterUrl = "execution-context:" + classOf[TezJobExecutionContext].getName
-    val sc = new SparkContext(masterUrl, appName)
+    val sparkConf = new SparkConf
+    sparkConf.set("spark.ui.enabled", "false")
+    sparkConf.set("spark.driver.allowMultipleContexts", "true")
+    
+    sparkConf.setAppName(appName);
+    sparkConf.setMaster(masterUrl)
+    val sc = new SparkContext(sparkConf)
     ReflectionUtils.setFieldValue(sc, "executionContext.tezDelegate.tezClient", new Some(TezClientMocker.noOpTezClientWithSuccessfullSubmit(appName)))
     val tezRdd = new TezRDD("src/test/scala/org/apache/spark/tez/io/tezRDDTestFile.txt", sc, classOf[TextInputFormat],
       classOf[Text], classOf[IntWritable], new TezConfiguration)
@@ -98,6 +105,7 @@ class TezRDDTests extends Instrumentable {
     assertTrue(persistedRdd.getStorageLevel.useMemory)
     persistedRdd.unpersist()
     assertFalse(persistedRdd.getStorageLevel.useMemory)
+    sc.stop
   }
 
   @Test
