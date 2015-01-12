@@ -16,22 +16,20 @@
  */
 package org.apache.spark.tez
 
-import org.junit.Test
+import java.io.File
+
+import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import breeze.linalg.{ Vector, DenseVector, squaredDistance }
-import org.apache.hadoop.io.NullWritable
-import org.apache.spark.tez.io.KeyWritable
-import org.apache.commons.io.FileUtils
-import org.apache.hadoop.fs.FileUtil
-import java.io.File
+import org.apache.spark.SparkContext.doubleRDDToDoubleRDDFunctions
+import org.apache.spark.SparkContext.rddToPairRDDFunctions
+import org.apache.spark.annotation.Experimental
 import org.apache.spark.mllib.recommendation.ALS
-import org.apache.spark.mllib.recommendation.Rating
-import org.apache.spark.HashPartitioner
 import org.apache.spark.mllib.recommendation.MatrixFactorizationModel
+import org.apache.spark.mllib.recommendation.Rating
 import org.apache.spark.rdd.RDD
 import org.junit.Assert
+import org.junit.Test
 
 /**
  * Will run in Tez local mode
@@ -47,7 +45,7 @@ class MllibDemoTests extends Serializable {
     val sparkConf = this.buildSparkConf()
     sparkConf.setAppName(applicationName)
     val sc = new SparkContext(sparkConf)
-    
+
     val implicitPrefs = true
 
     val ratings = sc.textFile("src/test/scala/org/apache/spark/tez/sample_movielens_data.txt").map { line =>
@@ -58,7 +56,7 @@ class MllibDemoTests extends Serializable {
         Rating(fields(0).toInt, fields(1).toInt, fields(2).toDouble)
       }
     }.cache()
-    
+
     val numRatings = ratings.count()
     val numUsers = ratings.map(_.user).distinct().count()
     val numMovies = ratings.map(_.product).distinct().count()
@@ -68,7 +66,7 @@ class MllibDemoTests extends Serializable {
     val splits = ratings.randomSplit(Array(0.8, 0.2))
     val training = splits(0).cache()
     val test = if (implicitPrefs) {
-      
+
       splits(1).map(x => Rating(x.user, x.product, if (x.rating > 0) 1.0 else 0.0))
     } else {
       splits(1)
@@ -82,7 +80,7 @@ class MllibDemoTests extends Serializable {
 
     val model = new ALS()
       .setRank(10)
-      .setIterations(3)
+      .setIterations(2)
       .setLambda(1.0)
       .setImplicitPrefs(implicitPrefs)
       .setUserBlocks(-1)
@@ -92,12 +90,34 @@ class MllibDemoTests extends Serializable {
     Assert.assertEquals(100, model.productFeatures.collect.toList.size)
     Assert.assertEquals(10, model.rank)
     Assert.assertEquals(30, model.userFeatures.collect.toList.size)
-   
+
+    val rmse = computeRmse(model, test, implicitPrefs)
+
+    Assert.assertTrue(rmse > 0)
+    println(s"Test RMSE = $rmse.")
+
     sc.stop()
     this.cleanUp(applicationName)
   }
+  
+  /**
+   * 
+   */
+  def computeRmse(model: MatrixFactorizationModel, data: RDD[Rating], implicitPrefs: Boolean) = {
 
-  def buildSparkConf(masterUrl:String = "execution-context:" + classOf[TezJobExecutionContext].getName): SparkConf = {
+    def mapPredictedRating(r: Double) = if (implicitPrefs) math.max(math.min(r, 1.0), 0.0) else r
+
+    val predictions: RDD[Rating] = model.predict(data.map(x => (x.user, x.product)))
+    val predictionsAndRatings = predictions.map{ x =>
+      ((x.user, x.product), mapPredictedRating(x.rating))
+    }.join(data.map(x => ((x.user, x.product), x.rating))).values
+    math.sqrt(predictionsAndRatings.map(x => (x._1 - x._2) * (x._1 - x._2)).mean())
+  }
+
+  /**
+   *
+   */
+  def buildSparkConf(masterUrl: String = "execution-context:" + classOf[TezJobExecutionContext].getName): SparkConf = {
     val sparkConf = new SparkConf
     sparkConf.set("spark.ui.enabled", "false")
     sparkConf.set("spark.driver.allowMultipleContexts", "true")

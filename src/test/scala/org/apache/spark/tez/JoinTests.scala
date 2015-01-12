@@ -171,6 +171,27 @@ class JoinTests {
     this.cleanUp(applicationName)
   }
   
+  
+  @Test
+  def joinWithTupleAsKey() {
+   
+    val applicationName = "joinWithTupleAsKey"
+    this.cleanUp(applicationName)
+    val sparkConf = this.buildSparkConf()
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source1 = sc.parallelize(List(	((1,4),0.0), ((1,9),1.0), ((1,9),3.456), ((1,3),5.46)))
+    val source2 = sc.parallelize(List(((1,9),0.0), ((1,3),0.0)))
+
+    val result = source1.join(source2).collect.toList
+    Assert.assertEquals(3, result.size)
+    Assert.assertEquals(List(((1,9),(3.456,0.0)), ((1,9),(1.0,0.0)), ((1,3),(5.46,0.0))), result)
+    // ===
+
+    sc.stop
+    this.cleanUp(applicationName)
+  }
+  
    /**
    *
    */
