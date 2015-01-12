@@ -192,6 +192,40 @@ class JoinTests {
     this.cleanUp(applicationName)
   }
   
+  @Test
+  def joinWithSavingToFile() {
+    val file1 = "src/test/scala/org/apache/spark/tez/file1.txt"
+    val file2 = "src/test/scala/org/apache/spark/tez/file2.txt"
+    val applicationName = "joinWithSavingToFile"
+    this.cleanUp(applicationName)
+    val sparkConf = this.buildSparkConf()
+    sparkConf.setAppName(applicationName)
+    val sc = new SparkContext(sparkConf)
+    val source1 = sc.textFile(file1)
+    val source2 = sc.textFile(file2)
+
+    val two = source2.map { x =>
+      val s = x.split(" ")
+      val key: Int = Integer.parseInt(s(0))
+      (key, s(1))
+    }
+    
+    val result = source1.map { x =>
+      val s = x.split(" ")
+      val key: Int = Integer.parseInt(s(2))
+      val t = (key, (s(0), s(1)))
+      t
+    }.join(two).saveAsTextFile(applicationName)
+
+    
+    Assert.assertTrue(new File(applicationName + "/_SUCCESS").exists())
+    
+    // ===
+
+    sc.stop
+    this.cleanUp(applicationName)
+  }
+  
    /**
    *
    */
