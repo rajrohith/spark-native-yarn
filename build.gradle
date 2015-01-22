@@ -40,7 +40,7 @@ task sourceJar(type: Jar) {
 repositories {
     mavenLocal();
     mavenCentral()
-    maven { url 'http://repo.hortonworks.com/content/repositories/releases/' }
+    maven { url = "$repoUrl" }
 	//maven { url 'http://repository.apache.org/snapshots/' }
 }
 
