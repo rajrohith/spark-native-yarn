@@ -188,6 +188,18 @@ public class HadoopUtils {
 			provisionedPaths.add(provisionedPath);
 			generated = true;
 		}
+		
+		String tezConfDir = System.getenv().get("TEZ_CONF_DIR");
+		if (tezConfDir != null && tezConfDir.trim().length() > 0){
+			String jarFileName = ClassPathUtils.generateJarFileName("conf_application");
+			File confDir = new File(tezConfDir.trim());
+			File jarFile = doGenerateJar(confDir, jarFileName, generatedJars, "configuration (TEZ_CONF_DIR)");
+			String destinationFilePath = applicationName + "/" + jarFile.getName();
+			Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
+			provisioinResourceToFs(fs, new Path(jarFile.getAbsolutePath()), provisionedPath);
+			provisionedPaths.add(provisionedPath);
+			generated = true;
+		}
 		return generated;
 	}
 	
