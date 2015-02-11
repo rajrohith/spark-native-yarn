@@ -35,6 +35,7 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.spark.tez.TezConstants;
+import org.apache.tez.dag.api.TezConfiguration;
 /**
  * Utility functions related to variety of tasks to be performed in HADOOP
  * such as setting up LocalResource, provisioning classpath etc.
@@ -102,10 +103,6 @@ public class HadoopUtils {
 	 * @return
 	 */
 	private static Path[] provisionClassPath(FileSystem fs, String applicationName, String[] classPathExclusions){
-		
-		
-		
-		
 		String genJarProperty = System.getProperty(TezConstants.GENERATE_JAR);
 		boolean generateJar = genJarProperty != null && Boolean.parseBoolean(genJarProperty);
 		List<Path> provisionedPaths = new ArrayList<Path>();
@@ -113,6 +110,11 @@ public class HadoopUtils {
 		
 		boolean confFromHadoopConfDir = generateConfigJarFromHadoopConfDir(fs, applicationName, provisionedPaths, generatedJars);
 		
+		TezConfiguration tezConf = new TezConfiguration(fs.getConf());
+		boolean provisionTez = true;
+		if (tezConf.get("tez.lib.uris") != null){
+			provisionTez = false;
+		}
 		URL[] classpath = ((URLClassLoader) ClassLoader.getSystemClassLoader()).getURLs();
 		for (URL classpathUrl : classpath) {
 			File f = new File(classpathUrl.getFile());
@@ -130,6 +132,10 @@ public class HadoopUtils {
 				}
 			} 
 			if (f != null){
+				if (f.getName().startsWith("tez-") && !provisionTez){
+					logger.info("Skipping provisioning of " + f.getName() + " since Tez libraries are already provisioned");
+					continue;
+				}
 				String destinationFilePath = applicationName + "/" + f.getName();
 				Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
 				if (shouldProvision(provisionedPath.getName(), classPathExclusions)){
