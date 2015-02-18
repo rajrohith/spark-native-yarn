@@ -171,6 +171,7 @@ class DAGBuilder {
 	        if (dagStatus.getState() != DAGStatus.State.SUCCEEDED) {
 	          logger.error("DAG diagnostics: " + dagStatus.getDiagnostics());
 	        }
+	        dagClient.close();
 	    } catch (Exception e) {
 	    	e.printStackTrace();
 	    	throw new IllegalStateException("Failed to execute DAG", e);

@@ -426,6 +426,7 @@ class APIDemoTests {
     val source = sc.parallelize(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 0), 4)
     val count = source.filter(_ % 2 == 0).count
     Assert.assertEquals(5, count)
+    sc.stop
     this.cleanUp(applicationName)
   }
   
@@ -439,6 +440,7 @@ class APIDemoTests {
     val source = sc.parallelize(List(1, 2, 3, 4, 5, 6, 7, 8, 9, 0), 3)
     val count = source.count
     println(count)
+    sc.stop
     this.cleanUp(applicationName)
   }
 
@@ -456,6 +458,7 @@ class APIDemoTests {
     val source = sc.parallelize(List(1, 2, 4, 5, 6, 7, 8, 9, 0), 1)
     val count = source.filter(bList.value.contains(_)).count
     Assert.assertEquals(2, count)
+    sc.stop
     this.cleanUp(applicationName)
   }
 
