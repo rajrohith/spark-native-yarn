@@ -106,7 +106,7 @@ dependencies {
 		exclude group: 'org.apache.hadoop'
 		exclude group: 'com.google.guava'
 	}
-	runtime ("org.apache.spark:spark-repl_2.10:1.1.0") {
+	runtime ("org.apache.spark:spark-repl_2.10:$sparkVersion") {
 		exclude group: 'org.apache.hadoop'
 		exclude group: 'org.apache.spark'
 		exclude group: 'com.google.guava'
