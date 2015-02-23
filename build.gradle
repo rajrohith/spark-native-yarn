@@ -19,7 +19,7 @@ slf4jVersion = '1.7.2'
 hadoopVersion = '2.6.0'
 scalaVersion = '2.10.4'
 sparkVersion = '1.2.1'
-tezVersion = '0.5.3'
+tezVersion = '0.5.2.2.2.0.0-2041'
 mockitoVersion = '1.8.4'
 
 sourceSets.main.scala.srcDir "src/main/java"
@@ -53,28 +53,87 @@ repositories {
 	//maven { url 'http://repository.apache.org/snapshots/' }
 }
 
+configurations {
+	   	all*.exclude group: "com.jcraft", module: "jsch"
+		all*.exclude group: "org.apache.hadoop", module: "hadoop-yarn-server-common"
+		all*.exclude group: "org.apache.hadoop", module: "hadoop-yarn-server-web-proxy"
+		all*.exclude group: "com.sun.jersey", module: "jersey-client"
+		all*.exclude group: "com.sun.jersey", module: "jersey-core"
+		all*.exclude group: "com.sun.jersey", module: "jersey-server"
+		all*.exclude group: "com.sun.jersey", module: "jersey-json"
+		all*.exclude group: "com.sun.jersey.contribs", module: "jersey-guice"
+		all*.exclude group: "com.google.inject", module: "guice"
+		all*.exclude group: "com.google.inject.extensions", module: "guice-servlet"
+		all*.exclude group: "com.google.code.findbugs", module: "jsr305"
+		//all*.exclude group: "org.apache.avro", module: "avro"
+		//all*.exclude group: "org.xerial.snappy", module: "snappy-java"
+		all*.exclude group: "com.thoughtworks.paranamer", module: "paranamer"
+		all*.exclude group: "net.java.dev.jets3t", module: "jets3t"
+		all*.exclude group: "org.apache.httpcomponents", module: "httpclient"
+		all*.exclude group: "org.apache.httpcomponents", module: "httpcore"
+		all*.exclude group: "com.jamesmurty.utils", module: "java-xmlbuilder"
+		all*.exclude group: "javax.servlet.jsp", module: "jsp-api"
+		all*.exclude group: "javax.servlet", module: "servlet-api"
+		all*.exclude group: "tomcat", module: "jasper-runtime"
+		all*.exclude group: "tomcat", module: "jasper-compiler"
+		all*.exclude group: "org.mortbay.jetty", module: "jetty"
+		all*.exclude group: "org.mortbay.jetty", module: "jetty-util"
+		all*.exclude group: "xmlenc", module: "xmlenc"
+		all*.exclude group: "org.tukaani", module: "xz"
+		all*.exclude group: "asm", module: "asm"	
+		all*.exclude group: "org.codehaus.jackson", module: "jackson-core-asl"
+		all*.exclude group: "org.codehaus.jackson", module: "jackson-mapper-asl"
+		//all*.exclude group: "org.codehaus.jettison", module: "jettison"
+		all*.exclude group: "javax.xml.stream", module: "stax-api"
+		all*.exclude group: "javax.xml.bind", module: "jaxb-api"
+		all*.exclude group: "commons-el", module: "commons-el"
+		all*.exclude group: "commons-daemon", module: "commons-daemon"
+		all*.exclude group: "commons-httpclient", module: "commons-httpclient"
+		all*.exclude group: "commons-beanutils", module: "commons-beanutils-core"
+		all*.exclude group: "commons-digester", module: "commons-digester"
+		all*.exclude group: "org.apache.commons", module: "commons-compress"
+	}
+
 dependencies {
 	compile "org.scala-lang:scala-compiler:$scalaVersion"
 	compile "org.scala-lang:scala-library:$scalaVersion"
 	
 	compile ("org.apache.spark:spark-core_2.10:$sparkVersion") {
 		exclude group: 'org.apache.hadoop'
+		exclude group: 'com.google.guava'
 	}
 	compile ("org.apache.spark:spark-mllib_2.10:$sparkVersion") {
 		exclude group: 'org.apache.hadoop'
+		exclude group: 'com.google.guava'
 	}
 	runtime ("org.apache.spark:spark-repl_2.10:1.1.0") {
 		exclude group: 'org.apache.hadoop'
 		exclude group: 'org.apache.spark'
+		exclude group: 'com.google.guava'
+	}
+	compile ("org.apache.tez:tez-common:$tezVersion") {
+		exclude group: 'com.google.guava'
+	}
+	compile ("org.apache.tez:tez-dag:$tezVersion") {
+		exclude group: 'com.google.guava'
+	}
+	compile ("org.apache.tez:tez-mapreduce:$tezVersion") {
+		exclude group: 'com.google.guava'
+	}
+	compile ("org.apache.hadoop:hadoop-hdfs:$hadoopVersion") {
+		exclude group: 'com.google.guava'
+	}
+	compile ("org.apache.hadoop:hadoop-common:$hadoopVersion") {
+		exclude group: 'com.google.guava'
 	}
 	
-	compile "org.apache.tez:tez-common:$tezVersion"
-	compile "org.apache.tez:tez-dag:$tezVersion"
-	compile "org.apache.tez:tez-mapreduce:$tezVersion"
-	compile "org.apache.hadoop:hadoop-hdfs:$hadoopVersion"
+	compile "com.google.guava:guava:14.0.1"
+	
 	compile "javassist:javassist:3.12.1.GA"
 	
-	testCompile "org.scalanlp:breeze_2.10:0.9"
+	
+	//testCompile "org.scalanlp:breeze_2.10:0.9"
+	
 	testCompile "junit:junit-dep:$junitVersion"
 	testCompile "org.mockito:mockito-all:$mockitoVersion"
 }

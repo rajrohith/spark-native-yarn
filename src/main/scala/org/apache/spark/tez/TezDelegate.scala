@@ -73,8 +73,8 @@ private[tez] class TezDelegate extends SparkListener with Logging {
     val tezUtils = new Utils(stage, func, this.localResources)
 
     if (this.tezClient.isEmpty) {
-      this.initializeTezClient(sc.appName)
       this.createLocalResources(sc.appName)
+      this.initializeTezClient(sc.appName)
       this.tezClient.get.addAppMasterLocalFiles(localResources);
       this.tezClient.get.start()
     }

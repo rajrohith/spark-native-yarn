@@ -18,6 +18,7 @@ package org.apache.spark.tez.utils;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
@@ -179,7 +180,7 @@ public class HadoopUtils {
 		boolean generated = false;
 		String hadoopConfDir = System.getenv().get("HADOOP_CONF_DIR");
 		if (hadoopConfDir != null && hadoopConfDir.trim().length() > 0){
-			String jarFileName = ClassPathUtils.generateJarFileName("conf_application");
+			String jarFileName = ClassPathUtils.generateJarFileName("conf_");
 			File confDir = new File(hadoopConfDir.trim());
 			File jarFile = doGenerateJar(confDir, jarFileName, generatedJars, "configuration (HADOOP_CONF_DIR)");
 			String destinationFilePath = applicationName + "/" + jarFile.getName();
@@ -191,9 +192,20 @@ public class HadoopUtils {
 		
 		String tezConfDir = System.getenv().get("TEZ_CONF_DIR");
 		if (tezConfDir != null && tezConfDir.trim().length() > 0){
-			String jarFileName = ClassPathUtils.generateJarFileName("conf_application");
+			String jarFileName = ClassPathUtils.generateJarFileName("conf_tez");
 			File confDir = new File(tezConfDir.trim());
 			File jarFile = doGenerateJar(confDir, jarFileName, generatedJars, "configuration (TEZ_CONF_DIR)");
+			
+			try {
+				URLClassLoader cl = (URLClassLoader) ClassLoader.getSystemClassLoader();
+				Method m = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+				m.setAccessible(true);
+				m.invoke(cl, jarFile.toURI().toURL());
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+			
 			String destinationFilePath = applicationName + "/" + jarFile.getName();
 			Path provisionedPath = new Path(fs.getHomeDirectory(), destinationFilePath);
 			provisioinResourceToFs(fs, new Path(jarFile.getAbsolutePath()), provisionedPath);
