@@ -131,9 +131,7 @@ dependencies {
 	
 	compile "javassist:javassist:3.12.1.GA"
 	
-	
-	//testCompile "org.scalanlp:breeze_2.10:0.9"
-	
+	testCompile "org.scalanlp:breeze_2.10:0.9"
 	testCompile "junit:junit-dep:$junitVersion"
 	testCompile "org.mockito:mockito-all:$mockitoVersion"
 }
