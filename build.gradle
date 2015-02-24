@@ -1,17 +1,6 @@
 description = 'Native YARN/Tez port for Spark'
 group = 'org.apache.spark.tez'
 
-ext {
-	junitVersion = '4.8.2'
-	log4jVersion = '1.2.12'
-	slf4jVersion = '1.7.2'
-	hadoopVersion = '2.6.0'
-	scalaVersion = '2.10.4'
-	sparkVersion = '1.2.1'
-	tezVersion = '0.5.2.2.2.0.0-2041'
-	mockitoVersion = '1.8.4'
-}
-
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 apply plugin: 'java'
@@ -49,9 +38,10 @@ task sourceJar(type: Jar) {
 }
 
 repositories {
-   mavenLocal();
+    mavenLocal();
     mavenCentral()
-    maven { url 'http://repo.hortonworks.com/content/repositories/releases/' }
+    maven { url = "$repoUrl" }
+	//maven { url 'http://repository.apache.org/snapshots/' }
 }
 
 configurations {
