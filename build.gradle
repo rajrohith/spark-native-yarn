@@ -132,10 +132,6 @@ compileTestScala {
 	compileTestScala.scalaCompileOptions.additionalParameters= ['-language:reflectiveCalls']
 }
 
-applicationDistribution.from('mini-clust-conf') {
-    into "/conf"
-}
-
 task wrapper(type: Wrapper) {
     description = 'Generates gradlew[.bat] scripts'
 }
