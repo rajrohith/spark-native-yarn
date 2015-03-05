@@ -20,6 +20,7 @@ import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -85,6 +86,11 @@ public class ClassPathUtils {
 			target.close();
 		}
 		catch (Exception e) {
+			if (e instanceof FileNotFoundException && e.getMessage().contains("Permission denied")){
+				throw new IllegalStateException("Failed to create JAR file '"
+						+ jarName + "' from " + sourceDir.getAbsolutePath() + ". Possible cause: The directory "
+								+ "from which the current job is submitted may not have 'write' privileges (e.g., /root).", e);
+			}
 			throw new IllegalStateException("Failed to create JAR file '"
 					+ jarName + "' from " + sourceDir.getAbsolutePath(), e);
 		}
