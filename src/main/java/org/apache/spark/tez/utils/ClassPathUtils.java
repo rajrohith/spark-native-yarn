@@ -166,7 +166,8 @@ public class ClassPathUtils {
 					logger.warn(message);
 				}
 				else {
-					throw new IllegalStateException(e);
+					logger.warn("Failed to add file " + source + " to JAR file", e);
+//					throw new IllegalStateException(e);
 				}
 			}
 		}
